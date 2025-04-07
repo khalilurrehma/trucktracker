@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="${colorPrimary}" />
+  <meta name="description" content="${description}" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" sizes="180x180" />
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/3.0.2/normalize.min.css" />
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/leaflet.css" />
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.3/leaflet.draw.css" />
+
+  <!-- <link rel="manifest" href="/manifest.webmanifest" /> -->
+  <link rel="stylesheet" href="/styles.css" />
+  <title>Echong</title>
+  <style>
+    .loader {
+      position: fixed;
+      top: calc(50% - 25px);
+      left: calc(50% - 25px);
+      width: 50px;
+      aspect-ratio: 1;
+      box-sizing: content-box;
+      animation: ll 1s infinite linear;
+      border-radius: 50%;
+      border: 8px solid lightgray;
+      border-right-color: rgb(12, 0, 117);
+    }
+
+    @keyframes ll {
+      to {
+        transform: rotate(1turn);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <noscript>Enable JavaScript to use
+    <a href="https://www.traccar.org/">Traccar GPS Tracking System</a>.</noscript>
+  <div id="root" class="root"></div>
+  <div class="loader"></div>
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBMsyvRJ-CSUkLG_9Qmy_eBRFMdL6lImyQ&libraries=places"></script>
+  <script type="module" src="/src/index.jsx" onerror="alert('Loading error.')"></script>
+</body>
+
+</html>
