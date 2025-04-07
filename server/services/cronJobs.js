@@ -289,7 +289,7 @@ const verifyDevicesStatus = async () => {
   checkStatus.start();
 };
 
-const refreshShiftJobs = new CronJob("0 * * * *", async () => {
+const refreshShiftJobs = new CronJob("25 * * * *", async () => {
   console.log(`${currentDateTime}: Refreshing shift jobs...`);
   await scheduleShiftJobs();
 });
