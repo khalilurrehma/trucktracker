@@ -48,7 +48,7 @@ client.on("error", (err) => {
 
 client.on("message", (topic, message) => {
   try {
-    const parsedMessage = JSON.parse(message.toString());
+    const parsedMessage = message ? JSON.parse(message?.toString()) : {};
 
     mqttEmitter.emit("mqttMessage", { topic, payload: parsedMessage });
   } catch (error) {

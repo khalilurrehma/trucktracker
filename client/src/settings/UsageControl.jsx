@@ -54,12 +54,13 @@ const UsageControl = () => {
         const parsedDeviceIds = JSON.parse(item.device_id || "[]");
 
         return {
-          id: item.config_id,
+          id: item.id,
           userId: userId,
           deviceIds: Array.isArray(parsedDeviceIds) ? parsedDeviceIds : [],
+          modelId: parsedDeviceInfo.id,
           model: parsedDeviceInfo.name,
-          command: item.action_command,
-          action: item.action_name,
+          command: item.actionCommand,
+          action: item.actionName,
           deviceId: item.device_id,
         };
       });
@@ -80,12 +81,13 @@ const UsageControl = () => {
 
   const filteredData = data.filter((item) => {
     return (
-      item.id.toString().includes(search) ||
-      item.userId.toString().includes(search) ||
-      item.model.toLowerCase().includes(search.toLowerCase()) ||
-      item.command.toLowerCase().includes(search.toLowerCase()) ||
-      item.action.toLowerCase().includes(search.toLowerCase()) ||
-      item.deviceId.toString().includes(search)
+      item.id?.toString().includes(search) ||
+      item.modelId?.toString().includes(search) ||
+      item.userId?.toString().includes(search) ||
+      item.model?.toLowerCase().includes(search.toLowerCase()) ||
+      item.command?.toLowerCase().includes(search.toLowerCase()) ||
+      item.action?.toLowerCase().includes(search.toLowerCase()) ||
+      item.deviceId?.toString().includes(search)
     );
   });
 
@@ -201,6 +203,7 @@ const UsageControl = () => {
         <Table>
           <TableHead>
             <TableRow>
+              <TableCell>Model Id</TableCell>
               <TableCell>Model</TableCell>
               <TableCell>Command</TableCell>
               <TableCell>Action</TableCell>
@@ -214,6 +217,7 @@ const UsageControl = () => {
             ) : displayedData.length > 0 ? (
               displayedData.map((item, index) => (
                 <TableRow key={index}>
+                  <TableCell>{item.modelId}</TableCell>
                   <TableCell>{item.model}</TableCell>
                   <TableCell>{item.command}</TableCell>
                   <TableCell>{item.action}</TableCell>

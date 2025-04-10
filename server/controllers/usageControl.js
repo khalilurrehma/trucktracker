@@ -48,7 +48,7 @@ export const postUsageReport = async (req, res) => {
   try {
     await generateUsageReport(body);
 
-    res.status(200).json({ status: true, message: "Report generated" });
+    res.status(200).json({ status: true, message: "Usage Report generated" });
   } catch (error) {
     console.error(error);
   }
@@ -123,7 +123,8 @@ export const postDeviceShift = async (req, res) => {
           deviceId,
           shiftId,
           newDeviceShift.insertId,
-          driver_id
+          driver_id,
+          "newDeviceShift"
         ),
         assignDriver(driver_id, true),
         deviceShiftAssigned(deviceId, true),
@@ -202,7 +203,13 @@ export const updateDeviceShiftId = async (req, res) => {
   try {
     const [updatedShift, updateResult, assignedDriver] = await Promise.all([
       updateDeviceShift(id, prevDriverId, body),
-      updateUsageControl(deviceId, shiftId, driverId),
+      updateUsageControl(
+        deviceId,
+        shiftId,
+        null,
+        driverId,
+        "deviceShiftUpdate"
+      ),
       assignDriver(driverId),
     ]);
 

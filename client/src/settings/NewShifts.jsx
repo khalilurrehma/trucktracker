@@ -99,7 +99,6 @@ const NewShifts = () => {
   useEffect(() => {
     if (id) {
       fetchShiftById(id);
-      console.log(id);
     }
   }, [id]);
 
@@ -162,13 +161,17 @@ const NewShifts = () => {
       intervalStartTime.inSeconds + startEndIntervalTime.inSeconds;
     const queueEndsIn = calculateEndsIn;
 
+    const graceHour = graceTime?.getHours() || 0;
+    const graceMinute = graceTime?.getMinutes() || 0;
+
+    const totalGraceMinutes = graceHour * 60 + graceMinute;
+
     const formData = {
       shift_name: shiftName,
       start_time: formattedStartTime.formattedTime,
       end_time: formattedEndTime.formattedTime,
       shift_type: shiftType,
-      grace_time:
-        graceTime?.toLocaleTimeString("en-US", { hour12: true }) || "",
+      grace_time: totalGraceMinutes || 0,
       userId: traccarUser?.id,
       start_day: startDay,
       end_day: endDay,
@@ -177,6 +180,8 @@ const NewShifts = () => {
       queue_startsIn: queueStartsIn,
       queue_EndsIn: queueEndsIn,
     };
+
+    console.log(formData);
 
     try {
       const res = id

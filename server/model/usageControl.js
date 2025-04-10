@@ -141,26 +141,7 @@ export const updateUsageResponse = async (deviceId, commandId, body) => {
 
 export const fetchUsageReportOfUser = async (userId) => {
   const sql = `
-    SELECT 
-      cu.id AS config_id,
-      cu.device_type_info,
-      cu.device_id,
-      cu.device_name,
-      cu.response,
-      cu.protocol_name,
-      cu.created_At AS config_created_At,
-      cu.updated_At AS config_updated_At,
-      ua.id AS action_id,
-      ua.name AS action_name,
-      ua.command AS action_command,
-      ua.created_At AS action_created_At,
-      ua.updated_At AS action_updated_At
-    FROM 
-      config_usage cu
-    LEFT JOIN 
-      usage_actions ua
-    ON 
-      cu.usage_actions_id = ua.id
+    SELECT * FROM config_usage WHERE userId = ?
   `;
 
   return new Promise((resolve, reject) => {
@@ -400,25 +381,21 @@ export const fetchDeviceShiftByFlespiId = async (id) => {
 };
 
 export const updateDeviceShift = async (id, prevDriverId, body) => {
-  const { device, driver_id, queue, queue_time, shiftId, userId, response } =
+  const { device, driver_id, shiftId, userId } =
     body;
 
   const unassignPrevDriver = `UPDATE drivers SET assigned = null WHERE id = ?`;
   const checkDriverSql = `SELECT id FROM drivers WHERE id = ?`;
   const updateSql = `
     UPDATE device_shifts
-    SET device = ?, driver_id = ?, queue = ?, queue_time = ?, shiftId = ?, userId = ?, response = ?
+    SET driver_id = ?, shiftId = ?, userId = ?
     WHERE id = ?
   `;
 
   const updateValues = [
-    JSON.stringify(device),
     driver_id,
-    queue,
-    queue_time,
     shiftId,
     userId,
-    JSON.stringify(response),
     id,
   ];
 
@@ -650,15 +627,26 @@ export const updateUsageControl = async (
   deviceId,
   shift_Id,
   device_shift_id,
-  driverId
+  driverId,
+  actionFrom
 ) => {
-  const sql = `
+  const sql =
+    actionFrom === "deviceShiftUpdate"
+      ? `
+    UPDATE usage_control
+    SET shiftId = ?, driverId = ?, updated_At = NOW()
+    WHERE deviceId = ?
+  `
+      : `
     UPDATE usage_control
     SET shiftId = ?, device_shift_id = ?, driverId = ?, updated_At = NOW()
     WHERE deviceId = ?
   `;
 
-  const values = [shift_Id, device_shift_id, driverId, deviceId];
+  const values =
+    actionFrom === "deviceShiftUpdate"
+      ? [shift_Id, driverId, deviceId]
+      : [shift_Id, device_shift_id, driverId, deviceId];
 
   return new Promise((resolve, reject) => {
     pool.query(sql, values, (err, results) => {

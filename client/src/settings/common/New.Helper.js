@@ -79,17 +79,20 @@ export const convertToTime = (timeString) => {
 export const graceTimeConverter = (graceTime) => {
   if (!graceTime) return "N/A";
 
-  const [hours, minutes] = graceTime
-    .split(":")
-    .map((time) => parseInt(time, 10));
+  const totalMinutes = graceTime;
 
-  const totalMinutes = hours * 60 + minutes;
+  if (totalMinutes < 60) {
+    return `${totalMinutes} mins`;
+  } else {
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
 
-  if (totalMinutes >= 60) {
-    return `${(totalMinutes / 60).toFixed(2)} hr`;
+    if (minutes === 0) {
+      return `${hours} hr${hours > 1 ? "s" : ""}`;
+    } else {
+      return `${hours}.${(minutes / 60).toFixed(2).slice(2, 4)} hr`;
+    }
   }
-
-  return `${totalMinutes} min`;
 };
 
 export const queueTimeConvertor = (queueTime) => {

@@ -31,16 +31,16 @@ dayjs.extend(LocalizedFormat);
 
 const TIMEZONE = "Asia/Karachi";
 
-const applyGraceTime = (timeString, graceString, operation) => {
+const activeJobs = new Map();
+
+const applyGraceTime = (timeString, graceTimeInMinutes, operation) => {
   try {
-    if (!timeString || !graceString) throw new Error("Invalid input");
+    if (!timeString || graceTimeInMinutes === undefined)
+      throw new Error("Invalid input");
 
     const originalTime = dayjs(timeString, "hh:mm:ss A");
 
-    const [graceHour, graceMinute, graceSecond] = graceString
-      .split(":")
-      .map(Number);
-    const graceTotalSeconds = graceHour * 3600 + graceMinute * 60 + graceSecond;
+    const graceTotalSeconds = graceTimeInMinutes * 60;
 
     const adjustedTime =
       operation === "subtract"
@@ -76,7 +76,7 @@ const cronFormat = (timeString) => {
 const resendTimeCronFormat = (timeString) => {
   if (!timeString) return "* * * * *";
 
-  const [hours, minutes, seconds] = timeString.split(":").map(Number);
+  const [hours, minutes] = timeString.split(":").map(Number);
 
   if (hours > 0) {
     return `0 0 ${hours} * * *`;
@@ -98,7 +98,7 @@ const graceTimeFormat = (graceTimeString) => {
   return time;
 };
 
-const currentDateTime = dayjs().tz(TIMEZONE).format("YYYY-MM-DD HH:mm:ss");
+const resendTimers = new Map();
 
 const scheduleShiftJobs = async () => {
   const shift = await getDeviceShift();
@@ -120,20 +120,27 @@ const scheduleShiftJobs = async () => {
       "add"
     );
 
-    // const cronStart = cronFormat(shiftStart);
-    // const cronEnd = cronFormat(shiftEnd);
-    // const resendTimeCron = resendTimeCronFormat(parsedResendTime.formattedTime);
-    const cronStart = "*/5 * * * *"; // Every 5 mins
-    const cronEnd = "*/10 * * * *"; // Every 10 mins
-    const resendTimeCron = "*/3 * * * *"; // Every 3 mins
+    const cronStart = cronFormat(shiftStart);
+    const cronEnd = cronFormat(shiftEnd);
+
+    const key = `${parsedDevice.flespiId}_${parsedShift.id}`;
+
+    if (activeJobs.has(key)) {
+      const { startJob, endJob } = activeJobs.get(key);
+      startJob?.stop();
+      endJob?.stop();
+      activeJobs.delete(key);
+    }
 
     const startJob = new CronJob(cronStart, async () => {
+      const currentDateTime = dayjs()
+        .tz(TIMEZONE)
+        .format("YYYY-MM-DD HH:mm:ss");
       try {
         const body = [
           { name: "custom", properties: { text: commandOn }, ttl: 84600 },
         ];
         const response = await sendCommandToFlespiDevice(
-          // parsedDevice.flespiId,
           parsedDevice.flespiId,
           body
         );
@@ -151,110 +158,104 @@ const scheduleShiftJobs = async () => {
         }
       } catch (error) {
         console.error("Start Job Error:", error.message);
-        if (error.response) {
-          console.error("API Error:", error.response.data);
-        }
+        if (error.response) console.error("API Error:", error.response.data);
       }
+      startJob.stop();
     });
 
     const endJob = new CronJob(cronEnd, async () => {
-      let body;
+      const currentDateTime = dayjs()
+        .tz(TIMEZONE)
+        .format("YYYY-MM-DD HH:mm:ss");
+
       try {
         const ignitionStatus = await flespiDevicesIgnitionStatus(
           parsedDevice.flespiId
         );
+        const ignitionValue = ignitionStatus.result[0]?.telemetry?.din?.value;
 
-        let ignitionValue = ignitionStatus.result[0]?.telemetry?.din?.value;
-        // if ignition value is 0,1,4,5 then ignition is off, we will simply send command.
-        // if ignition is ON then we will send command after resend time ends
         if ([0, 1, 4, 5].includes(ignitionValue)) {
           console.log(
-            `${currentDateTime}: Ignition status is OFF for Device: ${parsedDevice.name}, Ignition value: ${ignitionValue}`
+            `${currentDateTime}: Ignition OFF for Device: ${parsedDevice.name}, value: ${ignitionValue}`
           );
-          try {
-            body = [{ name: "custom", properties: { text: commandOff } }];
-            const response = await instantExecutionCommand(
-              parsedDevice.flespiId,
-              body
+          const body = [{ name: "custom", properties: { text: commandOff } }];
+          const response = await instantExecutionCommand(
+            parsedDevice.flespiId,
+            body
+          );
+          if (response?.result?.[0]) {
+            console.log(
+              `${currentDateTime}: Shift Ended for Device: ${parsedDevice.name}: Response: ${response.result[0].response}`
             );
-
-            if (response?.result?.[0]) {
-              console.log(
-                `${currentDateTime}: Shift Ended for Device: ${parsedDevice.name}: Command response: ${response.result[0].response}`
-              );
-            } else {
-              console.error(
-                `Command failed for Device: ${parsedDevice.flespiId}, Reason: ${
-                  response?.errors?.[0]?.reason || "Unknown error"
-                }`
-              );
-            }
-          } catch (error) {
-            if (error.response) {
-              console.error("API Error:", error.response.data);
-            }
           }
         } else if ([2, 3, 6, 7].includes(ignitionValue)) {
           console.log(
-            `${currentDateTime}: Ignition status is ON for Device: ${parsedDevice.name}, Ignition value: ${ignitionValue}`
-          );
-          console.log(
-            `${currentDateTime}: Setting up resend time for Device: ${parsedDevice.name}`
+            `${currentDateTime}: Ignition ON for ${parsedDevice.name}. Will retry at resend time...`
           );
 
-          const resendJob = new CronJob(resendTimeCron, async () => {
+          if (resendTimers.has(key)) {
+            clearTimeout(resendTimers.get(key));
             console.log(
-              `${currentDateTime}: Resend time reached for Device: ${parsedDevice.name}`
+              `Cleared existing resend timer for ${parsedDevice.name}`
             );
+          }
 
-            const latestIgnitionStatus = await flespiDevicesIgnitionStatus(
-              parsedDevice.flespiId
-            );
-            const latestIgnitionValue =
-              latestIgnitionStatus.result[0]?.telemetry?.din?.value;
+          const [hours, minutes] = parsedResendTime.formattedTime
+            .split(":")
+            .map(Number);
+          const delayInMs = (hours * 60 + minutes) * 60 * 1000;
 
-            console.log(
-              `${currentDateTime}: Shutting down device with ID: ${parsedDevice.name}, Ignition value: ${latestIgnitionValue}`
-            );
+          const resendTimer = setTimeout(async () => {
+            const resendTimeNow = dayjs()
+              .tz(TIMEZONE)
+              .format("YYYY-MM-DD HH:mm:ss");
+
             try {
-              body = [{ name: "custom", properties: { text: commandOff } }];
+              const latestStatus = await flespiDevicesIgnitionStatus(
+                parsedDevice.flespiId
+              );
+              const latestValue = latestStatus.result[0]?.telemetry?.din?.value;
+
+              console.log(
+                `${resendTimeNow}: Retrying shutdown for ${parsedDevice.name}, value: ${latestValue}`
+              );
+              const body = [
+                { name: "custom", properties: { text: commandOff } },
+              ];
               const response = await instantExecutionCommand(
                 parsedDevice.flespiId,
                 body
               );
-              if (response?.result?.[0]?.executed === true) {
+              if (response?.result?.[0]) {
                 console.log(
-                  `${currentDateTime}: Shift Ended for Device: ${parsedDevice.name}: Command response: ${response.result[0].response}`
-                );
-              } else {
-                console.error(
-                  `Command failed for Device: ${
-                    parsedDevice.flespiId
-                  }, Reason: ${
-                    response?.errors?.[0]?.reason || "Unknown error"
-                  }`
+                  `${resendTimeNow}: Resend command sent to ${parsedDevice.name}`
                 );
               }
-            } catch (error) {
-              if (error.response) {
-                console.error("API Error:", error.response.data);
-              }
+            } catch (err) {
+              console.error(
+                `${resendTimeNow}: Resend failed for ${parsedDevice.name} -`,
+                err.message
+              );
+            } finally {
+              resendTimers.delete(key);
             }
-            resendJob.stop();
-          });
+          }, delayInMs);
 
-          resendJob.start();
+          resendTimers.set(key, resendTimer);
+          console.log(
+            `Scheduled resend for ${parsedDevice.name} in ${parsedResendTime.minutes} minute(s).`
+          );
         }
       } catch (error) {
-        console.error("Start Job Error:", error.message);
-        if (error.response) {
-          console.error("API Error:", error.response.data);
-        }
+        console.error("End Job Error:", error.message);
+        if (error.response) console.error("API Error:", error.response.data);
       }
     });
 
     startJob.start();
     endJob.start();
+
+    activeJobs.set(key, { startJob, endJob });
   });
 };
 
@@ -271,6 +272,7 @@ const verifyDevicesStatus = async () => {
   if (deviceIds.length === 0) return;
 
   const checkStatus = new CronJob("* * * * *", async () => {
+    const currentDateTime = dayjs().tz(TIMEZONE).format("YYYY-MM-DD HH:mm:ss");
     try {
       console.log(
         `${currentDateTime}: Running device status check deviceIds: ${deviceIds}`
@@ -292,17 +294,21 @@ const verifyDevicesStatus = async () => {
   checkStatus.start();
 };
 
-const refreshShiftJobs = new CronJob("*/15 * * * *", async () => {
-  console.log(`${currentDateTime}: Refreshing shift jobs...`);
-  await scheduleShiftJobs();
-});
+const refreshShiftJobs = () => {
+  const loadAgain = new CronJob("*/25 * * * *", async () => {
+    const currentDateTime = dayjs().tz(TIMEZONE).format("YYYY-MM-DD HH:mm:ss");
+    console.log(`${currentDateTime}: Refreshing shift jobs...`);
+    await scheduleShiftJobs();
+  });
 
-refreshShiftJobs.start();
+  loadAgain.start();
+};
 
 const initializeCronJobs = async () => {
   setTimeout(async () => {
     await scheduleShiftJobs();
     await verifyDevicesStatus();
+    await refreshShiftJobs();
   }, 3000);
 };
 

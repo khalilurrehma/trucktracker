@@ -45,6 +45,7 @@ import {
   adjustTimes,
   calculateIntervalTime,
   getResendTimeData,
+  graceTimeConverter,
   StartEndFormatTime,
 } from "./common/New.Helper";
 import axios from "axios";
@@ -163,21 +164,10 @@ const NewConfigShift = () => {
       userId,
       queue_startsIn: currentToStartIntervalTIme.inSeconds,
       queue_EndsIn: calculateEndsIn,
-      // resend_time: formattedReSend,
     };
 
     try {
       setIsLoading(true);
-      // const onResponse = await sendFlespiDeviceCommands(
-      //   selectedDevice.flespiId,
-      //   commandOn,
-      //   currentToStartIntervalTIme.inSeconds
-      // );
-
-      // if (onResponse.status === false) {
-      //   throw new Error("Flespi command execution failed!");
-      // }
-
       if (shiftType === "custom") {
         const customApiRes = await saveCustomShift(customApiData);
         if (!customApiRes.status) {
@@ -218,6 +208,8 @@ const NewConfigShift = () => {
           commandOff,
           userId,
         };
+        console.log(presetApiData);
+
         const presetApiRes = id
           ? await updateDeviceShift(id, prevDriver, presetApiData)
           : await saveDeviceShift(presetApiData);
@@ -399,9 +391,6 @@ const NewConfigShift = () => {
       setCustomShift(false);
       setShiftType("preset");
       setSelectedShift(presetShifts.find((s) => s.id === e.target.value));
-      // setGraceTime = presetShifts.find(
-      //   (s) => s.id === e.target.value
-      // ).grace_time;
     }
   };
 
@@ -669,7 +658,11 @@ const NewConfigShift = () => {
                   <TableRow>
                     <TableCell>{selectedShift.start_time}</TableCell>
                     <TableCell>{selectedShift.end_time}</TableCell>
-                    <TableCell>{selectedShift.grace_time}</TableCell>
+                    <TableCell>
+                      {selectedShift.grace_time
+                        ? graceTimeConverter(selectedShift.grace_time)
+                        : "N/A"}
+                    </TableCell>
                   </TableRow>
                 </TableBody>
               </Table>

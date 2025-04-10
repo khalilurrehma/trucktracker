@@ -427,12 +427,6 @@ const NewUsageControl = () => {
 
     try {
       setIsLoading(true);
-      // const flespiCommandExecRes = await sendFlespiDeviceInstantCommands(
-      //   flespiDeviceId,
-      //   selectedRowData.command
-      // );
-      // const saveResponse = flespiCommandExecRes.message;
-
       const newReport = await saveUsageReport(reportBody);
       if (newReport.status === true) {
         toast.success(newReport.message);

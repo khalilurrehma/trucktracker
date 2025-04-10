@@ -35,7 +35,7 @@ const Shifts = () => {
   const [filteredShifts, setFilteredShifts] = useState([]);
   const [isloading, setIsloading] = useState(false);
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
   const [totalShiftsCount, setTotalShiftsCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [shiftNameQuery, setShiftNameQuery] = useState("");
@@ -218,7 +218,7 @@ const Shifts = () => {
               <TableCell>End Time</TableCell>
               <TableCell>Days</TableCell>
               <TableCell>Grace Time</TableCell>
-              <TableCell>Queue</TableCell>
+              {/* <TableCell>Queue</TableCell> */}
               <TableCell>Queue TTL</TableCell>
               <TableCell>Shift Type</TableCell>
               <TableCell>Actions</TableCell>
@@ -229,6 +229,8 @@ const Shifts = () => {
           ) : (
             <TableBody>
               {paginatedData.map((shift, index) => {
+                console.log(shift.grace_time);
+                
                 const grace_time = shift.grace_time
                   ? graceTimeConverter(shift.grace_time)
                   : "N/A";
@@ -250,9 +252,9 @@ const Shifts = () => {
                         : "N/A"}
                     </TableCell>
                     <TableCell>{grace_time}</TableCell>
-                    <TableCell>
+                    {/* <TableCell>
                       {shift.queue_status === 1 ? "True" : "False"}
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell>Starts in: {shiftTimer}</TableCell>
                     <TableCell>{shift.shift_type}</TableCell>
                     <TableCell>
