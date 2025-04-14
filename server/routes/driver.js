@@ -6,6 +6,7 @@ import {
   getDriverBehaivor,
   getDrivers,
   getDriversByUserId,
+  getDriversShiftDetails,
   postDriver,
   putDriver,
   saveDriverAvailability,
@@ -20,6 +21,8 @@ router.get("/drivers", getDrivers);
 router.get("/driver/:id", getDriver);
 
 router.get("/drivers/user/:userId", getDriversByUserId);
+
+router.get("/drivers/shifts", getDriversShiftDetails);
 
 router.get("/driver/availability/view/:id", getDriverAvailability);
 

@@ -158,12 +158,12 @@ export const addDeviceShift = async (body) => {
   const {
     device,
     driver_id,
-    queue,
-    queue_time,
+    // queue,
+    // queue_time,
     resend_time,
     commandOn,
     commandOff,
-    shiftId,
+    // shiftId,
     userId,
   } = body;
 
@@ -175,12 +175,12 @@ export const addDeviceShift = async (body) => {
   const values = [
     JSON.stringify(device),
     driver_id,
-    queue === "yes" ? true : false,
-    queue_time,
+    0, // queue === "yes" ? true : false,
+    null, // queue_time,
     JSON.stringify(resend_time),
     commandOn,
     commandOff,
-    shiftId,
+    null, // shiftId,
     userId,
   ];
 
@@ -203,7 +203,8 @@ export const getDeviceShift = async () => {
         'name', drivers.name,
         'uniqueId', drivers.unique_id,
         'attributes', drivers.attributes,
-        'location', drivers.location
+        'location', drivers.location,
+        'shift_details', drivers.availability_details
       ) AS driver,
       JSON_OBJECT(
         'id', config_shifts.id,
@@ -381,8 +382,7 @@ export const fetchDeviceShiftByFlespiId = async (id) => {
 };
 
 export const updateDeviceShift = async (id, prevDriverId, body) => {
-  const { device, driver_id, shiftId, userId } =
-    body;
+  const { device, driver_id, shiftId, userId } = body;
 
   const unassignPrevDriver = `UPDATE drivers SET assigned = null WHERE id = ?`;
   const checkDriverSql = `SELECT id FROM drivers WHERE id = ?`;
@@ -392,12 +392,7 @@ export const updateDeviceShift = async (id, prevDriverId, body) => {
     WHERE id = ?
   `;
 
-  const updateValues = [
-    driver_id,
-    shiftId,
-    userId,
-    id,
-  ];
+  const updateValues = [driver_id, shiftId, userId, id];
 
   return new Promise((resolve, reject) => {
     pool.query(checkDriverSql, [driver_id], (err, driverResults) => {

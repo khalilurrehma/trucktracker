@@ -71,8 +71,36 @@ const ConfigShift = () => {
           ? await fetchDeviceShifts()
           : await fetchDeviceShiftsOfUser(userId);
 
+      const processedData = response?.map((row) => {
+        const driver = JSON.parse(row.driver || "{}");
+
+        const dates = [];
+        const shifts = new Set();
+
+        if (Array.isArray(driver.shift_details)) {
+          driver.shift_details.forEach((detail) => {
+            if (Array.isArray(detail.dates)) {
+              dates.push(...detail.dates);
+            }
+            if (detail.shift?.shift_name) {
+              shifts.add(detail.shift.shift_name);
+            }
+          });
+        }
+
+        return {
+          ...row,
+          device: JSON.parse(row.device || "{}"),
+          driver: {
+            ...driver,
+            combinedDates: [...new Set(dates)].join(", "),
+            combinedShifts: [...shifts].join(", "),
+          },
+        };
+      });
+
       setDevicesShifts(
-        response?.sort(
+        processedData.sort(
           (a, b) => new Date(b.created_at) - new Date(a.created_at)
         )
       );
@@ -96,9 +124,9 @@ const ConfigShift = () => {
         device.name
           ?.toLowerCase()
           .includes(filters.device_name.toLowerCase())) &&
-      (!filters.startDate ||
-        row.shift?.start_time?.includes(filters.startDate)) &&
-      (!filters.endDate || row.shift?.end_time?.includes(filters.endDate)) &&
+      // (!filters.startDate ||
+      //   row.shift?.start_time?.includes(filters.startDate)) &&
+      // (!filters.endDate || row.shift?.end_time?.includes(filters.endDate)) &&
       (!filters.driver_name ||
         driver.name?.toLowerCase().includes(filters.driver_name.toLowerCase()))
     );
@@ -125,29 +153,6 @@ const ConfigShift = () => {
     }
   };
 
-  const handleClick = async (deviceId, commandId) => {
-    try {
-      const response = await fetchCommandExecution(deviceId, commandId);
-
-      if (response.message) {
-        const res = response.message;
-        setUpdateLoad(true);
-        const modifiedResponse = await modifyCommandResponse(
-          deviceId,
-          commandId,
-          res
-        );
-        if (modifiedResponse.status === true) {
-          setUpdateLoad(false);
-          getDevicesShifts();
-          toast.success("Successfully loaded!");
-        }
-      }
-    } catch (error) {
-      console.error("Error clicking command:", error);
-    }
-  };
-
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
   };
@@ -161,21 +166,6 @@ const ConfigShift = () => {
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const updatedTimers = paginatedData.reduce((acc, item) => {
-        const shiftObj = JSON.parse(item.shift);
-
-        acc[item.id] = calculateTimeLeft(shiftObj.start_time, userTimeZone);
-        return acc;
-      }, {});
-
-      setTimers(updatedTimers);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [paginatedData, userTimeZone]);
 
   return (
     <PageLayout
@@ -191,18 +181,6 @@ const ConfigShift = () => {
             onChange={(e) => handleFilterChange("device_name", e.target.value)}
           />
           <TextField
-            label="Start Date"
-            value={filters.startDate}
-            onChange={(e) => handleFilterChange("startDate", e.target.value)}
-            placeholder="MM/DD/YYYY"
-          />
-          <TextField
-            label="End Date"
-            value={filters.endDate}
-            onChange={(e) => handleFilterChange("endDate", e.target.value)}
-            placeholder="MM/DD/YYYY"
-          />
-          <TextField
             label="Driver Name"
             value={filters.driver_name}
             onChange={(e) => handleFilterChange("driver_name", e.target.value)}
@@ -214,14 +192,10 @@ const ConfigShift = () => {
             <TableHead>
               <TableRow>
                 <TableCell>Device Name</TableCell>
-                <TableCell>Start Time</TableCell>
-                <TableCell>End Time</TableCell>
-                <TableCell>Days</TableCell>
-                <TableCell>Grace Time</TableCell>
-                <TableCell>Resend Time</TableCell>
-                <TableCell>Queue Time</TableCell>
-                {/* <TableCell>Execution Status</TableCell> */}
                 <TableCell>Driver Name</TableCell>
+                <TableCell>Allotted Shifts</TableCell>
+                <TableCell>Allotted Shifts Date</TableCell>
+                <TableCell>Resend Time</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -230,38 +204,19 @@ const ConfigShift = () => {
                 <SettingLoader />
               ) : (
                 paginatedData.map((row) => {
-                  const device = JSON.parse(row.device) || {};
-                  const shift = JSON.parse(row.shift) || {};
-                  const shiftStart = JSON.parse(shift.start_day);
-                  const shiftEnd = JSON.parse(shift.end_day);
-                  const driver = JSON.parse(row.driver) || {};
-                  const response = JSON.parse(row.response) || {};
-                  const graceTime = shift.grace_time
-                    ? graceTimeConverter(shift.grace_time)
-                    : "N/A";
+                  const device = row.device || {};
+                  const driver = row.driver || {};
                   const resend_time = JSON.parse(row.resend_time);
-
-                  const shiftTimer = timers[row.id] || "Calculating...";
 
                   return (
                     <TableRow key={row.id}>
                       <TableCell>{device.name || "N/A"}</TableCell>
-                      <TableCell>{shift.start_time || "N/A"}</TableCell>
-                      <TableCell>{shift.end_time || "N/A"}</TableCell>
-                      <TableCell>
-                        {shiftStart && shiftEnd
-                          ? getDayRangeString(shiftStart, shiftEnd)
-                          : "N/A"}
-                      </TableCell>
-                      <TableCell>{graceTime || "N/A"}</TableCell>
+                      <TableCell>{driver.name || "N/A"}</TableCell>
+                      <TableCell>{driver.combinedShifts || "N/A"}</TableCell>
+                      <TableCell>{driver.combinedDates || "N/A"}</TableCell>
                       <TableCell>
                         {resend_time.formattedTime + " min" || "N/A"}
                       </TableCell>
-                      <TableCell>{shiftTimer}</TableCell>
-                      {/* <TableCell>
-                        {response.executed ? "True" : "False"}
-                      </TableCell> */}
-                      <TableCell>{driver.name || "N/A"}</TableCell>
                       <TableCell sx={{ display: "flex", gap: "8px" }}>
                         <EditIcon
                           sx={{ cursor: "pointer" }}
@@ -282,16 +237,6 @@ const ConfigShift = () => {
                             );
                           }}
                         />
-                        {/* {updateLoad === true ? (
-                          <TailSpin height="20" width="20" color="black" />
-                        ) : (
-                          <CachedIcon
-                            sx={{ cursor: "pointer" }}
-                            onClick={() =>
-                              handleClick(device.flespiId, response.id)
-                            }
-                          />
-                        )} */}
                       </TableCell>
                     </TableRow>
                   );

@@ -103,159 +103,171 @@ const resendTimers = new Map();
 const scheduleShiftJobs = async () => {
   const shift = await getDeviceShift();
 
-  shift.forEach(({ device, shift, resend_time, commandOn, commandOff }) => {
-    const parsedShift = JSON.parse(shift);
+  shift.forEach(({ device, driver, resend_time, commandOn, commandOff }) => {
+    const parsedDriver = JSON.parse(driver);
     const parsedDevice = JSON.parse(device);
     const parsedResendTime = JSON.parse(resend_time);
-    const formattedGraceTime = graceTimeFormat(parsedShift?.grace_time);
 
-    const shiftStart = applyGraceTime(
-      parsedShift?.start_time,
-      formattedGraceTime,
-      "subtract"
-    );
-    const shiftEnd = applyGraceTime(
-      parsedShift?.end_time,
-      formattedGraceTime,
-      "add"
-    );
+    const shiftDetails = parsedDriver.shift_details;
 
-    const cronStart = cronFormat(shiftStart);
-    const cronEnd = cronFormat(shiftEnd);
+    shiftDetails.forEach((detail) => {
+      const { shift, dates } = detail;
+      const { start_time, end_time, grace_time } = shift;
 
-    const key = `${parsedDevice.flespiId}_${parsedShift.id}`;
+      const shiftStart = applyGraceTime(start_time, grace_time, "subtract");
+      const shiftEnd = applyGraceTime(end_time, grace_time, "add");
 
-    if (activeJobs.has(key)) {
-      const { startJob, endJob } = activeJobs.get(key);
-      startJob?.stop();
-      endJob?.stop();
-      activeJobs.delete(key);
-    }
+      dates.forEach(([startDate, endDate]) => {
+        const start = dayjs(startDate);
+        const end = dayjs(endDate);
 
-    const startJob = new CronJob(cronStart, async () => {
-      const currentDateTime = dayjs()
-        .tz(TIMEZONE)
-        .format("YYYY-MM-DD HH:mm:ss");
-      try {
-        const body = [
-          { name: "custom", properties: { text: commandOn }, ttl: 84600 },
-        ];
-        const response = await sendCommandToFlespiDevice(
-          parsedDevice.flespiId,
-          body
-        );
+        const daysBetween = end.diff(start, "day");
 
-        if (response?.result?.[0]) {
-          console.log(
-            `${currentDateTime}: Shift Started for Device: ${parsedDevice.name}`
-          );
-        } else {
-          console.error(
-            `Command failed for Device: ${parsedDevice.name}, Reason: ${
-              response?.errors?.[0]?.reason || "Unknown error"
-            }`
-          );
+        console.log(daysBetween);
+
+        for (let i = 0; i <= daysBetween; i++) {
+          const currentDate = start.add(i, "day").format("YYYY-MM-DD");
+          const startDateTime = `${currentDate} ${shiftStart}`;
+          const endDateTime = `${currentDate} ${shiftEnd}`;
+
+          console.log(startDateTime, endDateTime);
         }
-      } catch (error) {
-        console.error("Start Job Error:", error.message);
-        if (error.response) console.error("API Error:", error.response.data);
-      }
-      startJob.stop();
+      });
     });
 
-    const endJob = new CronJob(cronEnd, async () => {
-      const currentDateTime = dayjs()
-        .tz(TIMEZONE)
-        .format("YYYY-MM-DD HH:mm:ss");
+    // const key = `${parsedDevice.flespiId}_${parsedShift.id}`;
 
-      try {
-        const ignitionStatus = await flespiDevicesIgnitionStatus(
-          parsedDevice.flespiId
-        );
-        const ignitionValue = ignitionStatus.result[0]?.telemetry?.din?.value;
+    // if (activeJobs.has(key)) {
+    //   const { startJob, endJob } = activeJobs.get(key);
+    //   startJob?.stop();
+    //   endJob?.stop();
+    //   activeJobs.delete(key);
+    // }
 
-        if ([0, 1, 4, 5].includes(ignitionValue)) {
-          console.log(
-            `${currentDateTime}: Ignition OFF for Device: ${parsedDevice.name}, value: ${ignitionValue}`
-          );
-          const body = [{ name: "custom", properties: { text: commandOff } }];
-          const response = await instantExecutionCommand(
-            parsedDevice.flespiId,
-            body
-          );
-          if (response?.result?.[0]) {
-            console.log(
-              `${currentDateTime}: Shift Ended for Device: ${parsedDevice.name}: Response: ${response.result[0].response}`
-            );
-          }
-        } else if ([2, 3, 6, 7].includes(ignitionValue)) {
-          console.log(
-            `${currentDateTime}: Ignition ON for ${parsedDevice.name}. Will retry at resend time...`
-          );
+    // const startJob = new CronJob(cronStart, async () => {
+    //   const currentDateTime = dayjs()
+    //     .tz(TIMEZONE)
+    //     .format("YYYY-MM-DD HH:mm:ss");
+    //   try {
+    //     const body = [
+    //       { name: "custom", properties: { text: commandOn }, ttl: 84600 },
+    //     ];
+    //     const response = await sendCommandToFlespiDevice(
+    //       parsedDevice.flespiId,
+    //       body
+    //     );
 
-          if (resendTimers.has(key)) {
-            clearTimeout(resendTimers.get(key));
-            console.log(
-              `Cleared existing resend timer for ${parsedDevice.name}`
-            );
-          }
+    //     if (response?.result?.[0]) {
+    //       console.log(
+    //         `${currentDateTime}: Shift Started for Device: ${parsedDevice.name}`
+    //       );
+    //     } else {
+    //       console.error(
+    //         `Command failed for Device: ${parsedDevice.name}, Reason: ${
+    //           response?.errors?.[0]?.reason || "Unknown error"
+    //         }`
+    //       );
+    //     }
+    //   } catch (error) {
+    //     console.error("Start Job Error:", error.message);
+    //     if (error.response) console.error("API Error:", error.response.data);
+    //   }
+    //   startJob.stop();
+    // });
 
-          const [hours, minutes] = parsedResendTime.formattedTime
-            .split(":")
-            .map(Number);
-          const delayInMs = (hours * 60 + minutes) * 60 * 1000;
+    // const endJob = new CronJob(cronEnd, async () => {
+    //   const currentDateTime = dayjs()
+    //     .tz(TIMEZONE)
+    //     .format("YYYY-MM-DD HH:mm:ss");
 
-          const resendTimer = setTimeout(async () => {
-            const resendTimeNow = dayjs()
-              .tz(TIMEZONE)
-              .format("YYYY-MM-DD HH:mm:ss");
+    //   try {
+    //     const ignitionStatus = await flespiDevicesIgnitionStatus(
+    //       parsedDevice.flespiId
+    //     );
+    //     const ignitionValue = ignitionStatus.result[0]?.telemetry?.din?.value;
 
-            try {
-              const latestStatus = await flespiDevicesIgnitionStatus(
-                parsedDevice.flespiId
-              );
-              const latestValue = latestStatus.result[0]?.telemetry?.din?.value;
+    //     if ([0, 1, 4, 5].includes(ignitionValue)) {
+    //       console.log(
+    //         `${currentDateTime}: Ignition OFF for Device: ${parsedDevice.name}, value: ${ignitionValue}`
+    //       );
+    //       const body = [{ name: "custom", properties: { text: commandOff } }];
+    //       const response = await instantExecutionCommand(
+    //         parsedDevice.flespiId,
+    //         body
+    //       );
+    //       if (response?.result?.[0]) {
+    //         console.log(
+    //           `${currentDateTime}: Shift Ended for Device: ${parsedDevice.name}: Response: ${response.result[0].response}`
+    //         );
+    //       }
+    //     } else if ([2, 3, 6, 7].includes(ignitionValue)) {
+    //       console.log(
+    //         `${currentDateTime}: Ignition ON for ${parsedDevice.name}. Will retry at resend time...`
+    //       );
 
-              console.log(
-                `${resendTimeNow}: Retrying shutdown for ${parsedDevice.name}, value: ${latestValue}`
-              );
-              const body = [
-                { name: "custom", properties: { text: commandOff } },
-              ];
-              const response = await instantExecutionCommand(
-                parsedDevice.flespiId,
-                body
-              );
-              if (response?.result?.[0]) {
-                console.log(
-                  `${resendTimeNow}: Resend command sent to ${parsedDevice.name}`
-                );
-              }
-            } catch (err) {
-              console.error(
-                `${resendTimeNow}: Resend failed for ${parsedDevice.name} -`,
-                err.message
-              );
-            } finally {
-              resendTimers.delete(key);
-            }
-          }, delayInMs);
+    //       if (resendTimers.has(key)) {
+    //         clearTimeout(resendTimers.get(key));
+    //         console.log(
+    //           `Cleared existing resend timer for ${parsedDevice.name}`
+    //         );
+    //       }
 
-          resendTimers.set(key, resendTimer);
-          console.log(
-            `Scheduled resend for ${parsedDevice.name} in ${parsedResendTime.minutes} minute(s).`
-          );
-        }
-      } catch (error) {
-        console.error("End Job Error:", error.message);
-        if (error.response) console.error("API Error:", error.response.data);
-      }
-    });
+    //       const [hours, minutes] = parsedResendTime.formattedTime
+    //         .split(":")
+    //         .map(Number);
+    //       const delayInMs = (hours * 60 + minutes) * 60 * 1000;
 
-    startJob.start();
-    endJob.start();
+    //       const resendTimer = setTimeout(async () => {
+    //         const resendTimeNow = dayjs()
+    //           .tz(TIMEZONE)
+    //           .format("YYYY-MM-DD HH:mm:ss");
 
-    activeJobs.set(key, { startJob, endJob });
+    //         try {
+    //           const latestStatus = await flespiDevicesIgnitionStatus(
+    //             parsedDevice.flespiId
+    //           );
+    //           const latestValue = latestStatus.result[0]?.telemetry?.din?.value;
+
+    //           console.log(
+    //             `${resendTimeNow}: Retrying shutdown for ${parsedDevice.name}, value: ${latestValue}`
+    //           );
+    //           const body = [
+    //             { name: "custom", properties: { text: commandOff } },
+    //           ];
+    //           const response = await instantExecutionCommand(
+    //             parsedDevice.flespiId,
+    //             body
+    //           );
+    //           if (response?.result?.[0]) {
+    //             console.log(
+    //               `${resendTimeNow}: Resend command sent to ${parsedDevice.name}`
+    //             );
+    //           }
+    //         } catch (err) {
+    //           console.error(
+    //             `${resendTimeNow}: Resend failed for ${parsedDevice.name} -`,
+    //             err.message
+    //           );
+    //         } finally {
+    //           resendTimers.delete(key);
+    //         }
+    //       }, delayInMs);
+
+    //       resendTimers.set(key, resendTimer);
+    //       console.log(
+    //         `Scheduled resend for ${parsedDevice.name} in ${parsedResendTime.minutes} minute(s).`
+    //       );
+    //     }
+    //   } catch (error) {
+    //     console.error("End Job Error:", error.message);
+    //     if (error.response) console.error("API Error:", error.response.data);
+    //   }
+    // });
+
+    // startJob.start();
+    // endJob.start();
+
+    // activeJobs.set(key, { startJob, endJob });
   });
 };
 

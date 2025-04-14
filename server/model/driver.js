@@ -131,3 +131,17 @@ export const fetchDriverAvailability = async (id) => {
     });
   });
 };
+
+export const driversShiftDetails = async (userId) => {
+  const superAdminSql = `SELECT traccar_id, name, availability_details FROM drivers`;
+  const sql = `SELECT traccar_id, name, availability_details FROM drivers WHERE user_id = ?`;
+
+  return new Promise((resolve, reject) => {
+    pool.query(userId ? sql : superAdminSql, [userId], (err, results) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(results);
+    });
+  });
+};

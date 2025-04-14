@@ -1,5 +1,6 @@
 import {
   addDriver,
+  driversShiftDetails,
   fetchDriver,
   fetchDriverAvailability,
   fetchDrivers,
@@ -108,6 +109,22 @@ export const getDriversByUserId = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ status: false, message: error.message });
+  }
+};
+
+export const getDriversShiftDetails = async (req, res) => {
+  const { userId } = req.query;
+
+  try {
+    const drivers = await driversShiftDetails(parseInt(userId));
+
+    const filteredDriversDetails = drivers?.filter(
+      (driver) => driver.availability_details !== null
+    );
+
+    res.status(200).send({ status: true, message: filteredDriversDetails });
+  } catch (error) {
+    res.status(500).send({ status: false, message: "Internal Server Error" });
   }
 };
 

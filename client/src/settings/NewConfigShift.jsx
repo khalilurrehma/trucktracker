@@ -118,107 +118,108 @@ const NewConfigShift = () => {
       return;
     }
 
-    const formattedStart = StartEndFormatTime(startTime);
-    const formattedEnd = StartEndFormatTime(endTime);
+    // const formattedStart = StartEndFormatTime(startTime);
+    // const formattedEnd = StartEndFormatTime(endTime);
     const formattedReSend = getResendTimeData(reSendTime);
-    const formattedGrace = StartEndFormatTime(graceTime, true);
-    const currentTime = new Date();
-    const formattedCurrentTime = StartEndFormatTime(currentTime);
+    // const formattedGrace = StartEndFormatTime(graceTime, true);
+    // const currentTime = new Date();
+    // const formattedCurrentTime = StartEndFormatTime(currentTime);
 
-    const { newStartTime, newEndTime } = selectedShift
-      ? adjustTimes(
-          selectedShift?.start_time,
-          selectedShift?.end_time,
-          selectedShift?.grace_time
-        )
-      : adjustTimes(
-          formattedStart.formattedTime,
-          formattedEnd.formattedTime,
-          formattedGrace
-        );
+    // const { newStartTime, newEndTime } = selectedShift
+    //   ? adjustTimes(
+    //       selectedShift?.start_time,
+    //       selectedShift?.end_time,
+    //       selectedShift?.grace_time
+    //     )
+    //   : adjustTimes(
+    //       formattedStart.formattedTime,
+    //       formattedEnd.formattedTime,
+    //       formattedGrace
+    //     );
 
-    const currentToStartIntervalTIme = calculateIntervalTime(
-      newStartTime,
-      formattedCurrentTime.formattedTime
-    );
+    // const currentToStartIntervalTIme = calculateIntervalTime(
+    //   newStartTime,
+    //   formattedCurrentTime.formattedTime
+    // );
 
-    const startEndIntervalTimeValue = calculateIntervalTime(
-      newEndTime,
-      newStartTime
-    );
+    // const startEndIntervalTimeValue = calculateIntervalTime(
+    //   newEndTime,
+    //   newStartTime
+    // );
 
-    const calculateEndsIn =
-      currentToStartIntervalTIme.inSeconds +
-      startEndIntervalTimeValue.inSeconds;
+    // const calculateEndsIn =
+    //   currentToStartIntervalTIme.inSeconds +
+    //   startEndIntervalTimeValue.inSeconds;
 
-    const customApiData = {
-      shift_name: customShiftName,
-      shift_type: shiftType,
-      start_day: startDay,
-      start_time: formattedStart?.formattedTime,
-      end_day: endDay,
-      end_time: formattedEnd?.formattedTime,
-      grace_time: formattedGrace,
-      queue_ttl: queuettl,
-      queue_status: selectedQueue,
-      userId,
-      queue_startsIn: currentToStartIntervalTIme.inSeconds,
-      queue_EndsIn: calculateEndsIn,
-    };
+    // const customApiData = {
+    //   shift_name: customShiftName,
+    //   shift_type: shiftType,
+    //   start_day: startDay,
+    //   start_time: formattedStart?.formattedTime,
+    //   end_day: endDay,
+    //   end_time: formattedEnd?.formattedTime,
+    //   grace_time: formattedGrace,
+    //   queue_ttl: queuettl,
+    //   queue_status: selectedQueue,
+    //   userId,
+    //   queue_startsIn: currentToStartIntervalTIme.inSeconds,
+    //   queue_EndsIn: calculateEndsIn,
+    // };
 
     try {
       setIsLoading(true);
-      if (shiftType === "custom") {
-        const customApiRes = await saveCustomShift(customApiData);
-        if (!customApiRes.status) {
-          throw new Error("Failed to save custom shift!");
-        }
-        const presetApiData = {
-          device: selectedDevice,
-          deviceId: selectedDevice.id,
-          driver_id: selectedDriver?.id,
-          shiftId: customApiRes.message,
-          queue: selectedQueue,
-          queue_time: queuettl,
-          resend_time: formattedReSend,
-          commandOn,
-          commandOff,
-          userId,
-        };
-        const presetApiRes = id
-          ? await updateDeviceShift(id, prevDriver, presetApiData)
-          : await saveDeviceShift(presetApiData);
-        if (!presetApiRes.status) {
-          throw new Error("Failed to save device shift!");
-        }
-        toast.success(presetApiRes.message);
-        navigate(-1);
-      }
+      // if (shiftType === "custom") {
+      //   const customApiRes = await saveCustomShift(customApiData);
+      //   if (!customApiRes.status) {
+      //     throw new Error("Failed to save custom shift!");
+      //   }
+      //   const presetApiData = {
+      //     device: selectedDevice,
+      //     deviceId: selectedDevice.id,
+      //     driver_id: selectedDriver?.id,
+      //     shiftId: customApiRes.message,
+      //     queue: selectedQueue,
+      //     queue_time: queuettl,
+      //     resend_time: formattedReSend,
+      //     commandOn,
+      //     commandOff,
+      //     userId,
+      //   };
+      //   const presetApiRes = id
+      //     ? await updateDeviceShift(id, prevDriver, presetApiData)
+      //     : await saveDeviceShift(presetApiData);
+      //   if (!presetApiRes.status) {
+      //     throw new Error("Failed to save device shift!");
+      //   }
+      //   toast.success(presetApiRes.message);
+      //   navigate(-1);
+      // }
 
-      if (shiftType === "preset") {
-        const presetApiData = {
-          device: selectedDevice,
-          deviceId: selectedDevice.id,
-          driver_id: selectedDriver?.id,
-          shiftId: selectedShift?.id,
-          queue: selectedShift.queue_status,
-          queue_time: selectedShift.queue_ttl,
-          resend_time: formattedReSend,
-          commandOn,
-          commandOff,
-          userId,
-        };
-        console.log(presetApiData);
+      // if (shiftType === "preset") {
 
-        const presetApiRes = id
-          ? await updateDeviceShift(id, prevDriver, presetApiData)
-          : await saveDeviceShift(presetApiData);
-        if (!presetApiRes.status) {
-          throw new Error("Failed to save device shift!");
-        }
-        toast.success(presetApiRes.message);
-        navigate(-1);
+      // }
+
+      const presetApiData = {
+        device: selectedDevice,
+        deviceId: selectedDevice.id,
+        driver_id: selectedDriver?.id,
+        // shiftId: selectedShift?.id,
+        // queue: selectedShift.queue_status,
+        // queue_time: selectedShift.queue_ttl,
+        resend_time: formattedReSend,
+        commandOn,
+        commandOff,
+        userId,
+      };
+
+      const presetApiRes = id
+        ? await updateDeviceShift(id, prevDriver, presetApiData)
+        : await saveDeviceShift(presetApiData);
+      if (!presetApiRes.status) {
+        throw new Error("Failed to save device shift!");
       }
+      toast.success(presetApiRes.message);
+      navigate(-1);
     } catch (error) {
       toast.error(error.message || "An unexpected error occurred!");
     } finally {
@@ -361,7 +362,10 @@ const NewConfigShift = () => {
         ? await getDrivers()
         : await getDriversByUserId(userId);
 
-      const filterDriver = response.filter((driver) => driver.assigned !== 1);
+      const filterDriver = response.filter(
+        (driver) =>
+          driver.assigned !== 1 && driver.availability_details !== null
+      );
 
       setDrivers(filterDriver);
     } catch (error) {
@@ -487,7 +491,22 @@ const NewConfigShift = () => {
           />
         </FormControl>
 
-        <FormControl fullWidth>
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <TimePicker
+            label="Re-Send time"
+            value={reSendTime}
+            onChange={(newValue) => {
+              if (newValue) {
+                newValue.setHours(0);
+                setResendTime(newValue);
+              }
+            }}
+            renderInput={(params) => <TextField {...params} />}
+            ampm={false}
+          />
+        </LocalizationProvider>
+
+        {/* <FormControl fullWidth>
           <InputLabel>
             Preset Shifts<span className="text-red-600">*</span>
           </InputLabel>
@@ -508,9 +527,9 @@ const NewConfigShift = () => {
               </MenuItem>
             ))}
           </Select>
-        </FormControl>
+        </FormControl> */}
 
-        {customShift ? (
+        {/* {customShift ? (
           <>
             <TextField
               label="Shift Name"
@@ -617,7 +636,7 @@ const NewConfigShift = () => {
                 onChange={(e) => setQueueTTL(e.target.value)}
               />
             </Box>
-            {/* <TableContainer>
+            <TableContainer>
               <Table>
                 <TableHead>
                   <TableRow>
@@ -641,7 +660,7 @@ const NewConfigShift = () => {
                   </TableRow>
                 </TableBody>
               </Table>
-            </TableContainer> */}
+            </TableContainer>
           </>
         ) : selectedShift ? (
           <>
@@ -679,7 +698,7 @@ const NewConfigShift = () => {
               />
             </LocalizationProvider>
 
-            {/* <TableContainer sx={{ marginTop: "16px" }}>
+            <TableContainer sx={{ marginTop: "16px" }}>
               <Table>
                 <TableHead>
                   <TableRow>
@@ -703,11 +722,11 @@ const NewConfigShift = () => {
                   </TableRow>
                 </TableBody>
               </Table>
-            </TableContainer> */}
+            </TableContainer>
           </>
         ) : (
           ""
-        )}
+        )} */}
       </div>
 
       <div className="flex justify-center mt-6 gap-6 mb-8">

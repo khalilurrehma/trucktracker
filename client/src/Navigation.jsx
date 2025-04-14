@@ -113,6 +113,7 @@ import DriverBehaviourReports from "./reports/DriverBehaviourReports";
 import ProtocolNotifications from "./settings/ProtocolNotifications";
 import ProtocolNotification from "./settings/ProtocolNotification";
 import DeviceCustomCalcPage from "./settings/DeviceCustomCalcPage";
+import DriversShifts from "./settings/DriversShifts";
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -254,6 +255,7 @@ const Navigation = () => {
           <Route path="drivers" element={<DriversPage />} />
           <Route path="driver/:id" element={<DriverPage />} />
           <Route path="driver" element={<DriverPage />} />
+          <Route path="drivers/shifts" element={<DriversShifts />} />
           <Route path="new-geofence/:id" element={<NewGeofencePage />} />
           <Route path="new-geofence" element={<NewGeofencePage />} />
           <Route path="geofence/:id" element={<GeofencePage />} />

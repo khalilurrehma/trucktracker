@@ -297,6 +297,14 @@ const SettingsMenu = () => {
                   icon={<AddIcon sx={{ ml: 2 }} />}
                   selected={location.pathname.startsWith("/settings/shifts")}
                 />
+                <MenuItem
+                  title="Drivers Shifts"
+                  link="/settings/drivers/shifts"
+                  icon={<PersonIcon sx={{ ml: 2 }} />}
+                  selected={location.pathname.startsWith(
+                    "/settings/drivers/shifts"
+                  )}
+                />
               </AccordionDetails>
             </Accordion>
             <Accordion
