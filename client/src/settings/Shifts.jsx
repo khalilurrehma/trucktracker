@@ -216,7 +216,6 @@ const Shifts = () => {
               <TableCell>Shift Name</TableCell>
               <TableCell>Start Time</TableCell>
               <TableCell>End Time</TableCell>
-              <TableCell>Days</TableCell>
               <TableCell>Grace Time</TableCell>
               {/* <TableCell>Queue</TableCell> */}
               <TableCell>Queue TTL</TableCell>
@@ -229,8 +228,6 @@ const Shifts = () => {
           ) : (
             <TableBody>
               {paginatedData.map((shift, index) => {
-                console.log(shift.grace_time);
-                
                 const grace_time = shift.grace_time
                   ? graceTimeConverter(shift.grace_time)
                   : "N/A";
@@ -246,11 +243,11 @@ const Shifts = () => {
                     <TableCell>{shift.shift_name}</TableCell>
                     <TableCell>{shift.start_time}</TableCell>
                     <TableCell>{shift.end_time}</TableCell>
-                    <TableCell>
+                    {/* <TableCell>
                       {startDay && endDay
                         ? getDayRangeString(startDay, endDay)
                         : "N/A"}
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell>{grace_time}</TableCell>
                     {/* <TableCell>
                       {shift.queue_status === 1 ? "True" : "False"}

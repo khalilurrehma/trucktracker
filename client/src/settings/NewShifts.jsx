@@ -311,25 +311,6 @@ const NewShifts = () => {
             gap: "18px",
           }}
         >
-          <Autocomplete
-            options={days}
-            getOptionLabel={(option) => option.name}
-            value={startDay}
-            onChange={(e, newValue) => handleDayChange(newValue, "start")}
-            renderInput={(params) => (
-              <TextField {...params} label="Start Day" variant="outlined" />
-            )}
-          />
-
-          <Autocomplete
-            options={days}
-            getOptionLabel={(option) => option.name}
-            value={endDay}
-            onChange={(e, newValue) => handleDayChange(newValue, "end")}
-            renderInput={(params) => (
-              <TextField {...params} label="End Day" variant="outlined" />
-            )}
-          />
           {/* <Box
             sx={{
               display: "flex",

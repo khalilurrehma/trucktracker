@@ -37,12 +37,14 @@
     "react": "^18.3.1",
     "react-countdown-circle-timer": "^3.2.1",
     "react-country-flag": "3.1.0",
+    "react-day-picker": "^9.6.5",
     "react-dom": "^18.3.1",
     "react-draggable": "^4.4.6",
     "react-infinite-scroll-component": "^6.1.0",
     "react-leaflet": "^5.0.0",
     "react-loader-spinner": "^6.1.6",
     "react-mui-dropzone": "^4.0.7",
+    "react-multi-date-picker": "^4.5.2",
     "react-redux": "^9.1.2",
     "react-router-dom": "^6.26.2",
     "react-spinners": "^0.15.0",
@@ -88,6 +90,7 @@
     "eslint-plugin-react": "^7.36.1",
     "eslint-plugin-react-hooks": "^4.6.2",
     "postcss": "^8.4.49",
+    "sass-embedded": "^1.86.3",
     "tailwindcss": "^3.4.16"
   }
 }

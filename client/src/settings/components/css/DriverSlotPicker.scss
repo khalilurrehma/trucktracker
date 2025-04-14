@@ -1,0 +1,32 @@
+.rdp-day_selected {
+  background-color: #1976d2 !important;
+  color: white !important;
+  border-radius: 50%;
+  transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+}
+
+.rdp-day_selected:hover {
+  transform: scale(1.1);
+}
+
+.rdp-day-range-start,
+.rdp-day-range-end {
+  background-color: #1565c0 !important;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.rdp-day-range-between {
+  background-color: #bbdefb !important;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

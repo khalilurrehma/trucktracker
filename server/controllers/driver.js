@@ -1,10 +1,12 @@
 import {
   addDriver,
   fetchDriver,
+  fetchDriverAvailability,
   fetchDrivers,
   fetchDriversByUserId,
   removeDriver,
   updateDriver,
+  updateDriverAvailability,
 } from "../model/driver.js";
 import {
   getLatestDriverBehaivorReports,
@@ -152,5 +154,59 @@ export const getDriverBehaivor = async (req, res) => {
     res.status(200).json({ status: true, message: resp });
   } catch (error) {
     res.status(500).json({ status: false, message: "Internal Server Error" });
+  }
+};
+
+export const saveDriverAvailability = async (req, res) => {
+  const { id } = req.params;
+  const body = req.body;
+
+  try {
+    const updatedDriver = await updateDriverAvailability(parseInt(id), body);
+
+    res.status(200).json({
+      status: true,
+      message: "Driver Availability Updated Successfully",
+    });
+  } catch (error) {
+    res.status(500).json({ status: false, message: error.message });
+  }
+};
+
+export const getDriverAvailability = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const driver = await fetchDriverAvailability(parseInt(id));
+
+    if (!driver) {
+      return res.status(404).json({
+        status: false,
+        message: "Driver not found",
+      });
+    }
+
+    let availability = [];
+
+    if (driver.availability_details) {
+      try {
+        availability = JSON.parse(driver.availability_details);
+      } catch (parseErr) {
+        return res.status(500).json({
+          status: false,
+          message: parseErr.message,
+        });
+      }
+    }
+
+    res.status(200).json({
+      status: true,
+      message: availability,
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: false,
+      message: err.message,
+    });
   }
 };

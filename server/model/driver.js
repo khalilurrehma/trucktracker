@@ -102,3 +102,32 @@ export const removeDriver = async (id) => {
     });
   });
 };
+
+export const updateDriverAvailability = async (id, details) => {
+  const sql = `UPDATE drivers SET availability_details = ?, updated_at = NOW() WHERE id = ?`;
+
+  const values = [JSON.stringify(details), id];
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, values, (err, results) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+export const fetchDriverAvailability = async (id) => {
+  const sql = "SELECT availability_details FROM drivers WHERE id = ?";
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results[0]);
+      }
+    });
+  });
+};

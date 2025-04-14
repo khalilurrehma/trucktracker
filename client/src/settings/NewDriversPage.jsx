@@ -3,6 +3,7 @@ import PageLayout from "../common/components/PageLayout";
 import SettingsMenu from "./components/SettingsMenu";
 import CollectionFab from "./components/CollectionFab";
 import EditIcon from "@mui/icons-material/Edit";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import DeleteIcon from "@mui/icons-material/Delete";
 import {
   Table,
@@ -16,7 +17,11 @@ import {
   Select,
   MenuItem,
   TextField,
-  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
   TablePagination,
   Button,
 } from "@mui/material";
@@ -26,6 +31,7 @@ import { useNavigate } from "react-router-dom";
 import SettingLoader from "./common/SettingLoader";
 import { useAppContext } from "../AppContext";
 import { useSelector } from "react-redux";
+import DriverSlotPicker from "./components/DriverSlotPicker";
 
 const NewDriversPage = () => {
   const { traccarUser } = useAppContext();
@@ -37,6 +43,8 @@ const NewDriversPage = () => {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [openCalendar, setOpenCalendar] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState(null);
   const [totalPages, setTotalPages] = useState(1);
   const userId = useSelector((state) => state.session.user.id);
 
@@ -74,6 +82,7 @@ const NewDriversPage = () => {
           station: attributes.station || "N/A",
           lat: lat,
           long: long,
+          availability_details: driver.availability_details,
         };
       });
       setDrivers(processedDrivers);
@@ -143,6 +152,17 @@ const NewDriversPage = () => {
 
   const handleViewLocation = (lat, long) => {
     navigate(`/settings/location/${lat}/${long}`);
+  };
+
+  const handleClickOpen = (driver) => {
+    setSelectedDriver(driver);
+    setOpenCalendar(true);
+  };
+
+  const handleClose = () => {
+    setOpenCalendar(false);
+    setSelectedDriver(null);
+    fetchDrivers();
   };
 
   return (
@@ -215,7 +235,6 @@ const NewDriversPage = () => {
         />
       </div>
 
-      {/* Table */}
       <TableContainer>
         <Table>
           <TableHead>
@@ -229,8 +248,9 @@ const NewDriversPage = () => {
               <TableCell>Phone</TableCell>
               <TableCell>Email</TableCell>
               <TableCell>Station</TableCell>
-              <TableCell>Location</TableCell>
+              {/* <TableCell>Location</TableCell> */}
               <TableCell>Actions</TableCell>
+              <TableCell>Calendar</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -254,7 +274,7 @@ const NewDriversPage = () => {
                     <TableCell>{driver.phone}</TableCell>
                     <TableCell>{driver.email}</TableCell>
                     <TableCell>{driver.station}</TableCell>
-                    <TableCell>
+                    {/* <TableCell>
                       {driver.lat && driver.long ? (
                         <Button
                           sx={{ fontSize: "12px" }}
@@ -276,7 +296,7 @@ const NewDriversPage = () => {
                           Add location
                         </Button>
                       )}
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell sx={{ display: "flex", gap: "8px" }}>
                       <EditIcon
                         sx={{ cursor: "pointer" }}
@@ -291,6 +311,11 @@ const NewDriversPage = () => {
                         }}
                       />
                     </TableCell>
+                    <TableCell>
+                      <IconButton onClick={() => handleClickOpen(driver)}>
+                        <CalendarMonthIcon sx={{ cursor: "pointer" }} />
+                      </IconButton>
+                    </TableCell>
                   </TableRow>
                 ))
             ) : (
@@ -302,7 +327,11 @@ const NewDriversPage = () => {
             )}
           </TableBody>
         </Table>
-
+        <DriverSlotPicker
+          open={openCalendar}
+          selectedDriver={selectedDriver}
+          onClose={handleClose}
+        />
         <TablePagination
           component="div"
           count={filteredDrivers.length}

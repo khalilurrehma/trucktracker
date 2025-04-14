@@ -2,11 +2,13 @@ import express from "express";
 import {
   deleteDriver,
   getDriver,
+  getDriverAvailability,
   getDriverBehaivor,
   getDrivers,
   getDriversByUserId,
   postDriver,
   putDriver,
+  saveDriverAvailability,
 } from "../controllers/driver.js";
 
 const router = express.Router();
@@ -19,7 +21,11 @@ router.get("/driver/:id", getDriver);
 
 router.get("/drivers/user/:userId", getDriversByUserId);
 
+router.get("/driver/availability/view/:id", getDriverAvailability);
+
 router.put("/driver/:id", putDriver);
+
+router.patch("/driver/availability/:id", saveDriverAvailability);
 
 router.delete("/driver/:id", deleteDriver);
 
