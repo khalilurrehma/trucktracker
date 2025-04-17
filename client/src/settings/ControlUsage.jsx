@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import PageLayout from "../common/components/PageLayout";
-import SettingsMenu from "./components/SettingsMenu";
-import EditIcon from "@mui/icons-material/Edit";
-import moment from "moment";
 import {
   Box,
   Table,
@@ -11,27 +8,16 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TablePagination,
   TextField,
   Button,
   Switch,
-  Checkbox,
-  Select,
-  MenuItem,
 } from "@mui/material";
 import {
   allDeviceUsageControl,
   allDeviceUsageControlByUserId,
   fetchDeviceConnection,
-  fetchDeviceShifts,
+  fetchDeviceEngineStatus,
   fetchDeviceTelemetryDout,
-  fetchDriverById,
-  fetchShiftByid,
-  fetchShiftsByUserId,
-  getDrivers,
-  getShifts,
-  modifyDeviceShift,
-  modifyUsageControlShift,
   postUsageControlLogAndReport,
   sendFlespiDeviceCommands,
   setReason,
@@ -39,7 +25,6 @@ import {
 import { ToastContainer, toast } from "react-toastify";
 import { CountdownCircleTimer } from "react-countdown-circle-timer";
 import { useNavigate } from "react-router-dom";
-import SettingLoader from "./common/SettingLoader";
 import { useSelector } from "react-redux";
 import OperationsMenu from "./components/OperationsMenu";
 import { useAppContext } from "../AppContext";
@@ -53,7 +38,8 @@ const ControlUsage = () => {
   const [hasMore, setHasMore] = useState(true);
   const navigate = useNavigate();
   const userId = useSelector((state) => state.session.user?.id);
-  const { traccarUser } = useAppContext();
+  const { traccarUse, mqttDeviceIgnitionStatus, mqttDeviceConnected } =
+    useAppContext();
   const loaderRef = useRef(null);
 
   useEffect(() => {
@@ -66,9 +52,9 @@ const ControlUsage = () => {
     try {
       setIsLoading(true);
       const response =
-        userId === 1
+        !userId === 1
           ? await allDeviceUsageControl(pageParam)
-          : await allDeviceUsageControlByUserId(userId, pageParam);
+          : await allDeviceUsageControlByUserId(185, pageParam);
 
       if (!response || response.length === 0) {
         setHasMore(false);
@@ -89,6 +75,7 @@ const ControlUsage = () => {
 
           let devicesDoutStatus = 0;
           let connectionStatusValue = null;
+          let engineValueStatus = null;
 
           try {
             const doutStatusResponse = await fetchDeviceTelemetryDout(
@@ -96,6 +83,13 @@ const ControlUsage = () => {
             );
 
             const connectionStatus = await fetchDeviceConnection(item.flespiId);
+
+            const engineStatus = await fetchDeviceEngineStatus(item.flespiId);
+
+            engineValueStatus = engineStatus?.map(
+              (item) =>
+                item?.telemetry?.["engine.ignition.status"]?.value ?? false
+            );
 
             connectionStatusValue = connectionStatus?.map(
               (value) => value.connected
@@ -115,20 +109,23 @@ const ControlUsage = () => {
             deviceIdent: item?.ident,
             deviceTypeId: item?.device_type_id,
             // status: 0,
-            status: connectionStatusValue ? connectionStatusValue[0] : [false],
+            status: connectionStatusValue ? connectionStatusValue[0] : false,
             doutStatus: devicesDoutStatus[0],
+            engineIgnitionStatus: engineValueStatus
+              ? engineValueStatus[0]
+              : false,
             // doutStatus: 1,
             driverId: item?.driver_id,
             driverName: item?.driver_name,
             driverLocation,
-            shiftId: item.shift_id,
-            shiftName: item.shift_name,
-            graceTime: item.grace_time,
+            // shiftId: item.shift_id,
+            // shiftName: item.shift_name,
+            // graceTime: item.grace_time,
             authLocation: driverLocation ? "Yes" : "NO",
             manualControl: item.manualControl || "OFF",
-            deviceShift_response: deviceShiftResponse,
-            deviceShift_resentTime: deviceShiftResend,
-            deviceShift_queueTime: item?.device_shift_queue_time,
+            // deviceShift_response: deviceShiftResponse,
+            // deviceShift_resentTime: deviceShiftResend,
+            // deviceShift_queueTime: item?.device_shift_queue_time,
           };
         })
       );
@@ -165,10 +162,12 @@ const ControlUsage = () => {
     doutStatus,
     driverId,
     driverLocation,
-    shiftId
+    shiftId,
+    ignitionStatus,
+    connectionStatus
   ) => {
     const isSwitchOn = event.target.checked;
-    const status = doutStatus === 1 ? "900,1,1" : "900,1,0";
+    const status = doutStatus === 1 ? "900,1,0" : "900,1,1";
     let body;
     const logTimestamp = new Date()
       .toISOString()
@@ -176,84 +175,98 @@ const ControlUsage = () => {
       .replace("T", " ");
 
     let logBody;
+    let ignitionAndConnection;
 
-    const isConfirmed = window.confirm(
-      doutStatus === 1
-        ? "Are you sure you want to turn on the device?"
-        : "Are you sure you want to turn off the device?"
-    );
+    if (ignitionStatus && connectionStatus) {
+      ignitionAndConnection = window.confirm(
+        `The vehicle is with ignition status on. Do you still want to execute?`
+      );
+    } else if (!ignitionStatus && connectionStatus) {
+      ignitionAndConnection = window.confirm(
+        `The vehicle is with ignition status off. Do you want to execute?`
+      );
+    } else {
+      alert(`Device is not connected , commanad can not be execute`);
+    }
+    if (ignitionAndConnection) {
+      const isConfirmed = window.confirm(
+        doutStatus === 1
+          ? "Are you sure you want to turn on the device?"
+          : "Are you sure you want to turn off the device?"
+      );
 
-    if (isConfirmed) {
-      const reason = prompt("Please provide a reason for this action:");
+      if (isConfirmed) {
+        const reason = prompt("Please provide a reason for this action:");
 
-      if (!reason || reason.trim().length < 3) {
-        toast.warn("Please provide a valid reason (at least 3 characters)");
-        return;
-      }
+        if (!reason || reason.trim().length < 3) {
+          toast.warn("Please provide a valid reason (at least 3 characters)");
+          return;
+        }
 
-      try {
-        setDeviceStatus((prev) => ({ ...prev, [deviceId]: true }));
+        try {
+          setDeviceStatus((prev) => ({ ...prev, [deviceId]: true }));
 
-        const commandResponse = await sendFlespiDeviceCommands(
-          flespiId,
-          status
-        );
-
-        if (commandResponse.message) {
-          toast.success(`Device status updated successfully`);
-          body = {
-            deviceId,
-            reason,
-          };
-
-          const resReason = await setReason(body);
-
-          if (resReason.status) {
-            toast.success(resReason.message);
-            logBody = {
-              log_timestamp: logTimestamp,
-              device_id: deviceId,
-              driver_id: driverId,
-              shift_id: shiftId,
-              action_command: status,
-              performed_by: userId,
-              location: driverLocation ? "Yes" : "No",
-              action_reason: reason,
-              complied: commandResponse.status ? "Yes" : "No",
-            };
-
-            const log = await postUsageControlLogAndReport(logBody);
-            if (log.message) {
-              toast.success("Log added successfully");
-            }
-          } else {
-            toast.error("Failed to set reason for device status update");
-          }
-
-          setDevicesShiftData((prevData) =>
-            prevData.map((device) =>
-              device.deviceId === deviceId
-                ? { ...device, doutStatus: isSwitchOn ? 1 : 0 }
-                : device
-            )
+          const commandResponse = await sendFlespiDeviceCommands(
+            flespiId,
+            status
           );
 
-          setDeviceStatus((prevStatus) => ({
-            ...prevStatus,
-            [deviceId]: isSwitchOn ? "ON" : "OFF",
-          }));
-        } else {
-          toast.warn("Failed to update device status");
+          if (commandResponse.message) {
+            toast.success(`Device status updated successfully`);
+            body = {
+              deviceId,
+              reason,
+            };
+
+            const resReason = await setReason(body);
+
+            if (resReason.status) {
+              toast.success(resReason.message);
+              logBody = {
+                log_timestamp: logTimestamp,
+                device_id: deviceId,
+                driver_id: driverId,
+                shift_id: shiftId,
+                action_command: status,
+                performed_by: userId,
+                location: driverLocation ? "Yes" : "No",
+                action_reason: reason,
+                complied: commandResponse.status ? "Yes" : "No",
+              };
+
+              const log = await postUsageControlLogAndReport(logBody);
+              if (log.message) {
+                toast.success("Log added successfully");
+              }
+            } else {
+              toast.error("Failed to set reason for device status update");
+            }
+
+            setDevicesShiftData((prevData) =>
+              prevData.map((device) =>
+                device.deviceId === deviceId
+                  ? { ...device, doutStatus: isSwitchOn ? 1 : 0 }
+                  : device
+              )
+            );
+
+            setDeviceStatus((prevStatus) => ({
+              ...prevStatus,
+              [deviceId]: isSwitchOn ? "ON" : "OFF",
+            }));
+          } else {
+            toast.warn("Failed to update device status");
+          }
+        } catch (error) {
+          console.error("Error sending command:", error);
+          toast.error(
+            "An error occurred while updating the device status. Please try again."
+          );
+        } finally {
+          setTimeout(() => {
+            setDeviceStatus((prev) => ({ ...prev, [deviceId]: false }));
+          }, 7000);
         }
-      } catch (error) {
-        console.error("Error sending command:", error);
-        toast.error(
-          "An error occurred while updating the device status. Please try again."
-        );
-      } finally {
-        setTimeout(() => {
-          setDeviceStatus((prev) => ({ ...prev, [deviceId]: false }));
-        }, 7000);
       }
     }
   };
@@ -288,6 +301,28 @@ const ControlUsage = () => {
     };
   }, [loaderRef, page, hasMore, isLoading]);
 
+  useEffect(() => {
+    if (!mqttDeviceIgnitionStatus.length && !mqttDeviceConnected.length) return;
+
+    setDevicesShiftData((prevDevices) => {
+      return prevDevices.map((device) => {
+        const ignitionUpdate = mqttDeviceIgnitionStatus.find(
+          (d) => d.deviceId === device.deviceFlespiId
+        );
+        const connectionUpdate = mqttDeviceConnected.find(
+          (d) => d.deviceId === device.deviceFlespiId
+        );
+
+        return {
+          ...device,
+          engineIgnitionStatus:
+            ignitionUpdate?.connected ?? device.engineIgnitionStatus,
+          status: connectionUpdate?.connected ?? device.status,
+        };
+      });
+    });
+  }, [mqttDeviceIgnitionStatus, mqttDeviceConnected]);
+
   return (
     <PageLayout
       menu={<OperationsMenu />}
@@ -319,9 +354,6 @@ const ControlUsage = () => {
                 <TableRow>
                   <TableCell>Status</TableCell>
                   <TableCell>Name</TableCell>
-                  <TableCell>Shift</TableCell>
-                  <TableCell>Resend Time</TableCell>
-                  <TableCell>Execution Status</TableCell>
                   <TableCell>Driver</TableCell>
                   <TableCell>Auth Location Map</TableCell>
                   <TableCell>Auth Location</TableCell>
@@ -331,7 +363,26 @@ const ControlUsage = () => {
               <TableBody>
                 {filteredData?.map((deviceReport, index) => {
                   return (
-                    <TableRow key={index}>
+                    <TableRow
+                      key={index}
+                      sx={
+                        Date.now() -
+                          new Date(deviceReport.lastUpdated)?.getTime() <
+                        3000
+                          ? {
+                              animation: "fadeEffect 2s ease-in-out",
+                              "@keyframes fadeEffect": {
+                                "0%": {
+                                  backgroundColor: "#fff59d",
+                                },
+                                "100%": {
+                                  backgroundColor: "transparent",
+                                },
+                              },
+                            }
+                          : {}
+                      }
+                    >
                       <TableCell>
                         <Box
                           component="span"
@@ -349,21 +400,6 @@ const ControlUsage = () => {
                       </TableCell>
 
                       <TableCell>{deviceReport.deviceName}</TableCell>
-                      <TableCell>
-                        {deviceReport.shiftName
-                          ? deviceReport.shiftName
-                          : "N/A"}
-                      </TableCell>
-                      <TableCell>
-                        {deviceReport?.deviceShift_resentTime
-                          ? deviceReport?.deviceShift_resentTime?.formattedTime
-                          : "N/A"}
-                      </TableCell>
-                      <TableCell>
-                        {deviceReport?.deviceShift_response?.executed === true
-                          ? "true"
-                          : "false"}
-                      </TableCell>
                       <TableCell>
                         {deviceReport.driverName
                           ? deviceReport.driverName
@@ -416,7 +452,9 @@ const ControlUsage = () => {
                                 deviceReport.doutStatus,
                                 deviceReport.driverId,
                                 deviceReport.driverLocation,
-                                deviceReport.shiftId
+                                deviceReport.shiftId,
+                                deviceReport.engineIgnitionStatus,
+                                deviceReport.status
                               )
                             }
                             color="primary"

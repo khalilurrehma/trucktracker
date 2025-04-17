@@ -424,6 +424,34 @@ export const updateDeviceShift = async (id, prevDriverId, body) => {
   });
 };
 
+export const modifyExtendTime = async (id, body) => {
+  const sql = `UPDATE device_shifts SET extend_time = ?, is_extended = ? WHERE id = ?`;
+
+  const values = [body.extend_time, body.is_extended, id];
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, values, (err, results) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+export const nullifyExtendTime = async (id) => {
+  const sql = `UPDATE device_shifts SET extend_time = NULL, is_extended = NULL WHERE id = ?`;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
 export const removeDeviceShift = async (id) => {
   const sql = `
       DELETE FROM device_shifts WHERE id =?

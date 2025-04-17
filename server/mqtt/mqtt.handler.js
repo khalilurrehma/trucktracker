@@ -3,7 +3,9 @@ import {
   deviceNewEvent,
   devicesAlarmMQTT,
   driverBehaivor,
+  handleDeviceConnection,
   handleDeviceDin,
+  handleDeviceIgnition,
   handleDeviceLiveLocation,
   mqttDoutAlerts,
 } from "../services/topic.handlers.js";
@@ -40,6 +42,16 @@ mqttEmitter.on("mqttMessage", async ({ topic, payload }) => {
         topic.endsWith("/telemetry/din"):
         const din = await handleDeviceDin(topic, payload);
         if (din) broadcast(din);
+        break;
+      case topic.startsWith("flespi/state/gw/devices/") &&
+        topic.endsWith("/connected"):
+        const connectionStatus = await handleDeviceConnection(topic, payload);
+        if (connectionStatus) broadcast(connectionStatus);
+        break;
+      case topic.startsWith("flespi/state/gw/devices/") &&
+        topic.endsWith("/telemetry/engine.ignition.status"):
+        const ignitionStatus = await handleDeviceIgnition(topic, payload);
+        if (ignitionStatus) broadcast(ignitionStatus);
         break;
 
       default:

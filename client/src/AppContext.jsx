@@ -43,6 +43,8 @@ const AppContextProvider = ({ children }) => {
   const [mqttReportsEvents, setMqttReportsEvents] = useState([]);
   const [mqttDriverBehaivor, setMqttDriverBehaivor] = useState([]);
   const [mqttDeviceLiveLocation, setDeviceLiveLocation] = useState([]);
+  const [mqttDeviceIgnitionStatus, setDeviceIgnitionStatus] = useState([]);
+  const [mqttDeviceConnected, setDeviceConnected] = useState([]);
   const [mqttDeviceDin, setDeviceDin] = useState([]);
 
   const updateMqttMessage = (newMessage, stateType) => {
@@ -78,6 +80,10 @@ const AppContextProvider = ({ children }) => {
 
         return updatedDevices;
       });
+    } else if (stateType === "engineIgnitionStatus") {
+      setDeviceIgnitionStatus((prev) => [...prev, newMessage]);
+    } else if (stateType === "connected") {
+      setDeviceConnected((prev) => [...prev, newMessage]);
     }
   };
 
@@ -422,6 +428,8 @@ const AppContextProvider = ({ children }) => {
         traccarDevices,
         mqttDeviceLiveLocation,
         mqttDeviceDin,
+        mqttDeviceIgnitionStatus,
+        mqttDeviceConnected,
       }}
     >
       {children}

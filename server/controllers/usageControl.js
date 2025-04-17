@@ -19,6 +19,7 @@ import {
   generateUsageReport,
   getAllActionByUserId,
   getDeviceShift,
+  modifyExtendTime,
   removeDeviceShift,
   removeUsageReport,
   unAssignUsageControl,
@@ -29,6 +30,7 @@ import {
   updateUsageControlShift,
   updateUsageResponse,
 } from "../model/usageControl.js";
+import { scheduleShiftJobs } from "../services/cronJobs.js";
 
 export const postUsageActions = async (req, res) => {
   const body = req.body;
@@ -130,6 +132,7 @@ export const postDeviceShift = async (req, res) => {
         deviceShiftAssigned(deviceId, true),
       ]);
 
+      await scheduleShiftJobs();
       res.status(201).json({
         status: true,
         message: `Shift added successfully, Shift Id: ${newDeviceShift.insertId}`,
@@ -223,6 +226,24 @@ export const updateDeviceShiftId = async (req, res) => {
     res.status(200).json({
       status: true,
       message: `Device Shift updated successfully`,
+    });
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+export const updateExtendTime = async (req, res) => {
+  const { id } = req.params;
+  const body = req.body;
+
+  try {
+    const updatedShift = await modifyExtendTime(parseInt(id), body);
+
+    await scheduleShiftJobs();
+
+    res.status(200).json({
+      status: true,
+      message: `Device Shift extended successfully`,
     });
   } catch (error) {
     console.error(error);

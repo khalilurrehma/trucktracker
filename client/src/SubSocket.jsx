@@ -78,6 +78,12 @@ const SubSocket = () => {
         try {
           const recievedData = JSON.parse(event.data);
 
+          if (recievedData.topic.endsWith("/connected")) {
+            updateMqttMessage(recievedData, "deviceConnected");
+          }
+          if (recievedData.topic.endsWith("telemetry/engine.ignition.status")) {
+            updateMqttMessage(recievedData, "engineIgnitionStatus");
+          }
           if (recievedData.topic.endsWith("telemetry/position")) {
             updateMqttMessage(recievedData, "deviceLiveLocation");
           }

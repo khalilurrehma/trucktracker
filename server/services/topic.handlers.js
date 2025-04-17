@@ -137,7 +137,10 @@ export const devicesAlarmMQTT = async (topic, message) => {
 
   const deviceUserId = await getDeviceUserIdByFlespiId(deviceId);
   if (!deviceUserId) {
-    console.error("devicesAlarmMQTT: Device not found for Flespi ID:", deviceId);
+    console.error(
+      "devicesAlarmMQTT: Device not found for Flespi ID:",
+      deviceId
+    );
     return;
   }
 
@@ -198,7 +201,10 @@ export const deviceNewEvent = async (topic, message) => {
     const deviceUserId = await getDeviceUserIdByFlespiId(deviceId);
 
     if (!deviceUserId) {
-      console.error("deviceNewEvent: Device not found for Flespi ID:", deviceId);
+      console.error(
+        "deviceNewEvent: Device not found for Flespi ID:",
+        deviceId
+      );
       return null;
     }
 
@@ -324,4 +330,40 @@ export const handleDeviceDin = async (topic, message) => {
   };
 
   return obj;
+};
+
+export const handleDeviceConnection = async (topic, message) => {
+  const topicParts = topic.split("/");
+  const deviceIdIndex = topicParts.indexOf("devices") + 1;
+  const deviceId = parseInt(topicParts[deviceIdIndex]);
+
+  if (!deviceId) {
+    return;
+  }
+
+  const dataFormat = {
+    deviceId,
+    connected: message,
+    topic,
+  };
+
+  return dataFormat;
+};
+
+export const handleDeviceIgnition = async (topic, message) => {
+  const topicParts = topic.split("/");
+  const deviceIdIndex = topicParts.indexOf("devices") + 1;
+  const deviceId = parseInt(topicParts[deviceIdIndex]);
+
+  if (!deviceId) {
+    return;
+  }
+
+  const dataFormat = {
+    deviceId,
+    connected: message,
+    topic,
+  };
+
+  return dataFormat;
 };

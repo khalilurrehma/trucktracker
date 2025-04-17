@@ -16,25 +16,20 @@ import CollectionFab from "./components/CollectionFab";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import {
-  fetchCommandExecution,
   fetchDeviceShifts,
   fetchDeviceShiftsOfUser,
-  modifyCommandResponse,
   removeDeviceShiftById,
 } from "../apis/api";
-import { TailSpin } from "react-loader-spinner";
-import CachedIcon from "@mui/icons-material/Cached";
 import { toast, ToastContainer } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import SettingLoader from "./common/SettingLoader";
-import {
-  calculateTimeLeft,
-  getDayRangeString,
-  graceTimeConverter,
-  queueTimeConvertor,
-} from "./common/New.Helper";
 import { useAppContext } from "../AppContext";
 import { useSelector } from "react-redux";
+import { LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { TimePicker } from "@mui/x-date-pickers/TimePicker";
+import axios from "axios";
+import dayjs from "dayjs";
 
 const formatDate = (isoDate) => {
   const date = new Date(isoDate);
@@ -42,6 +37,10 @@ const formatDate = (isoDate) => {
 };
 
 const ConfigShift = () => {
+  let url = import.meta.env.DEV
+    ? import.meta.env.VITE_DEV_BACKEND_URL
+    : import.meta.env.VITE_PROD_BACKEND_URL;
+
   const [filters, setFilters] = useState({
     device_name: "",
     startDate: "",
@@ -52,10 +51,7 @@ const ConfigShift = () => {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
-  const [updateLoad, setUpdateLoad] = useState(false);
-  const [timers, setTimers] = useState({});
-  const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const { mqttMessages, traccarUser } = useAppContext();
+  const [extendTimes, setExtendTimes] = useState({});
   const userId = useSelector((state) => state.session.user?.id);
 
   const navigate = useNavigate();
@@ -167,6 +163,35 @@ const ConfigShift = () => {
     page * rowsPerPage + rowsPerPage
   );
 
+  const handleExtendTimeChange = async (id, newValue) => {
+    setExtendTimes((prev) => ({
+      ...prev,
+      [id]: newValue,
+    }));
+
+    const formattedTime = newValue.format("HH:mm");
+
+    let body = {
+      extend_time: formattedTime,
+      is_extended: true,
+    };
+
+    try {
+      const { data } = await axios.patch(
+        `${url}/update/device/extend/shift/${id}`,
+        body
+      );
+      if (data.status) {
+        toast.success(data.message);
+        getDevicesShifts();
+      }
+    } catch (error) {
+      if (error.message) {
+        toast.error(error.message);
+      }
+    }
+  };
+
   return (
     <PageLayout
       menu={<SettingsMenu />}
@@ -196,6 +221,7 @@ const ConfigShift = () => {
                 <TableCell>Allotted Shifts</TableCell>
                 <TableCell>Allotted Shifts Date</TableCell>
                 <TableCell>Resend Time</TableCell>
+                <TableCell>Extend Time</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -209,7 +235,10 @@ const ConfigShift = () => {
                   const resend_time = JSON.parse(row.resend_time);
 
                   return (
-                    <TableRow key={row.id}>
+                    <TableRow
+                      key={row.id}
+                      sx={row.is_extended ? { backgroundColor: "#cdffbc" } : {}}
+                    >
                       <TableCell>{device.name || "N/A"}</TableCell>
                       <TableCell>{driver.name || "N/A"}</TableCell>
                       <TableCell>{driver.combinedShifts || "N/A"}</TableCell>
@@ -217,6 +246,32 @@ const ConfigShift = () => {
                       <TableCell>
                         {resend_time.formattedTime + " min" || "N/A"}
                       </TableCell>
+                      <TableCell>
+                        {!row.is_extended ? (
+                          <LocalizationProvider dateAdapter={AdapterDayjs}>
+                            <TimePicker
+                              ampm={false}
+                              label="Extend Time"
+                              value={extendTimes[row.id] || null}
+                              onChange={(newValue) => {
+                                handleExtendTimeChange(row.id, newValue);
+                              }}
+                              slotProps={{
+                                textField: {
+                                  size: "small",
+                                  variant: "contained",
+                                },
+                              }}
+                              renderInput={(params) => (
+                                <TextField {...params} fullWidth />
+                              )}
+                            />
+                          </LocalizationProvider>
+                        ) : (
+                          <span>Extended - {row.extend_time}</span>
+                        )}
+                      </TableCell>
+
                       <TableCell sx={{ display: "flex", gap: "8px" }}>
                         <EditIcon
                           sx={{ cursor: "pointer" }}

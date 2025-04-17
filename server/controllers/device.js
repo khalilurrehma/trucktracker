@@ -3,6 +3,7 @@ import {
   executionStatus,
   flespiDeviceLiveLocation,
   flespiDevicesConnectionStatus,
+  flespiDevicesEngineIgnitionStatus,
   flespiDevicesIgnitionStatus,
   getFlespiDevices,
   getFlespiDeviceTypes,
@@ -95,6 +96,19 @@ export const devicesConnectionStatus = async (req, res) => {
 
   try {
     const response = await flespiDevicesConnectionStatus(deviceId);
+
+    res.status(200).send({ success: true, message: response.result });
+  } catch (error) {
+    // console.log(error);
+    return res.status(500).json({ status: false, message: error.message });
+  }
+};
+
+export const devicesEngineStatus = async (req, res) => {
+  const { deviceId } = req.params;
+
+  try {
+    const response = await flespiDevicesEngineIgnitionStatus(deviceId);
 
     res.status(200).send({ success: true, message: response.result });
   } catch (error) {

@@ -25,6 +25,7 @@ import {
   postUsageReport,
   putUsageReport,
   updateDeviceShiftId,
+  updateExtendTime,
 } from "../controllers/usageControl.js";
 
 const router = express.Router();
@@ -58,6 +59,8 @@ router.get("/device/shift/user/:userId", getDeviceShiftByUserId);
 router.get("/shift/by/device/:deviceId", getDeviceShiftByDeviceId);
 
 router.put("/put/device/shift/:id/driver/:prevDriverId", updateDeviceShiftId);
+
+router.patch("/update/device/extend/shift/:id", updateExtendTime);
 
 router.delete("/device/shift/:id", deleteDeviceShiftId);
 

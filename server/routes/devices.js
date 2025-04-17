@@ -5,6 +5,7 @@ import {
   deviceLiveLocation,
   devicesAlarmLogs,
   devicesConnectionStatus,
+  devicesEngineStatus,
   devicesEvents,
   devicesIgnitionStatus,
   deviceWithInRadius,
@@ -37,6 +38,7 @@ router.get("/devices/flespi-device-type", getDevicesTypes);
 router.get("/devices/device-type/:id", getDevices_DevicesTypes);
 router.get("/devices/telemetry/dout/:deviceId", getDeviceDoutState);
 router.get("/devices/connection/status/:deviceId", devicesConnectionStatus);
+router.get("/devices/engine/ignition/status/:deviceId", devicesEngineStatus);
 router.get("/v2/devices/din/status/:deviceId", devicesIgnitionStatus);
 router.get("/devices/flespi/realtime/location/:deviceId", deviceLiveLocation);
 router.get("/devices/alarm/logs/:userId", devicesAlarmLogs);

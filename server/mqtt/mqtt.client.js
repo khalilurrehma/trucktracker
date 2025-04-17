@@ -35,6 +35,12 @@ const topics = [
   {
     topic: "flespi/state/gw/devices/+/telemetry/din",
   },
+  {
+    topic: "flespi/state/gw/devices/+/connected",
+  },
+  {
+    topic: "flespi/state/gw/devices/+/telemetry/engine.ignition.status",
+  },
 ];
 client.on("connect", () => {
   console.log("✅ Connected to Flespi MQTT broker");

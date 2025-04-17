@@ -140,6 +140,20 @@ export const flespiDevicesConnectionStatus = async (deviceId) => {
   }
 };
 
+export const flespiDevicesEngineIgnitionStatus = async (deviceId) => {
+  const apiUrl = `${flespiUrl}/devices/${deviceId}/telemetry/engine.ignition.status`;
+  const headers = {
+    Authorization: `FlespiToken ${FlespiToken}`,
+  };
+
+  try {
+    const response = await axios.get(apiUrl, { headers });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const flespiDevicesIgnitionStatus = async (deviceId) => {
   const apiUrl = `${flespiUrl}/devices/${deviceId}/telemetry/din`;
   const headers = {

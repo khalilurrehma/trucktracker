@@ -327,6 +327,17 @@ export const fetchDeviceConnection = async (deviceId) => {
   }
 };
 
+export const fetchDeviceEngineStatus = async (deviceId) => {
+  try {
+    const { data } = await axios.get(
+      `${apiUrl}/devices/engine/ignition/status/${deviceId}`
+    );
+    return data.message;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const fetchDeviceDin = async (deviceId) => {
   try {
     const { data } = await axios.get(

@@ -9,9 +9,17 @@ import {
   Box,
   TextField,
   Typography,
+  InputLabel,
+  Select,
+  MenuItem,
   TablePagination,
   Button,
+  FormControl,
 } from "@mui/material";
+import { format } from "date-fns";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import SettingLoader from "./common/SettingLoader";
 import PageLayout from "../common/components/PageLayout";
 import SettingsMenu from "./components/SettingsMenu";
@@ -33,6 +41,8 @@ const DriversShifts = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedShift, setSelectedShift] = useState("");
 
   const fetchFromApi = async () => {
     const superAdminUrl = `${url}/drivers/shifts`;
@@ -90,16 +100,36 @@ const DriversShifts = () => {
     };
   });
 
+  const allShiftsSet = new Set();
+  groupedDrivers.forEach((driver) => {
+    const shifts = driver.combinedShifts?.split(",").map((s) => s.trim());
+    shifts?.forEach((s) => allShiftsSet.add(s));
+  });
+  const uniqueShifts = Array.from(allShiftsSet);
+
   const filteredDrivers = groupedDrivers.filter((driver) => {
     const name = driver.name?.toLowerCase() || "";
     const shift = driver.combinedShifts?.toLowerCase();
     const dates = driver.combinedDates?.toLowerCase();
 
-    return (
+    const selectedDateString = selectedDate
+      ? format(new Date(selectedDate), "yyyy-MM-dd")
+      : "";
+
+    console.log(selectedDateString);
+
+    const matchesSearch =
       name.includes(searchTerm) ||
       shift.includes(searchTerm) ||
-      dates.includes(searchTerm)
-    );
+      dates.includes(searchTerm);
+
+    const matchesDate =
+      !selectedShift ||
+      driver.combinedShifts
+        ?.toLowerCase()
+        .includes(selectedShift.toLowerCase());
+
+    return matchesSearch && matchesDate;
   });
 
   const paginatedDrivers = filteredDrivers.slice(
@@ -118,8 +148,42 @@ const DriversShifts = () => {
           variant="outlined"
           value={searchTerm}
           onChange={handleSearch}
-          sx={{ mb: 2, width: "60%" }}
+          sx={{ mb: 2, width: "30%" }}
         />
+
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DatePicker
+            label="Filter by Date"
+            value={selectedDate}
+            onChange={(newValue) => {
+              setSelectedDate(newValue);
+            }}
+            slotProps={{ textField: { size: "small" } }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                size="small"
+                sx={{ width: "30%", ml: 2 }}
+              />
+            )}
+          />
+        </LocalizationProvider>
+
+        <FormControl sx={{ width: "30%", ml: 2 }} size="small">
+          <InputLabel>Filter by Shift</InputLabel>
+          <Select
+            value={selectedShift}
+            label="Filter by Shift"
+            onChange={(e) => setSelectedShift(e.target.value)}
+          >
+            <MenuItem value="">All Shifts</MenuItem>
+            {uniqueShifts.map((shift, idx) => (
+              <MenuItem key={idx} value={shift}>
+                {shift}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
 
         <TableContainer>
           <Table>
