@@ -245,7 +245,7 @@ const ControlUsage = () => {
             setDevicesShiftData((prevData) =>
               prevData.map((device) =>
                 device.deviceId === deviceId
-                  ? { ...device, doutStatus: isSwitchOn ? 1 : 0 }
+                  ? { ...device, doutStatus: device.doutStatus === 1 ? 0 : 1 }
                   : device
               )
             );
@@ -353,6 +353,7 @@ const ControlUsage = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>Status</TableCell>
+                  <TableCell>Ignition Status</TableCell>
                   <TableCell>Name</TableCell>
                   <TableCell>Driver</TableCell>
                   <TableCell>Auth Location Map</TableCell>
@@ -362,6 +363,8 @@ const ControlUsage = () => {
               </TableHead>
               <TableBody>
                 {filteredData?.map((deviceReport, index) => {
+                  console.log(deviceReport);
+
                   return (
                     <TableRow
                       key={index}
@@ -392,6 +395,21 @@ const ControlUsage = () => {
                             height: 20,
                             borderRadius: "50%",
                             backgroundColor: deviceReport.status
+                              ? "green"
+                              : "red",
+                            marginRight: 1,
+                          }}
+                        ></Box>
+                      </TableCell>
+                      <TableCell>
+                        <Box
+                          component="span"
+                          sx={{
+                            display: "inline-block",
+                            width: 20,
+                            height: 20,
+                            borderRadius: "50%",
+                            backgroundColor: deviceReport.engineIgnitionStatus
                               ? "green"
                               : "red",
                             marginRight: 1,

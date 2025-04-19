@@ -219,7 +219,7 @@ const Shifts = () => {
               <TableCell>Grace Time</TableCell>
               {/* <TableCell>Queue</TableCell> */}
               <TableCell>Queue TTL</TableCell>
-              <TableCell>Shift Type</TableCell>
+              {/* <TableCell>Shift Type</TableCell> */}
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -253,7 +253,7 @@ const Shifts = () => {
                       {shift.queue_status === 1 ? "True" : "False"}
                     </TableCell> */}
                     <TableCell>Starts in: {shiftTimer}</TableCell>
-                    <TableCell>{shift.shift_type}</TableCell>
+                    {/* <TableCell>{shift.shift_type}</TableCell> */}
                     <TableCell>
                       <EditIcon
                         sx={{ cursor: "pointer" }}

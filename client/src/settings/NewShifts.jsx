@@ -181,8 +181,6 @@ const NewShifts = () => {
       queue_EndsIn: queueEndsIn,
     };
 
-    console.log(formData);
-
     try {
       const res = id
         ? await updateShift(id, formData)
@@ -215,10 +213,11 @@ const NewShifts = () => {
         ? new Date(`1970-01-01T${convertTo24Hour(res.start_time)}`)
         : null;
 
-      const endTime = res.start_time
+      const endTime = res.end_time
         ? new Date(`1970-01-01T${convertTo24Hour(res.end_time)}`)
         : null;
-      const graceTime = res.start_time
+
+      const graceTime = res.grace_time
         ? new Date(`1970-01-01T${convertTo24Hour(res.grace_time)}`)
         : null;
       const startDayObj = JSON.parse(res.start_day) || {};
@@ -262,7 +261,7 @@ const NewShifts = () => {
           />
         </FormControl>
 
-        <FormControl fullWidth sx={{ mb: 2 }}>
+        {/* <FormControl fullWidth sx={{ mb: 2 }}>
           <InputLabel>Shift Type</InputLabel>
           <Select
             value={shiftType}
@@ -271,7 +270,7 @@ const NewShifts = () => {
             <MenuItem value="preset">Preset</MenuItem>
             <MenuItem value="custom">Custom</MenuItem>
           </Select>
-        </FormControl>
+        </FormControl> */}
 
         <LocalizationProvider dateAdapter={AdapterDateFns}>
           <TimePicker
@@ -302,77 +301,6 @@ const NewShifts = () => {
             ampm={false}
           />
         </LocalizationProvider>
-
-        <Box
-          sx={{
-            margin: "14px auto",
-            display: "flex",
-            flexDirection: "column",
-            gap: "18px",
-          }}
-        >
-          {/* <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              // marginBottom: "20px",
-            }}
-          >
-            <TextField
-              sx={{ width: "45%" }}
-              label="Queue Time"
-              placeholder="ttl"
-              type="number"
-              disabled={selectedQueue === "yes" ? false : true}
-              value={queuettl}
-              onChange={(e) => setQueueTTL(e.target.value)}
-            />
-          </Box> */}
-          <FormControl sx={{}}>
-            <InputLabel>
-              Queue<span className="text-red-600">*</span>
-            </InputLabel>
-            <Select
-              value={selectedQueue || "no"}
-              onChange={(e) => setSelectedQueue(e.target.value)}
-            >
-              {queues.map((queue) => (
-                <MenuItem key={queue.id} value={queue.name}>
-                  {queue.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          {selectedQueue === "yes" && (
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Action</TableCell>
-                    <TableCell>Execution Times</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  <TableRow>
-                    <TableCell>Ignition on - Queue</TableCell>
-                    <TableCell>
-                      Starts in {intervalStartTime.hrsFormat} from now
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>Ignition off - Queue</TableCell>
-                    <TableCell>
-                      Duration from Start to End:{" "}
-                      {startEndIntervalTime.hrsFormat}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </Box>
 
         <Box sx={{ display: "flex", justifyContent: "space-evenly" }}>
           <Button
