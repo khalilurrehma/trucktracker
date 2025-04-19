@@ -52,9 +52,9 @@ const ControlUsage = () => {
     try {
       setIsLoading(true);
       const response =
-        !userId === 1
+        userId === 1
           ? await allDeviceUsageControl(pageParam)
-          : await allDeviceUsageControlByUserId(185, pageParam);
+          : await allDeviceUsageControlByUserId(userId, pageParam);
 
       if (!response || response.length === 0) {
         setHasMore(false);

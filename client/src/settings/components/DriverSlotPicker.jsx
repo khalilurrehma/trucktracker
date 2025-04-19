@@ -112,8 +112,17 @@ const DriverSlotPicker = ({ open, selectedDriver, onClose }) => {
       });
     });
 
+    // Preserve previous assigned shifts if group already exists
+    const updatedAssignedShifts = groups.map((group) => {
+      const existingIndex = groupedDates.findIndex(
+        (existingGroup) =>
+          JSON.stringify(existingGroup) === JSON.stringify(group)
+      );
+      return existingIndex !== -1 ? assignedShifts[existingIndex] : "";
+    });
+
     setGroupedDates(groups);
-    setAssignedShifts(groups.map(() => ""));
+    setAssignedShifts(updatedAssignedShifts);
   };
 
   const handleShiftChange = (index, shiftId) => {

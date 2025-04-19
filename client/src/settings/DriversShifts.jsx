@@ -41,7 +41,7 @@ const DriversShifts = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState(null);
   const [selectedShift, setSelectedShift] = useState("");
 
   const fetchFromApi = async () => {
@@ -110,13 +110,11 @@ const DriversShifts = () => {
   const filteredDrivers = groupedDrivers.filter((driver) => {
     const name = driver.name?.toLowerCase() || "";
     const shift = driver.combinedShifts?.toLowerCase();
-    const dates = driver.combinedDates?.toLowerCase();
+    const dates = driver.combinedDates;
 
     const selectedDateString = selectedDate
       ? format(new Date(selectedDate), "yyyy-MM-dd")
       : "";
-
-    console.log(selectedDateString);
 
     const matchesSearch =
       name.includes(searchTerm) ||
@@ -124,12 +122,12 @@ const DriversShifts = () => {
       dates.includes(searchTerm);
 
     const matchesDate =
-      !selectedShift ||
-      driver.combinedShifts
-        ?.toLowerCase()
-        .includes(selectedShift.toLowerCase());
+      !selectedDateString || dates.includes(selectedDateString);
 
-    return matchesSearch && matchesDate;
+    const matchesShift =
+      !selectedShift || shift.includes(selectedShift.toLowerCase());
+
+    return matchesSearch && matchesDate && matchesShift;
   });
 
   const paginatedDrivers = filteredDrivers.slice(
@@ -169,7 +167,7 @@ const DriversShifts = () => {
           />
         </LocalizationProvider>
 
-        <FormControl sx={{ width: "30%", ml: 2 }} size="small">
+        <FormControl sx={{ width: "20%", ml: 2 }} size="small">
           <InputLabel>Filter by Shift</InputLabel>
           <Select
             value={selectedShift}
@@ -184,6 +182,18 @@ const DriversShifts = () => {
             ))}
           </Select>
         </FormControl>
+        <Button
+          variant="outlined"
+          color="secondary"
+          onClick={() => {
+            setSearchTerm("");
+            setSelectedDate(null);
+            setSelectedShift("");
+          }}
+          sx={{ ml: 2, height: "40px" }}
+        >
+          Clear Filters
+        </Button>
 
         <TableContainer>
           <Table>

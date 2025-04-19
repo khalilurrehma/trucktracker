@@ -262,7 +262,7 @@ export const deleteDeviceShiftId = async (req, res) => {
         assignDriver(driverId, false),
         deviceShiftAssigned(deviceId, false),
       ]);
-
+    await scheduleShiftJobs();
     res
       .status(200)
       .json({ status: true, message: "Shift deleted successfully" });

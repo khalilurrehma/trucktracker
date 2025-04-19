@@ -16,7 +16,6 @@ import {
   telemetryDoutStatus,
 } from "./flespiApis.js";
 import { cron_logs } from "../model/driver.js";
-import { log } from "util";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -60,55 +59,11 @@ const applyGraceTime = (timeString, graceMinutes, operation) => {
     : time.add(minutes, "minute");
 };
 
-const cronFormat = (timeString) => {
-  if (!timeString) return "* * * * *";
-
-  const hasAmPm = /am|pm/i.test(timeString);
-  let hour, minute, second;
-
-  if (hasAmPm) {
-    const [time, period] = timeString.split(" ");
-    [hour, minute, second] = time.split(":").map(Number);
-    let cronHour = hour % 12;
-    if (period.toLowerCase() === "pm") cronHour += 12;
-    if (period.toLowerCase() === "am" && hour === 12) cronHour = 0;
-    return `${second} ${minute} ${cronHour} * * *`;
-  } else {
-    [hour, minute, second] = timeString.split(":").map(Number);
-    return `${second} ${minute} ${hour} * * *`;
-  }
-};
-
 const getCronFromDateTime = (date, time) => {
   const dateTime = dayjs(`${date} ${time}`, "YYYY-MM-DD HH:mm:ss");
   return `${dateTime.second()} ${dateTime.minute()} ${dateTime.hour()} ${dateTime.date()} ${
     dateTime.month() + 1
   } *`;
-};
-
-const resendTimeCronFormat = (timeString) => {
-  if (!timeString) return "* * * * *";
-
-  const [hours, minutes] = timeString.split(":").map(Number);
-
-  if (hours > 0) {
-    return `0 0 ${hours} * * *`;
-  }
-
-  const currentDate = new Date();
-  currentDate.setMinutes(currentDate.getMinutes() + minutes);
-  const cronMinutes = currentDate.getMinutes();
-  const cronHours = currentDate.getHours();
-
-  return `0 ${cronMinutes} ${cronHours} * * *`;
-};
-
-const graceTimeFormat = (graceTimeString) => {
-  if (!graceTimeString) return "* * * * *";
-
-  const [time, period] = graceTimeString.split(" ");
-
-  return time;
 };
 
 const applyExtendTime = (baseTime, extendTimeStr) => {
@@ -184,11 +139,11 @@ const scheduleResend = async ({
       }
     } catch (error) {
       console.error("Resend Attempt Error:", error.message);
-      setTimeout(attemptResend, delayMs); // Retry after delay on error
+      setTimeout(attemptResend, delayMs);
     }
   };
 
-  attemptResend(); // Initial attempt
+  attemptResend();
 };
 
 const scheduledJobs = new Map();
@@ -218,8 +173,8 @@ export const scheduleShiftJobs = async () => {
     for (const shiftBlock of shiftDetailsArray) {
       const { dates, shift } = shiftBlock;
       const graceMinutes = shift.grace_time;
-      const allDates = ["2025-04-17"];
-      // const allDates = expandDates(dates);
+      // const allDates = ["2025-04-17"];
+      const allDates = expandDates(dates);
 
       for (const date of allDates) {
         let shiftStart = applyGraceTime(
@@ -241,8 +196,8 @@ export const scheduleShiftJobs = async () => {
         const ttlInSeconds = ttlEndTime.diff(ttlStartTime, "second");
 
         const cronStart = getCronFromDateTime(date, shiftStart);
-        // const cronEnd = getCronFromDateTime(date, shiftEndStr);
-        const cronEnd = "0 55 2 18 4 *"; // Example cron expression for testing
+        const cronEnd = getCronFromDateTime(date, shiftEndStr);
+        // const cronEnd = "0 55 2 18 4 *"; // Example cron expression for testing
 
         const startKey = getJobKey(parsedDevice.flespiId, "start", date);
         const endKey = getJobKey(parsedDevice.flespiId, "end", date);
@@ -299,7 +254,9 @@ export const scheduleShiftJobs = async () => {
         if (!scheduledJobs.has(endKey)) {
           const endJob = new CronJob(cronEnd, async () => {
             try {
-              const deviceStatus = await flespiDevicesConnectionStatus(6349020);
+              const deviceStatus = await flespiDevicesConnectionStatus(
+                parsedDevice.flespiId
+              );
               const ignitionStatus = await flespiDevicesIgnitionStatus(
                 parsedDevice.flespiId
               );
@@ -312,7 +269,10 @@ export const scheduleShiftJobs = async () => {
                 const body = [
                   { name: "custom", properties: { text: commandOff } },
                 ];
-                const response = await instantExecutionCommand(6349020, body);
+                const response = await instantExecutionCommand(
+                  parsedDevice.flespiId,
+                  body
+                );
 
                 const success = response?.result?.[0];
 
@@ -324,7 +284,7 @@ export const scheduleShiftJobs = async () => {
                 }`;
 
                 await cron_logs({
-                  device_id: 6349020,
+                  device_id: parsedDevice.flespiId,
                   device_name: parsedDevice.name,
                   cron_type: "cronEnd",
                   cron_expression: cronEnd,
@@ -359,7 +319,7 @@ export const scheduleShiftJobs = async () => {
 
                 scheduleResend({
                   shiftId: id,
-                  deviceId: 6349020,
+                  deviceId: parsedDevice.flespiId,
                   deviceName: parsedDevice.name,
                   commandOff,
                   resendTime: parsedResendTime,
