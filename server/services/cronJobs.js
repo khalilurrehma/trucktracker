@@ -152,7 +152,12 @@ const getJobKey = (deviceId, type, date) => `${deviceId}-${type}-${date}`;
 
 // CRON FUNCTIONS
 
-export const scheduleShiftJobs = async () => {
+const scheduleShiftJobs = async () => {
+  console.log(
+    "Scheduling Shift Jobs. Time: ",
+    dayjs().tz(TIMEZONE).format("YYYY-MM-DD HH:mm:ss")
+  );
+
   const shifts = await getDeviceShift();
 
   for (const {
@@ -198,6 +203,9 @@ export const scheduleShiftJobs = async () => {
         const cronStart = getCronFromDateTime(date, shiftStart);
         const cronEnd = getCronFromDateTime(date, shiftEndStr);
         // const cronEnd = "0 55 2 18 4 *"; // Example cron expression for testing
+
+        console.log(cronStart);
+        console.log(cronEnd);
 
         const startKey = getJobKey(parsedDevice.flespiId, "start", date);
         const endKey = getJobKey(parsedDevice.flespiId, "end", date);
@@ -381,22 +389,24 @@ const verifyDevicesStatus = async () => {
   checkStatus.start();
 };
 
-const refreshShiftJobs = () => {
-  const loadAgain = new CronJob("*/25 * * * *", async () => {
-    const currentDateTime = dayjs().tz(TIMEZONE).format("YYYY-MM-DD HH:mm:ss");
-    console.log(`${currentDateTime}: Refreshing shift jobs...`);
-    await scheduleShiftJobs();
-  });
-
-  loadAgain.start();
+const refreshShiftJobs = async () => {
+  const currentDateTime = dayjs().tz(TIMEZONE).format("YYYY-MM-DD HH:mm:ss");
+  console.log(`${currentDateTime}: Refreshing shift jobs...`);
+  await scheduleShiftJobs();
 };
 
 const initializeCronJobs = async () => {
   setTimeout(async () => {
     await scheduleShiftJobs();
-    await verifyDevicesStatus();
-    await refreshShiftJobs();
+    // await verifyDevicesStatus();
   }, 3000);
 };
 
 initializeCronJobs();
+
+export {
+  scheduleShiftJobs,
+  verifyDevicesStatus,
+  refreshShiftJobs,
+  initializeCronJobs,
+};

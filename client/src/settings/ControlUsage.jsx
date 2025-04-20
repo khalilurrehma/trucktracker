@@ -11,7 +11,10 @@ import {
   TextField,
   Button,
   Switch,
+  Chip,
+  Tooltip,
 } from "@mui/material";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import {
   allDeviceUsageControl,
   allDeviceUsageControlByUserId,
@@ -28,6 +31,16 @@ import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import OperationsMenu from "./components/OperationsMenu";
 import { useAppContext } from "../AppContext";
+import { graceTimeConverter } from "./common/New.Helper";
+
+const formatTime = (date) => {
+  return date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+};
 
 const ControlUsage = () => {
   const [devicesShiftData, setDevicesShiftData] = useState([]);
@@ -36,8 +49,10 @@ const ControlUsage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [peruTime, setPeruTime] = useState(new Date());
   const navigate = useNavigate();
   const userId = useSelector((state) => state.session.user?.id);
+
   const { traccarUse, mqttDeviceIgnitionStatus, mqttDeviceConnected } =
     useAppContext();
   const loaderRef = useRef(null);
@@ -63,19 +78,30 @@ const ControlUsage = () => {
 
       const formattedData = await Promise.all(
         response.map(async (item) => {
+          const driverAvalibility = item.availability_details
+            ? JSON.parse(item.availability_details)
+            : [];
           const driverLocation = item?.location
             ? JSON.parse(item.location)
-            : null;
-          const deviceShiftResponse = item?.device_shift_response
-            ? JSON.parse(item?.device_shift_response)
-            : null;
-          const deviceShiftResend = item?.device_shift_resend_time
-            ? JSON.parse(item?.device_shift_resend_time)
             : null;
 
           let devicesDoutStatus = 0;
           let connectionStatusValue = null;
           let engineValueStatus = null;
+
+          const dates = [];
+          const shifts = new Set();
+
+          driverAvalibility.forEach((entry) => {
+            const grace_time = entry.shift?.grace_time
+              ? graceTimeConverter(entry.shift.grace_time)
+              : "N/A";
+            let mergeData = `${entry.shift?.shift_name} - ${grace_time}`;
+
+            if (entry.shift?.shift_name) {
+              shifts.add(mergeData);
+            }
+          });
 
           try {
             const doutStatusResponse = await fetchDeviceTelemetryDout(
@@ -108,24 +134,17 @@ const ControlUsage = () => {
             deviceFlespiId: item?.flespiId,
             deviceIdent: item?.ident,
             deviceTypeId: item?.device_type_id,
-            // status: 0,
             status: connectionStatusValue ? connectionStatusValue[0] : false,
             doutStatus: devicesDoutStatus[0],
             engineIgnitionStatus: engineValueStatus
               ? engineValueStatus[0]
               : false,
-            // doutStatus: 1,
             driverId: item?.driver_id,
             driverName: item?.driver_name,
+            driverShiftName: [...shifts] || [],
             driverLocation,
-            // shiftId: item.shift_id,
-            // shiftName: item.shift_name,
-            // graceTime: item.grace_time,
             authLocation: driverLocation ? "Yes" : "NO",
             manualControl: item.manualControl || "OFF",
-            // deviceShift_response: deviceShiftResponse,
-            // deviceShift_resentTime: deviceShiftResend,
-            // deviceShift_queueTime: item?.device_shift_queue_time,
           };
         })
       );
@@ -323,6 +342,18 @@ const ControlUsage = () => {
     });
   }, [mqttDeviceIgnitionStatus, mqttDeviceConnected]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Calculate Peru time (UTC-5)
+      const now = new Date();
+      const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+      const peruDate = new Date(utc - 5 * 60 * 60000); // GMT-5
+      setPeruTime(peruDate);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <PageLayout
       menu={<OperationsMenu />}
@@ -346,7 +377,27 @@ const ControlUsage = () => {
             value={filters}
             onChange={(e) => setFilters(e.target.value)}
           />
+
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              px: 2,
+              py: 1,
+              borderRadius: "10px",
+              backgroundColor: "#E3F2FD",
+              color: "#0D47A1",
+              fontWeight: 600,
+              fontFamily: "monospace",
+              animation: "pulse 1s infinite",
+            }}
+          >
+            <AccessTimeIcon fontSize="small" />
+            Peru Time: {formatTime(peruTime)}
+          </Box>
         </Box>
+
         <>
           <TableContainer>
             <Table>
@@ -356,15 +407,15 @@ const ControlUsage = () => {
                   <TableCell>Ignition Status</TableCell>
                   <TableCell>Name</TableCell>
                   <TableCell>Driver</TableCell>
+                  <TableCell>Shift Names - Grace Time</TableCell>
                   <TableCell>Auth Location Map</TableCell>
                   <TableCell>Auth Location</TableCell>
+                  <TableCell>Status</TableCell>
                   <TableCell>Manual Control</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {filteredData?.map((deviceReport, index) => {
-                  console.log(deviceReport);
-
                   return (
                     <TableRow
                       key={index}
@@ -424,6 +475,31 @@ const ControlUsage = () => {
                           : "N/A"}
                       </TableCell>
                       <TableCell>
+                        {deviceReport.driverShiftName &&
+                        deviceReport.driverShiftName.length > 0 ? (
+                          <Box
+                            sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}
+                          >
+                            {deviceReport.driverShiftName.map(
+                              (shift, index) => (
+                                <Tooltip title="Shift name & grace time">
+                                  <Chip
+                                    key={index}
+                                    label={shift}
+                                    color="primary"
+                                    variant="outlined"
+                                    size="small"
+                                  />
+                                </Tooltip>
+                              )
+                            )}
+                          </Box>
+                        ) : (
+                          "N/A"
+                        )}
+                      </TableCell>
+
+                      <TableCell>
                         {deviceReport.driverLocation ? (
                           <Button
                             sx={{ fontSize: "12px" }}
@@ -444,6 +520,9 @@ const ControlUsage = () => {
                       </TableCell>
 
                       <TableCell>{deviceReport.authLocation}</TableCell>
+                      <TableCell>
+                        {deviceReport.doutStatus ? "Locked" : "Unlocked"}
+                      </TableCell>
                       <TableCell>
                         {deviceStatus[deviceReport.deviceId] ? (
                           <CountdownCircleTimer

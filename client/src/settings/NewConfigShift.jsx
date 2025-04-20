@@ -320,35 +320,35 @@ const NewConfigShift = () => {
         (device) => device.shift_assigned === 0
       );
 
-      const devicesWithDoutStatus = await Promise.all(
-        filterAssignedDevices.map(async (device) => {
-          try {
-            let doutStatusResponse;
-            if (device.flespiId) {
-              doutStatusResponse = await fetchDeviceDin(device?.flespiId);
-            }
+      // const devicesWithDoutStatus = await Promise.all(
+      //   filterAssignedDevices.map(async (device) => {
+      //     try {
+      //       let doutStatusResponse;
+      //       if (device.flespiId) {
+      //         doutStatusResponse = await fetchDeviceDin(device?.flespiId);
+      //       }
 
-            const devicesIgnitionStatus =
-              doutStatusResponse[0]?.telemetry?.din?.value ?? 0;
+      //       const devicesIgnitionStatus =
+      //         doutStatusResponse[0]?.telemetry?.din?.value ?? 0;
 
-            return {
-              ...device,
-              devicesIgnitionStatus,
-            };
-          } catch (error) {
-            return {
-              ...device,
-              devicesIgnitionStatus: 0,
-            };
-          }
-        })
-      );
+      //       return {
+      //         ...device,
+      //         devicesIgnitionStatus,
+      //       };
+      //     } catch (error) {
+      //       return {
+      //         ...device,
+      //         devicesIgnitionStatus: 0,
+      //       };
+      //     }
+      //   })
+      // );
 
-      const finalFilteredDevices = devicesWithDoutStatus.filter((device) =>
-        [0, 1, 4, 5].includes(device.devicesIgnitionStatus)
-      );
+      // const finalFilteredDevices = devicesWithDoutStatus.filter((device) =>
+      //   [0, 1, 4, 5].includes(device.devicesIgnitionStatus)
+      // );
 
-      setDevices(finalFilteredDevices);
+      setDevices(filterAssignedDevices);
     } catch (error) {
       console.error("Error fetching devices:", error);
     } finally {
@@ -437,7 +437,7 @@ const NewConfigShift = () => {
             isOptionEqualToValue={(option, value) => option.id === value.id}
             renderOption={(props, option) => (
               <li {...props} key={option.id || Math.random()}>
-                <span
+                {/* <span
                   style={{
                     width: "15px",
                     height: "15px",
@@ -450,7 +450,7 @@ const NewConfigShift = () => {
                       : "green",
                     display: "inline-block",
                   }}
-                />
+                /> */}
                 {option.name || "Unnamed Device"}
               </li>
             )}

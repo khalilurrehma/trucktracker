@@ -284,7 +284,7 @@ const SettingsMenu = () => {
               </AccordionSummary>
               <AccordionDetails sx={{ p: 0 }}>
                 <MenuItem
-                  title="Assign Shift"
+                  title="Assign Devices"
                   link="/settings/config-shifts"
                   icon={<TravelExploreIcon sx={{ ml: 2 }} />}
                   selected={location.pathname.startsWith(

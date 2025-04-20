@@ -30,7 +30,11 @@ import {
   updateUsageControlShift,
   updateUsageResponse,
 } from "../model/usageControl.js";
-import { scheduleShiftJobs } from "../services/cronJobs.js";
+import {
+  initializeCronJobs,
+  refreshShiftJobs,
+  scheduleShiftJobs,
+} from "../services/cronJobs.js";
 
 export const postUsageActions = async (req, res) => {
   const body = req.body;
@@ -132,7 +136,7 @@ export const postDeviceShift = async (req, res) => {
         deviceShiftAssigned(deviceId, true),
       ]);
 
-      await scheduleShiftJobs();
+      await refreshShiftJobs();
       res.status(201).json({
         status: true,
         message: `Shift added successfully, Shift Id: ${newDeviceShift.insertId}`,
@@ -262,7 +266,7 @@ export const deleteDeviceShiftId = async (req, res) => {
         assignDriver(driverId, false),
         deviceShiftAssigned(deviceId, false),
       ]);
-    await scheduleShiftJobs();
+    await refreshShiftJobs();
     res
       .status(200)
       .json({ status: true, message: "Shift deleted successfully" });
