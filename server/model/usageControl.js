@@ -292,7 +292,8 @@ export const fetchDeviceShiftByUserId = async (id) => {
         'name', drivers.name,
         'uniqueId', drivers.unique_id,
         'attributes', drivers.attributes,
-        'location', drivers.location
+        'location', drivers.location,
+        'shift_details', drivers.availability_details
       ) AS driver,
       JSON_OBJECT(
         'id', config_shifts.id,
