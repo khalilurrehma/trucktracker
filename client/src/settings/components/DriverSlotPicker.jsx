@@ -46,12 +46,13 @@ const DriverSlotPicker = ({ open, selectedDriver, onClose }) => {
 
   const normalizeAvailabilityDetails = (data) => {
     if (!Array.isArray(data)) return [];
+
     return data.map((entry) => ({
       dates: entry.dates,
       shift: {
-        ...entry.shift,
-        start_day: JSON.parse(entry.shift.start_day),
-        end_day: JSON.parse(entry.shift.end_day),
+        ...entry.shift_detail,
+        start_day: JSON.parse(entry.shift_detail?.start_day || "[]"),
+        end_day: JSON.parse(entry.shift_detail?.end_day || "[]"),
       },
     }));
   };
@@ -59,13 +60,12 @@ const DriverSlotPicker = ({ open, selectedDriver, onClose }) => {
   useEffect(() => {
     if (selectedDriver?.availability_details) {
       const normalized = normalizeAvailabilityDetails(
-        JSON.parse(selectedDriver.availability_details)
-      );
+        selectedDriver.availability_details
+      ).filter((item) => item.shift !== null);
 
       const dateGroups = normalized.map((item) => item.dates);
-      const shiftGroups = normalized.map((item) => item.shift.id); // store only shift IDs
+      const shiftGroups = normalized.map((item) => item.shift.id);
 
-      // Populate the calendar
       const parsedValues = normalized.map((entry) =>
         entry.dates.length === 1
           ? new Date(entry.dates[0])
@@ -112,7 +112,6 @@ const DriverSlotPicker = ({ open, selectedDriver, onClose }) => {
       });
     });
 
-    // Preserve previous assigned shifts if group already exists
     const updatedAssignedShifts = groups.map((group) => {
       const existingIndex = groupedDates.findIndex(
         (existingGroup) =>
@@ -134,9 +133,10 @@ const DriverSlotPicker = ({ open, selectedDriver, onClose }) => {
   const handleSubmit = async () => {
     const finalData = groupedDates.map((group, idx) => {
       const fullShift = shifts.find((s) => s.id === assignedShifts[idx]);
+
       return {
         dates: group,
-        shift: fullShift,
+        shift: fullShift.id,
       };
     });
 
@@ -153,7 +153,9 @@ const DriverSlotPicker = ({ open, selectedDriver, onClose }) => {
         onClose();
       }
     } catch (error) {
-      toast.error(error?.message || "Error saving data");
+      const message =
+        error?.response?.data?.message || error?.message || "Error saving data";
+      toast.error(message);
     }
   };
 

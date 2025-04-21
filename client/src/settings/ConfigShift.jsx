@@ -67,8 +67,11 @@ const ConfigShift = () => {
           ? await fetchDeviceShifts()
           : await fetchDeviceShiftsOfUser(userId);
 
+      console.log(response);
+
       const processedData = response?.map((row) => {
-        const driver = JSON.parse(row.driver || "{}");
+        const driver =
+          typeof row.driver === "string" ? JSON.parse(row.driver) : row.driver;
 
         const dates = [];
         const shifts = new Set();
@@ -244,7 +247,7 @@ const ConfigShift = () => {
                       <TableCell>{driver.combinedShifts || "N/A"}</TableCell>
                       <TableCell>{driver.combinedDates || "N/A"}</TableCell>
                       <TableCell>
-                        {resend_time.formattedTime + " min" || "N/A"}
+                        {resend_time?.formattedTime + " min" || "N/A"}
                       </TableCell>
                       <TableCell>
                         {!row.is_extended ? (
@@ -273,14 +276,14 @@ const ConfigShift = () => {
                       </TableCell>
 
                       <TableCell sx={{ display: "flex", gap: "8px" }}>
-                        <EditIcon
+                        {/* <EditIcon
                           sx={{ cursor: "pointer" }}
                           onClick={() => {
                             navigate(
                               `/settings/new-shift/${row.id}/${driver.id}`
                             );
                           }}
-                        />
+                        /> */}
                         <DeleteIcon
                           sx={{ cursor: "pointer" }}
                           onClick={() => {

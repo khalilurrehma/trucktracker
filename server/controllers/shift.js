@@ -7,6 +7,7 @@ import {
   fetchShiftByType,
   fetchShiftByUserId,
 } from "../model/shift.js";
+import { refreshShiftJobs } from "../services/cronJobs.js";
 
 export const newShift = async (req, res) => {
   const body = req.body;
@@ -73,7 +74,19 @@ export const modifyShifts = async (req, res) => {
   const { id } = req.params;
   const body = req.body;
   try {
-    await updateShift(body, id);
+    const result = await updateShift(body, id);
+    if (result.affectedRows === 0) {
+      return res
+        .status(404)
+        .json({ status: false, message: "Shift not found" });
+    }
+    if (result.changedRows === 0) {
+      return res.status(200).json({
+        status: true,
+        message: "No changes made to the shift",
+      });
+    }
+    await refreshShiftJobs();
     res
       .status(200)
       .send({ status: true, message: "Shift updated successfully" });

@@ -29,14 +29,43 @@ export const addDriver = async (body) => {
 };
 
 export const fetchDrivers = async () => {
-  const sql = "SELECT * FROM drivers";
+  const driverSQL = "SELECT * FROM drivers";
+  const shiftSQL = "SELECT * FROM config_shifts";
 
   return new Promise((resolve, reject) => {
-    pool.query(sql, (err, results) => {
-      if (err) {
-        reject(err);
-      }
-      resolve(results);
+    pool.query(driverSQL, async (driverErr, drivers) => {
+      if (driverErr) return reject(driverErr);
+
+      // Get all shifts once
+      pool.query(shiftSQL, (shiftErr, shifts) => {
+        if (shiftErr) return reject(shiftErr);
+
+        const shiftMap = new Map();
+        shifts.forEach((s) => shiftMap.set(s.id, s));
+
+        const populatedDrivers = drivers.map((driver) => {
+          let availability = [];
+
+          try {
+            const parsed = JSON.parse(driver.availability_details || "[]");
+            availability = parsed.map((entry) => ({
+              ...entry,
+              shift_detail: shiftMap.get(entry.shift) || null,
+            }));
+          } catch (e) {
+            console.warn(
+              `Invalid availability_details JSON for driver ${driver.id}`
+            );
+          }
+
+          return {
+            ...driver,
+            availability_details: availability,
+          };
+        });
+
+        resolve(populatedDrivers);
+      });
     });
   });
 };
@@ -111,7 +140,9 @@ export const updateDriverAvailability = async (id, details) => {
   return new Promise((resolve, reject) => {
     pool.query(sql, values, (err, results) => {
       if (err) {
-        reject(err);
+        return reject(
+          new Error("Failed to update driver availability: " + err.message)
+        );
       }
       resolve(results);
     });
@@ -125,9 +156,31 @@ export const fetchDriverAvailability = async (id) => {
     pool.query(sql, [id], (err, results) => {
       if (err) {
         reject(err);
-      } else {
-        resolve(results[0]);
       }
+      const availability = JSON.parse(results[0]?.availability_details || "[]");
+      const shiftIds = [...new Set(availability.map((a) => a.shift))];
+
+      if (shiftIds.length === 0) {
+        return resolve([]);
+      }
+      const placeholders = shiftIds.map(() => "?").join(",");
+      const shiftQuery = `SELECT * FROM config_shifts WHERE id IN (${placeholders})`;
+
+      pool.query(shiftQuery, shiftIds, (err2, shifts) => {
+        if (err2) {
+          return reject(err2);
+        }
+
+        const enrichedAvailability = availability.map((a) => {
+          const fullShift = shifts.find((s) => s.id === a.shift);
+          return {
+            ...a,
+            shift_info: fullShift || null,
+          };
+        });
+
+        resolve(enrichedAvailability);
+      });
     });
   });
 };

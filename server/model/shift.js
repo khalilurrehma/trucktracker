@@ -82,16 +82,13 @@ export const updateShift = async (body, shift_id) => {
     shift_type,
     grace_time,
     userId,
-    start_day,
-    end_day,
     queue_ttl,
-    queue_status,
     queue_startsIn,
     queue_EndsIn,
   } = body;
   const sql = `
     UPDATE config_shifts
-    SET shift_name =?, start_time =?, end_time =?, shift_type =?, grace_time =?, userId =?, start_day =?, end_day =?, queue_ttl =?, queue_status =?, queue_startsIn =?, queue_endsIn =?, updated_at = NOW()
+    SET shift_name =?, start_time =?, end_time =?, shift_type =?, grace_time =?, userId =?, queue_ttl =?, queue_startsIn =?, queue_endsIn =?, updated_at = NOW()
     WHERE id =?
   `;
 
@@ -102,10 +99,7 @@ export const updateShift = async (body, shift_id) => {
     shift_type,
     grace_time,
     userId,
-    JSON.stringify(start_day),
-    JSON.stringify(end_day),
     queue_ttl,
-    queue_status === "yes" ? 1 : 0,
     queue_startsIn,
     queue_EndsIn,
     shift_id,

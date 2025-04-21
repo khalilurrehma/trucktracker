@@ -28,6 +28,8 @@ import { postShift, shiftById, updateShift } from "../apis/api";
 import {
   adjustTimes,
   calculateIntervalTime,
+  convertMinutesToDayjs,
+  convertToDayjsTime,
   StartEndFormatTime,
 } from "./common/New.Helper";
 import { toast, ToastContainer } from "react-toastify";
@@ -196,43 +198,20 @@ const NewShifts = () => {
     }
   };
 
-  const handleDayChange = (newValue, period) => {
-    if (period === "start") {
-      setStartDay(newValue);
-    } else if (period === "end") {
-      setEndDay(newValue);
-    }
-  };
-
   const fetchShiftById = async (id) => {
     try {
       const res = await shiftById(id);
-      console.log(res);
+      console.log("Shift fetched:", res);
 
-      const startTime = res.start_time
-        ? new Date(`1970-01-01T${convertTo24Hour(res.start_time)}`)
-        : null;
+      setShiftName(res.shift_name || "");
 
-      const endTime = res.end_time
-        ? new Date(`1970-01-01T${convertTo24Hour(res.end_time)}`)
-        : null;
+      const start = convertToDayjsTime(res.start_time);
+      const end = convertToDayjsTime(res.end_time);
+      const grace = convertMinutesToDayjs(res.grace_time);
 
-      const graceTime = res.grace_time
-        ? new Date(`1970-01-01T${convertTo24Hour(res.grace_time)}`)
-        : null;
-      const startDayObj = JSON.parse(res.start_day) || {};
-      const endDayObj = JSON.parse(res.end_day) || {};
-
-      const startDayMatch =
-        days.find((day) => day.id === startDayObj.id) || null;
-      const endDayMatch = days.find((day) => day.id === endDayObj.id) || null;
-
-      setShiftName(res.shift_name);
-      setStartTime(startTime);
-      setEndTime(endTime);
-      setGraceTime(graceTime);
-      setStartDay(startDayMatch);
-      setEndDay(endDayMatch);
+      setStartTime(start);
+      setEndTime(end);
+      setGraceTime(grace);
     } catch (error) {
       console.error("Error fetching shift by ID:", error);
     }

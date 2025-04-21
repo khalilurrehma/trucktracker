@@ -14,6 +14,7 @@ import {
   getLatestDriverBehaivorReportsByUserId,
 } from "../model/notifications.js";
 import axios from "axios";
+import { refreshShiftJobs } from "../services/cronJobs.js";
 
 export const postDriver = async (req, res) => {
   const { userId, isSuperAdmin, traccarUserToken, ...restFields } = req.body;
@@ -179,14 +180,27 @@ export const saveDriverAvailability = async (req, res) => {
   const body = req.body;
 
   try {
-    const updatedDriver = await updateDriverAvailability(parseInt(id), body);
+    const result = await updateDriverAvailability(parseInt(id), body);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        status: false,
+        message: "Driver not found or availability not updated",
+      });
+    }
+
+    await refreshShiftJobs();
 
     res.status(200).json({
       status: true,
       message: "Driver Availability Updated Successfully",
     });
   } catch (error) {
-    res.status(500).json({ status: false, message: error.message });
+    res.status(500).json({
+      status: false,
+      message:
+        error.message || "Something went wrong while updating availability",
+    });
   }
 };
 

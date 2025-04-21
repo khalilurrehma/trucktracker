@@ -33,7 +33,7 @@ dayjs.extend(duration);
  * @returns {string} - Adjusted time in "HH:mm:ss" format.
  */
 
-const TIMEZONE = "Asia/Karachi";
+const TIMEZONE = "America/Lima";
 
 const activeJobs = new Map();
 
@@ -71,6 +71,9 @@ const applyExtendTime = (baseTime, extendTimeStr) => {
   return baseTime.add(extHours, "hour").add(extMinutes, "minute");
 };
 
+let retryTimeoutMap = new Map();
+let resendCompletedMap = new Map();
+
 const scheduleResend = async ({
   shiftId,
   deviceId,
@@ -79,6 +82,15 @@ const scheduleResend = async ({
   resendTime,
   date,
 }) => {
+  if (resendCompletedMap.get(deviceId)) {
+    console.log(
+      `[${dayjs().format()}] Resend already completed for ${deviceName}, skipping further attempts.`
+    );
+    clearTimeout(retryTimeoutMap.get(deviceId));
+    retryTimeoutMap.delete(deviceId);
+    return;
+  }
+
   const [hours, minutes] = resendTime.formattedTime.split(":").map(Number);
   const delayMs = (hours * 60 + minutes) * 60 * 1000;
 
@@ -111,21 +123,39 @@ const scheduleResend = async ({
           notes: note,
         });
         if (success) {
+          resendCompletedMap.set(deviceId, true);
+          clearTimeout(retryTimeoutMap.get(deviceId));
+          retryTimeoutMap.delete(deviceId);
+
           await nullifyExtendTime(shiftId);
         }
-      } else if (
-        ([2, 3, 6, 7].includes(ignitionValue) && isConnected) ||
-        !isConnected
-      ) {
+      } else if ([2, 3, 6, 7].includes(ignitionValue) && isConnected) {
         console.log(
-          `[${dayjs().format()}] Ignition still ON. Retrying again in ${
+          `[${dayjs().format()}] Ignition ON / Not Connected. Retrying again in ${
             resendTime.formattedTime
           }`
         );
-        setTimeout(attemptResend, delayMs);
+
+        const existingTimeout = retryTimeoutMap.get(deviceId);
+        if (existingTimeout) clearTimeout(existingTimeout);
+
+        const timeoutId = setTimeout(attemptResend, delayMs);
+        retryTimeoutMap.set(deviceId, timeoutId);
+      } else if (!isConnected) {
+        console.log(
+          `[${dayjs().format()}] Not Connected. Retrying again in ${
+            resendTime.formattedTime
+          }`
+        );
+
+        const existingTimeout = retryTimeoutMap.get(deviceId);
+        if (existingTimeout) clearTimeout(existingTimeout);
+
+        const timeoutId = setTimeout(attemptResend, delayMs);
+        retryTimeoutMap.set(deviceId, timeoutId);
       } else {
         console.warn(
-          `[${dayjs().format()}] Device not connected. Skipping resend.`
+          `[${dayjs().format()}] Unexpected Error Occured. Skipping resend.`
         );
         await cron_logs({
           device_id: deviceId,
@@ -134,12 +164,16 @@ const scheduleResend = async ({
           cron_expression: `manualRetryAfter:${resendTime.formattedTime}`,
           scheduled_time: new Date(`${date}T${resendTime.formattedTime}`),
           status: "failed",
-          notes: `[${dayjs().format()}] Resend aborted due to no connection`,
+          notes: `[${dayjs().format()}] Resend aborted due to unexpected error.`,
         });
       }
     } catch (error) {
       console.error("Resend Attempt Error:", error.message);
-      setTimeout(attemptResend, delayMs);
+      const existingTimeout = retryTimeoutMap.get(deviceId);
+      if (existingTimeout) clearTimeout(existingTimeout);
+
+      const timeoutId = setTimeout(attemptResend, delayMs);
+      retryTimeoutMap.set(deviceId, timeoutId);
     }
   };
 
@@ -171,7 +205,8 @@ const scheduleShiftJobs = async () => {
     extend_time,
   } of shifts) {
     const parsedDevice = JSON.parse(device);
-    const parsedDriver = JSON.parse(driver);
+    const parsedDriver =
+      typeof driver === "string" ? JSON.parse(driver) : driver;
     const parsedResendTime = JSON.parse(resend_time);
     const shiftDetailsArray = parsedDriver.shift_details;
 
@@ -333,9 +368,24 @@ const scheduleShiftJobs = async () => {
                   resendTime: parsedResendTime,
                   date,
                 });
+              } else if (!isConnected) {
+                console.log(
+                  `[${dayjs().format()}] Device Not Connected, Rescheduling End for: ${
+                    parsedDevice.name
+                  }`
+                );
+
+                scheduleResend({
+                  shiftId: id,
+                  deviceId: parsedDevice.flespiId,
+                  deviceName: parsedDevice.name,
+                  commandOff,
+                  resendTime: parsedResendTime,
+                  date,
+                });
               } else {
                 console.log(
-                  `[${dayjs().format()}] Device not connected. Skipping command.`
+                  `[${dayjs().format()}] Unexpected Error Occured. Skipping command.`
                 );
               }
             } catch (error) {

@@ -63,13 +63,14 @@ const ControlUsage = () => {
     }
   }, []);
 
-  const allDeviceControl = async (pageParam = 1) => {
+  const allDeviceControl = async (searchTerm = "", pageParam = 1) => {
+    console.log("searchTerm", searchTerm);
     try {
       setIsLoading(true);
       const response =
         userId === 1
-          ? await allDeviceUsageControl(pageParam)
-          : await allDeviceUsageControlByUserId(userId, pageParam);
+          ? await allDeviceUsageControl(pageParam, searchTerm)
+          : await allDeviceUsageControlByUserId(userId, pageParam, searchTerm);
 
       if (!response || response.length === 0) {
         setHasMore(false);
@@ -78,9 +79,11 @@ const ControlUsage = () => {
 
       const formattedData = await Promise.all(
         response.map(async (item) => {
-          const driverAvalibility = item.availability_details
-            ? JSON.parse(item.availability_details)
-            : [];
+          const driverAvalibility =
+            item.availability_details &&
+            typeof item.availability_details === "string"
+              ? JSON.parse(item.availability_details)
+              : item.availability_details || [];
           const driverLocation = item?.location
             ? JSON.parse(item.location)
             : null;
@@ -149,7 +152,12 @@ const ControlUsage = () => {
         })
       );
 
-      setDevicesShiftData((prev) => [...prev, ...formattedData]);
+      if (searchTerm) {
+        setDevicesShiftData(formattedData);
+      } else {
+        setDevicesShiftData((prev) => [...prev, ...formattedData]);
+      }
+
       setPage(pageParam);
     } catch (error) {
       console.error("Error fetching vehicles data:", error);
@@ -305,7 +313,7 @@ const ControlUsage = () => {
           !isLoading &&
           filters.trim() === ""
         ) {
-          allDeviceControl(page + 1);
+          allDeviceControl(filters, page + 1);
         }
       },
       { threshold: 1 }
@@ -331,6 +339,8 @@ const ControlUsage = () => {
         const connectionUpdate = mqttDeviceConnected.find(
           (d) => d.deviceId === device.deviceFlespiId
         );
+
+        console.log(ignitionUpdate, connectionUpdate, device.deviceFlespiId);
 
         return {
           ...device,
@@ -374,8 +384,9 @@ const ControlUsage = () => {
         <Box sx={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
           <TextField
             label="Search"
-            value={filters}
-            onChange={(e) => setFilters(e.target.value)}
+            onChange={(e) => {
+              setFilters(e.target.value), allDeviceControl(e.target.value);
+            }}
           />
 
           <Box

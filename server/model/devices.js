@@ -379,14 +379,14 @@ export function getDevicesByIMEI(uniqueIds) {
   });
 }
 
-export const deviceShiftAssigned = (deviceId, assign = false) => {
+export const deviceShiftAssigned = async (deviceId, assign = false) => {
   const sql = `UPDATE new_settings_devices SET shift_assigned = ? WHERE id = ?`;
-
   const values = [assign ? true : false, deviceId];
 
   try {
-    dbQuery(sql, values);
+    const result = await dbQuery(sql, values);
+    return result;
   } catch (error) {
-    console.error("Error updating shift assignment:", error);
+    throw new Error(`deviceShiftAssigned failed: ${error.message}`);
   }
 };

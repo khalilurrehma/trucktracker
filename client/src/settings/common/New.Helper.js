@@ -1,7 +1,9 @@
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
+import customParseFormat from "dayjs/plugin/customParseFormat";
 
+dayjs.extend(customParseFormat);
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
@@ -291,4 +293,21 @@ export const formatUnixTimestamp = (timestamp) => {
   );
 
   return date.toLocaleString("en-US", { timeZone: "America/New_York" });
+};
+
+export const convertToDayjsTime = (timeStr) => {
+  const [time, modifier] = timeStr.split(" ");
+  const [hours, minutes, seconds] = time.split(":");
+
+  let hour = parseInt(hours);
+  if (modifier === "PM" && hour !== 12) hour += 12;
+  if (modifier === "AM" && hour === 12) hour = 0;
+
+  return new Date(1970, 0, 1, hour, minutes, seconds || 0);
+};
+
+export const convertMinutesToDayjs = (minutes) => {
+  const date = new Date(1970, 0, 1);
+  date.setMinutes(minutes);
+  return date;
 };

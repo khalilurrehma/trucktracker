@@ -5,6 +5,7 @@ import {
   addLogAndReport,
   addUsageActions,
   assignDriver,
+  enrichAvailabilityDetailsWithShiftData,
   fetchAllLogs,
   fetchAllLogsbyUserId,
   fetchAllReports,
@@ -127,14 +128,23 @@ export const postDeviceShift = async (req, res) => {
       const [updateResult, assignedDriver, deviceAssigned] = await Promise.all([
         updateUsageControl(
           deviceId,
-          shiftId,
           newDeviceShift.insertId,
           driver_id,
           "newDeviceShift"
-        ),
-        assignDriver(driver_id, true),
-        deviceShiftAssigned(deviceId, true),
+        ).catch((e) => {
+          throw new Error("updateUsageControl failed: " + e.message);
+        }),
+        assignDriver(driver_id, true).catch((e) => {
+          throw new Error("assignDriver failed: " + e.message);
+        }),
+        deviceShiftAssigned(deviceId, true).catch((e) => {
+          throw new Error("deviceShiftAssigned failed: " + e.message);
+        }),
       ]);
+
+      console.log(
+        `All update operations completed. "postDeviceShift Controller" `
+      );
 
       await refreshShiftJobs();
       res.status(201).json({
@@ -142,14 +152,14 @@ export const postDeviceShift = async (req, res) => {
         message: `Shift added successfully, Shift Id: ${newDeviceShift.insertId}`,
       });
     } catch (updateError) {
-      console.error("Update Error:", updateError.message);
+      console.error("Error during shift update:", updateError);
       return res.status(400).json({
         status: false,
-        message: updateError.message,
+        message: updateError.message || "Shift update failed",
       });
     }
   } catch (error) {
-    console.error(error);
+    console.error("Error in postDeviceShift:", error);
     res.status(500).json({ status: false, error: error.message });
   }
 };
@@ -278,11 +288,14 @@ export const deleteDeviceShiftId = async (req, res) => {
 // USAGE CONTROL TABLE:
 
 export const getControlAllDevice = async (req, res) => {
-  const { page = 1, limit = 10 } = req.query;
+  const { page = 1, limit = 10, searchTerm = "" } = req.query;
   try {
-    const controlTable = await fetchControlUsageTable(page, limit);
+    const controlTable = await fetchControlUsageTable(page, limit, searchTerm);
+    const enrichedTable = await enrichAvailabilityDetailsWithShiftData(
+      controlTable
+    );
 
-    res.status(200).json({ status: true, message: controlTable });
+    res.status(200).json({ status: true, message: enrichedTable });
   } catch (error) {
     console.error(error);
     res.status(500).json({ status: false, error: error.message });
@@ -298,8 +311,11 @@ export const getControlDevicesByUserId = async (req, res) => {
       page,
       limit
     );
+    const enrichedTable = await enrichAvailabilityDetailsWithShiftData(
+      controlTable
+    );
 
-    res.status(200).json({ status: true, message: controlTable });
+    res.status(200).json({ status: true, message: enrichedTable });
   } catch (error) {
     console.error(error);
     res.status(500).json({ status: false, error: error.message });

@@ -461,10 +461,14 @@ export const removeDeviceShiftById = async (
   }
 };
 
-export const allDeviceUsageControl = async (page = 1, limit = 10) => {
+export const allDeviceUsageControl = async (
+  page = 1,
+  searchTerm = "",
+  limit = 10
+) => {
   try {
     const { data } = await axios.get(
-      `${apiUrl}/control/devices?page=${page}&limit=${limit}`
+      `${apiUrl}/control/devices?page=${page}&limit=${limit}&searchTerm=${searchTerm}`
     );
     return data.message;
   } catch (error) {
@@ -476,11 +480,12 @@ export const allDeviceUsageControl = async (page = 1, limit = 10) => {
 export const allDeviceUsageControlByUserId = async (
   userId,
   page = 1,
-  limit = 20
+  searchTerm = "",
+  limit = 20,
 ) => {
   try {
     const { data } = await axios.get(
-      `${apiUrl}/control/devices/user/${userId}?page=${page}&limit=${limit}`
+      `${apiUrl}/control/devices/user/${userId}?page=${page}&limit=${limit}&searchTerm=${searchTerm}`
     );
     return data.message;
   } catch (error) {

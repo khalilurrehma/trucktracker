@@ -231,12 +231,45 @@ export const getDeviceShift = async () => {
   `;
 
   return new Promise((resolve, reject) => {
-    pool.query(sql, (err, results) => {
-      if (err) {
-        reject(err);
-      }
+    pool.query(sql, async (err, results) => {
+      if (err) return reject(err);
 
-      resolve(results);
+      // Get all shifts to help map
+      const [shiftErr, allShifts] = await new Promise((res) => {
+        pool.query("SELECT * FROM config_shifts", (e, r) => res([e, r]));
+      });
+
+      if (shiftErr) return reject(shiftErr);
+
+      // Helper to get shift by id
+      const findShift = (id) => {
+        return allShifts.find((s) => s.id === id) || null;
+      };
+
+      const enriched = results.map((row) => {
+        const driver = JSON.parse(row.driver || "{}");
+        const availability = driver.shift_details;
+
+        if (availability) {
+          try {
+            const parsed = availability;
+            const enrichedShifts = parsed.map((entry) => ({
+              ...entry,
+              shift: findShift(entry.shift),
+            }));
+            driver.shift_details = enrichedShifts;
+          } catch {
+            driver.shift_details = [];
+          }
+        }
+
+        return {
+          ...row,
+          driver,
+        };
+      });
+
+      resolve(enriched);
     });
   });
 };
@@ -365,7 +398,7 @@ export const fetchDeviceShiftByFlespiId = async (id) => {
       if (err) {
         reject(err);
       }
-      const parsedResults = results.map((row) => {
+      const parsedResults = results?.map((row) => {
         const parsedDevice = row.device ? JSON.parse(row.device) : {};
         const parsedLocation = row.driver_location
           ? JSON.parse(row.driver_location)
@@ -467,45 +500,52 @@ export const removeDeviceShift = async (id) => {
   });
 };
 
-export const fetchControlUsageTable = async (page, limit) => {
+export const fetchControlUsageTable = async (page, limit, searchTerm = "") => {
   const offset = (page - 1) * limit;
+  const likeSearch = `%${searchTerm}%`;
 
   const sql = `
-        SELECT 
-        uc.*, 
-        nsd.*, 
-        s.id AS shift_id, 
-        s.shift_name, 
-        s.grace_time, 
-        d.id AS driver_id, 
-        d.name AS driver_name, 
-        d.location,
-        d.availability_details,
-        ds.id AS device_shift_id, 
-        ds.queue AS device_shift_queue, 
-        ds.queue_time AS device_shift_queue_time,
-        ds.response AS device_shift_response, 
-        ds.resend_time AS device_shift_resend_time
+    SELECT 
+      uc.*, 
+      nsd.*, 
+      s.id AS shift_id, 
+      s.shift_name, 
+      s.grace_time, 
+      d.id AS driver_id, 
+      d.name AS driver_name, 
+      d.location,
+      d.availability_details,
+      ds.id AS device_shift_id, 
+      ds.queue AS device_shift_queue, 
+      ds.queue_time AS device_shift_queue_time,
+      ds.response AS device_shift_response, 
+      ds.resend_time AS device_shift_resend_time
     FROM 
-        usage_control uc
+      usage_control uc
     LEFT JOIN 
-        new_settings_devices nsd ON uc.deviceId = nsd.id
+      new_settings_devices nsd ON uc.deviceId = nsd.id
     LEFT JOIN 
-        config_shifts s ON uc.shiftId = s.id
+      config_shifts s ON uc.shiftId = s.id
     LEFT JOIN 
-        drivers d ON uc.driverId = d.id
+      drivers d ON uc.driverId = d.id
     LEFT JOIN 
-        device_shifts ds ON uc.device_shift_id = ds.id
+      device_shifts ds ON uc.device_shift_id = ds.id
+    WHERE 
+      nsd.name LIKE ? OR
+      d.name LIKE ? OR
+      s.shift_name LIKE ?
     LIMIT ? OFFSET ?;
-`;
+  `;
 
   return new Promise((resolve, reject) => {
-    pool.query(sql, [parseInt(limit), parseInt(offset)], (err, results) => {
-      if (err) {
-        reject(err);
+    pool.query(
+      sql,
+      [likeSearch, likeSearch, likeSearch, parseInt(limit), parseInt(offset)],
+      (err, results) => {
+        if (err) return reject(err);
+        resolve(results);
       }
-      resolve(results);
-    });
+    );
   });
 };
 
@@ -554,6 +594,36 @@ export const fetchControlUsageTableByUserId = async (userId, page, limit) => {
         resolve(results);
       }
     );
+  });
+};
+
+export const enrichAvailabilityDetailsWithShiftData = async (rows) => {
+  const shifts = await new Promise((resolve, reject) => {
+    pool.query("SELECT * FROM config_shifts", (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+
+  const shiftMap = {};
+  shifts.forEach((s) => {
+    shiftMap[s.id] = s;
+  });
+
+  return rows.map((row) => {
+    if (row.availability_details) {
+      try {
+        const parsed = JSON.parse(row.availability_details);
+        const enriched = parsed.map((entry) => ({
+          ...entry,
+          shift: shiftMap[entry.shift] || entry.shift,
+        }));
+        row.availability_details = enriched;
+      } catch (e) {
+        row.availability_details = [];
+      }
+    }
+    return row;
   });
 };
 
@@ -651,7 +721,6 @@ export const updateDeviceInUsageControl = async (deviceId, body) => {
 
 export const updateUsageControl = async (
   deviceId,
-  shift_Id,
   device_shift_id,
   driverId,
   actionFrom
@@ -660,19 +729,19 @@ export const updateUsageControl = async (
     actionFrom === "deviceShiftUpdate"
       ? `
     UPDATE usage_control
-    SET shiftId = ?, driverId = ?, updated_At = NOW()
+    SET driverId = ?, updated_At = NOW()
     WHERE deviceId = ?
   `
       : `
     UPDATE usage_control
-    SET shiftId = ?, device_shift_id = ?, driverId = ?, updated_At = NOW()
+    SET device_shift_id = ?, driverId = ?, updated_At = NOW()
     WHERE deviceId = ?
   `;
 
   const values =
     actionFrom === "deviceShiftUpdate"
-      ? [shift_Id, driverId, deviceId]
-      : [shift_Id, device_shift_id, driverId, deviceId];
+      ? [driverId, deviceId]
+      : [device_shift_id, driverId, deviceId];
 
   return new Promise((resolve, reject) => {
     pool.query(sql, values, (err, results) => {
@@ -722,7 +791,7 @@ export const assignDriver = async (id, assign = false) => {
     WHERE id = ?
   `;
 
-  const values = [assign ? 1 : 0, id];
+  const values = [assign ? 1 : 0, parseInt(id)];
 
   return new Promise((resolve, reject) => {
     pool.query(sql, values, (err, results) => {
