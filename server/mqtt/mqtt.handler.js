@@ -26,7 +26,6 @@ mqttEmitter.on("mqttMessage", async ({ topic, payload }) => {
         break;
       case topic.includes("calcs/1742075"): // Default - Operations - Alarms
         const alarmData = await devicesAlarmMQTT(topic, payload);
-        console.log(alarmData);
         if (alarmData) broadcast(alarmData);
         break;
       case topic.includes("calcs/1742077"): // Default - Reports - Driver Behaivor
@@ -58,7 +57,7 @@ mqttEmitter.on("mqttMessage", async ({ topic, payload }) => {
         console.log("No handler for topic:", topic);
     }
   } catch (error) {
-    console.error("❌ Error processing MQTT:", error.message);
+    // console.error("❌ Error processing MQTT:", error.message);
   }
 });
 

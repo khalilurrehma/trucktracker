@@ -33,7 +33,8 @@ dayjs.extend(duration);
  * @returns {string} - Adjusted time in "HH:mm:ss" format.
  */
 
-const TIMEZONE = "America/Lima";
+const TIMEZONE = "Asia/Karachi"; // Karachi timezone
+// const TIMEZONE = "America/Lima"; // Peru timezone
 
 const activeJobs = new Map();
 
@@ -237,6 +238,7 @@ const scheduleShiftJobs = async () => {
 
         const cronStart = getCronFromDateTime(date, shiftStart);
         const cronEnd = getCronFromDateTime(date, shiftEndStr);
+        // const cronStart = "0 12 18 21 4 *"; // Example cron expression for testing
         // const cronEnd = "0 55 2 18 4 *"; // Example cron expression for testing
 
         console.log(cronStart);
