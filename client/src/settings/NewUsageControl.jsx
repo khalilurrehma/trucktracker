@@ -435,8 +435,11 @@ const NewUsageControl = () => {
         }, 1000);
       }
     } catch (error) {
-      toast.error("Error saving report or sending command");
-      console.error("Error:", error);
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Something went wrong";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }

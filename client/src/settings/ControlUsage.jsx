@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import TablePagination from "@mui/material/TablePagination";
 import PageLayout from "../common/components/PageLayout";
 import {
   Box,
@@ -32,6 +33,7 @@ import { useSelector } from "react-redux";
 import OperationsMenu from "./components/OperationsMenu";
 import { useAppContext } from "../AppContext";
 import { graceTimeConverter } from "./common/New.Helper";
+import axios from "axios";
 
 const formatTime = (date) => {
   return date.toLocaleTimeString("en-US", {
@@ -43,28 +45,30 @@ const formatTime = (date) => {
 };
 
 const ControlUsage = () => {
+  let apiUrl = import.meta.env.DEV
+    ? import.meta.env.VITE_DEV_BACKEND_URL
+    : import.meta.env.VITE_PROD_BACKEND_URL;
   const [devicesShiftData, setDevicesShiftData] = useState([]);
   const [deviceStatus, setDeviceStatus] = useState({});
   const [filters, setFilters] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
   const [peruTime, setPeruTime] = useState(new Date());
   const navigate = useNavigate();
   const userId = useSelector((state) => state.session.user?.id);
+  const [totalPages, setTotalPages] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const { traccarUse, mqttDeviceIgnitionStatus, mqttDeviceConnected } =
     useAppContext();
-  const loaderRef = useRef(null);
 
   useEffect(() => {
     if (page === 1 && devicesShiftData.length === 0) {
-      allDeviceControl(1);
+      allDeviceControl();
     }
   }, []);
 
   const allDeviceControl = async (searchTerm = "", pageParam = 1) => {
-    console.log("searchTerm", searchTerm);
     try {
       setIsLoading(true);
       const response =
@@ -72,13 +76,12 @@ const ControlUsage = () => {
           ? await allDeviceUsageControl(pageParam, searchTerm)
           : await allDeviceUsageControlByUserId(userId, pageParam, searchTerm);
 
-      if (!response || response.length === 0) {
-        setHasMore(false);
+      if (!response.message || response.message.length === 0) {
         return;
       }
 
       const formattedData = await Promise.all(
-        response.map(async (item) => {
+        response.message.map(async (item) => {
           const driverAvalibility =
             item.availability_details &&
             typeof item.availability_details === "string"
@@ -95,7 +98,7 @@ const ControlUsage = () => {
           const dates = [];
           const shifts = new Set();
 
-          driverAvalibility.forEach((entry) => {
+          driverAvalibility?.forEach((entry) => {
             const grace_time = entry.shift?.grace_time
               ? graceTimeConverter(entry.shift.grace_time)
               : "N/A";
@@ -151,13 +154,12 @@ const ControlUsage = () => {
           };
         })
       );
-
       if (searchTerm) {
         setDevicesShiftData(formattedData);
       } else {
         setDevicesShiftData((prev) => [...prev, ...formattedData]);
       }
-
+      setTotalPages(response.pagination.total); // Set total pages
       setPage(pageParam);
     } catch (error) {
       console.error("Error fetching vehicles data:", error);
@@ -166,25 +168,37 @@ const ControlUsage = () => {
     }
   };
 
-  const filteredData = devicesShiftData?.filter((item) => {
-    return (
-      item?.deviceName?.toLowerCase().includes(filters.toLowerCase()) ||
-      item?.driverName?.toLowerCase().includes(filters.toLowerCase()) ||
-      item?.shiftName?.toLowerCase().includes(filters.toLowerCase())
-    );
-  });
+  const filteredData = devicesShiftData?.slice((page - 1) * 10, page * 10);
 
   useEffect(() => {
     if (filters.trim() !== "") {
-      setHasMore(false);
     } else {
-      setHasMore(true);
     }
   }, [filters]);
+
+  const fetchActionCommand = async (typeId) => {
+    const { data } = await axios.get(`${apiUrl}/action/command/${typeId}`);
+    if (data.status === true) {
+      const commands = data.message;
+
+      const onCommand = commands?.find(
+        (cmd) => cmd?.actionName.includes("U") // Unlock
+      );
+      const offCommand = commands?.find(
+        (cmd) => cmd?.actionName.includes("L") // Lock
+      );
+
+      return {
+        unlock: onCommand.actionCommand,
+        lock: offCommand.actionCommand,
+      };
+    }
+  };
 
   const handleSwitchChange = async (
     event,
     deviceId,
+    deviceTypeId,
     flespiId,
     doutStatus,
     driverId,
@@ -193,8 +207,11 @@ const ControlUsage = () => {
     ignitionStatus,
     connectionStatus
   ) => {
+    const { unlock, lock } = await fetchActionCommand(deviceTypeId);
+
     const isSwitchOn = event.target.checked;
-    const status = doutStatus === 1 ? "900,1,0" : "900,1,1";
+    const status = doutStatus === 1 ? unlock : lock;
+
     let body;
     const logTimestamp = new Date()
       .toISOString()
@@ -305,30 +322,6 @@ const ControlUsage = () => {
   };
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (
-          entries[0].isIntersecting &&
-          hasMore &&
-          !isLoading &&
-          filters.trim() === ""
-        ) {
-          allDeviceControl(filters, page + 1);
-        }
-      },
-      { threshold: 1 }
-    );
-
-    if (loaderRef.current) {
-      observer.observe(loaderRef.current);
-    }
-
-    return () => {
-      if (loaderRef.current) observer.unobserve(loaderRef.current);
-    };
-  }, [loaderRef, page, hasMore, isLoading]);
-
-  useEffect(() => {
     if (!mqttDeviceIgnitionStatus.length && !mqttDeviceConnected.length) return;
 
     setDevicesShiftData((prevDevices) => {
@@ -340,7 +333,7 @@ const ControlUsage = () => {
           (d) => d.deviceId === device.deviceFlespiId
         );
 
-        console.log(ignitionUpdate, connectionUpdate, device.deviceFlespiId);
+        // console.log(device.deviceFlespiId, ignitionUpdate, connectionUpdate);
 
         return {
           ...device,
@@ -354,10 +347,9 @@ const ControlUsage = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      // Calculate Peru time (UTC-5)
       const now = new Date();
       const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-      const peruDate = new Date(utc - 5 * 60 * 60000); // GMT-5
+      const peruDate = new Date(utc - 5 * 60 * 60000);
       setPeruTime(peruDate);
     }, 1000);
 
@@ -556,6 +548,7 @@ const ControlUsage = () => {
                               handleSwitchChange(
                                 e,
                                 deviceReport.deviceId,
+                                deviceReport.deviceTypeId,
                                 deviceReport.deviceFlespiId,
                                 deviceReport.doutStatus,
                                 deviceReport.driverId,
@@ -574,11 +567,21 @@ const ControlUsage = () => {
                 })}
               </TableBody>
             </Table>
+            <TablePagination
+              component="div"
+              count={totalPages} // Use total items, NOT totalPages
+              rowsPerPage={limit}
+              page={page - 1}
+              onPageChange={(event, newPage) => {
+                setPage(newPage + 1);
+                allDeviceControl(filters, newPage + 1);
+              }}
+              rowsPerPageOptions={[]} // Hides the dropdown
+            />
           </TableContainer>
         </>
-        <div ref={loaderRef} style={{ height: "30px", textAlign: "center" }}>
+        <div style={{ height: "30px", textAlign: "center" }}>
           {isLoading && <p>Loading more devices...</p>}
-          {!hasMore && <p>No more devices to load.</p>}
         </div>
       </Box>
     </PageLayout>

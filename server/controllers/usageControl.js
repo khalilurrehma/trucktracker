@@ -5,6 +5,7 @@ import {
   addLogAndReport,
   addUsageActions,
   assignDriver,
+  checkTypeIdConfig,
   enrichAvailabilityDetailsWithShiftData,
   fetchAllLogs,
   fetchAllLogsbyUserId,
@@ -51,13 +52,29 @@ export const postUsageActions = async (req, res) => {
 
 export const postUsageReport = async (req, res) => {
   const body = req.body;
+  const { device_type_info, actionCommand } = body;
 
   try {
+    const existingRecords = await checkTypeIdConfig(device_type_info.id);
+
+    const isDuplicate = existingRecords.some(
+      (record) => record.actionCommand === actionCommand
+    );
+
+    if (isDuplicate) {
+      return res.status(400).json({
+        status: false,
+        message:
+          "Duplicate actionCommand for this device_type_info.id already exists.",
+      });
+    }
+
     await generateUsageReport(body);
 
-    res.status(200).json({ status: true, message: "Usage Report generated" });
+    res.status(200).json({ status: true, message: "Command has been configured successfully." });
   } catch (error) {
     console.error(error);
+    res.status(500).json({ status: false, message: "Server error" });
   }
 };
 
@@ -289,13 +306,26 @@ export const deleteDeviceShiftId = async (req, res) => {
 
 export const getControlAllDevice = async (req, res) => {
   const { page = 1, limit = 10, searchTerm = "" } = req.query;
+
   try {
-    const controlTable = await fetchControlUsageTable(page, limit, searchTerm);
-    const enrichedTable = await enrichAvailabilityDetailsWithShiftData(
-      controlTable
+    const { data, total } = await fetchControlUsageTable(
+      parseInt(page),
+      parseInt(limit),
+      searchTerm
     );
 
-    res.status(200).json({ status: true, message: enrichedTable });
+    const enrichedTable = await enrichAvailabilityDetailsWithShiftData(data);
+
+    res.status(200).json({
+      status: true,
+      message: enrichedTable,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ status: false, error: error.message });
@@ -303,19 +333,29 @@ export const getControlAllDevice = async (req, res) => {
 };
 
 export const getControlDevicesByUserId = async (req, res) => {
-  const { page = 1, limit = 10 } = req.query;
+  const { page = 1, limit = 10, searchTerm = "" } = req.query;
   const { userId } = req.params;
+
   try {
-    const controlTable = await fetchControlUsageTableByUserId(
+    const { data, pagination } = await fetchControlUsageTableByUserId(
       userId,
-      page,
-      limit
-    );
-    const enrichedTable = await enrichAvailabilityDetailsWithShiftData(
-      controlTable
+      parseInt(page),
+      parseInt(limit),
+      searchTerm
     );
 
-    res.status(200).json({ status: true, message: enrichedTable });
+    const enrichedTable = await enrichAvailabilityDetailsWithShiftData(data);
+
+    res.status(200).json({
+      status: true,
+      message: enrichedTable,
+      pagination: {
+        total: pagination.total,
+        page: pagination.page,
+        limit: pagination.limit,
+        totalPages: pagination.totalPages,
+      },
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ status: false, error: error.message });

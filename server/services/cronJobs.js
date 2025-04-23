@@ -33,8 +33,8 @@ dayjs.extend(duration);
  * @returns {string} - Adjusted time in "HH:mm:ss" format.
  */
 
-const TIMEZONE = "Asia/Karachi"; // Karachi timezone
-// const TIMEZONE = "America/Lima"; // Peru timezone
+// const TIMEZONE = "Asia/Karachi"; // Karachi timezone
+const TIMEZONE = "America/Lima"; // Peru timezone
 
 const activeJobs = new Map();
 

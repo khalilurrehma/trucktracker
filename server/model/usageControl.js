@@ -104,6 +104,19 @@ export const generateUsageReport = async (body) => {
   });
 };
 
+export const checkTypeIdConfig = async (id) => {
+  const sql = `SELECT id, device_type_info, actionCommand FROM config_usage WHERE JSON_EXTRACT(device_type_info, '$.id') = ?`;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
 export const removeUsageReport = async (id) => {
   const sql = "DELETE FROM config_usage WHERE id =?";
   return new Promise((resolve, reject) => {
@@ -504,7 +517,7 @@ export const fetchControlUsageTable = async (page, limit, searchTerm = "") => {
   const offset = (page - 1) * limit;
   const likeSearch = `%${searchTerm}%`;
 
-  const sql = `
+  const dataSql = `
     SELECT 
       uc.*, 
       nsd.*, 
@@ -537,61 +550,138 @@ export const fetchControlUsageTable = async (page, limit, searchTerm = "") => {
     LIMIT ? OFFSET ?;
   `;
 
+  const countSql = `
+    SELECT COUNT(*) AS total
+    FROM 
+      usage_control uc
+    LEFT JOIN 
+      new_settings_devices nsd ON uc.deviceId = nsd.id
+    LEFT JOIN 
+      config_shifts s ON uc.shiftId = s.id
+    LEFT JOIN 
+      drivers d ON uc.driverId = d.id
+    WHERE 
+      nsd.name LIKE ? OR
+      d.name LIKE ? OR
+      s.shift_name LIKE ?;
+  `;
+
   return new Promise((resolve, reject) => {
     pool.query(
-      sql,
+      dataSql,
       [likeSearch, likeSearch, likeSearch, parseInt(limit), parseInt(offset)],
-      (err, results) => {
+      (err, dataResults) => {
         if (err) return reject(err);
-        resolve(results);
+
+        pool.query(
+          countSql,
+          [likeSearch, likeSearch, likeSearch],
+          (err, countResults) => {
+            if (err) return reject(err);
+
+            const total = countResults[0].total;
+            resolve({ data: dataResults, total });
+          }
+        );
       }
     );
   });
 };
 
-export const fetchControlUsageTableByUserId = async (userId, page, limit) => {
+export const fetchControlUsageTableByUserId = async (
+  userId,
+  page,
+  limit,
+  searchTerm = ""
+) => {
   const offset = (page - 1) * limit;
+  const likeSearch = `%${searchTerm}%`;
 
-  const sql = `
-        SELECT 
-        uc.*, 
-        nsd.*, 
-        s.id AS shift_id, 
-        s.shift_name, 
-        s.grace_time, 
-        d.id AS driver_id, 
-        d.name AS driver_name, 
-        d.location, 
-        d.availability_details,
-        ds.id AS device_shift_id, 
-        ds.queue AS device_shift_queue, 
-        ds.queue_time AS device_shift_queue_time,
-        ds.response AS device_shift_response, 
-        ds.resend_time AS device_shift_resend_time
+  const dataSql = `
+    SELECT 
+      uc.*, 
+      nsd.*, 
+      s.id AS shift_id, 
+      s.shift_name, 
+      s.grace_time, 
+      d.id AS driver_id, 
+      d.name AS driver_name, 
+      d.location, 
+      d.availability_details,
+      ds.id AS device_shift_id, 
+      ds.queue AS device_shift_queue, 
+      ds.queue_time AS device_shift_queue_time,
+      ds.response AS device_shift_response, 
+      ds.resend_time AS device_shift_resend_time
     FROM 
-        usage_control uc
+      usage_control uc
     LEFT JOIN 
-        new_settings_devices nsd ON uc.deviceId = nsd.id
+      new_settings_devices nsd ON uc.deviceId = nsd.id
     LEFT JOIN 
-        config_shifts s ON uc.shiftId = s.id
+      config_shifts s ON uc.shiftId = s.id
     LEFT JOIN 
-        drivers d ON uc.driverId = d.id
+      drivers d ON uc.driverId = d.id
     LEFT JOIN 
-        device_shifts ds ON uc.device_shift_id = ds.id
-      WHERE 
-          uc.userId = ?
-      LIMIT ? OFFSET ?;
-`;
+      device_shifts ds ON uc.device_shift_id = ds.id
+    WHERE 
+      uc.userId = ? AND (
+        nsd.name LIKE ? OR
+        d.name LIKE ? OR
+        s.shift_name LIKE ?
+      )
+    LIMIT ? OFFSET ?;
+  `;
+
+  const countSql = `
+    SELECT COUNT(*) AS total
+    FROM 
+      usage_control uc
+    LEFT JOIN 
+      new_settings_devices nsd ON uc.deviceId = nsd.id
+    LEFT JOIN 
+      config_shifts s ON uc.shiftId = s.id
+    LEFT JOIN 
+      drivers d ON uc.driverId = d.id
+    WHERE 
+      uc.userId = ? AND (
+        nsd.name LIKE ? OR
+        d.name LIKE ? OR
+        s.shift_name LIKE ?
+      );
+  `;
 
   return new Promise((resolve, reject) => {
     pool.query(
-      sql,
-      [parseInt(userId), parseInt(limit), parseInt(offset)],
-      (err, results) => {
-        if (err) {
-          reject(err);
-        }
-        resolve(results);
+      dataSql,
+      [
+        parseInt(userId),
+        likeSearch,
+        likeSearch,
+        likeSearch,
+        parseInt(limit),
+        parseInt(offset),
+      ],
+      (err, dataResults) => {
+        if (err) return reject(err);
+
+        pool.query(
+          countSql,
+          [parseInt(userId), likeSearch, likeSearch, likeSearch],
+          (err, countResults) => {
+            if (err) return reject(err);
+
+            const total = countResults[0].total;
+            resolve({
+              data: dataResults,
+              pagination: {
+                total,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                totalPages: Math.ceil(total / limit),
+              },
+            });
+          }
+        );
       }
     );
   });
@@ -610,7 +700,7 @@ export const enrichAvailabilityDetailsWithShiftData = async (rows) => {
     shiftMap[s.id] = s;
   });
 
-  return rows.map((row) => {
+  return rows?.map((row) => {
     if (row.availability_details) {
       try {
         const parsed = JSON.parse(row.availability_details);

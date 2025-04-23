@@ -470,7 +470,7 @@ export const allDeviceUsageControl = async (
     const { data } = await axios.get(
       `${apiUrl}/control/devices?page=${page}&limit=${limit}&searchTerm=${searchTerm}`
     );
-    return data.message;
+    return data;
   } catch (error) {
     console.error("Error fetching device control:", error);
     throw error;
@@ -481,13 +481,13 @@ export const allDeviceUsageControlByUserId = async (
   userId,
   page = 1,
   searchTerm = "",
-  limit = 20,
+  limit = 20
 ) => {
   try {
     const { data } = await axios.get(
       `${apiUrl}/control/devices/user/${userId}?page=${page}&limit=${limit}&searchTerm=${searchTerm}`
     );
-    return data.message;
+    return data;
   } catch (error) {
     console.error("Error fetching device control:", error);
     throw error;

@@ -327,10 +327,10 @@ const NewConfigShift = () => {
     if (data.status === true) {
       const commands = data.message;
       const onCommand = commands?.find((cmd) =>
-        cmd?.actionName.toLowerCase().includes("on")
+        cmd?.actionName.includes("U")
       );
       const offCommand = commands?.find((cmd) =>
-        cmd?.actionName.toLowerCase().includes("off")
+        cmd?.actionName.includes("L")
       );
 
       setCommandOn(onCommand?.actionCommand);
