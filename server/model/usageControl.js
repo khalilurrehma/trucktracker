@@ -247,14 +247,12 @@ export const getDeviceShift = async () => {
     pool.query(sql, async (err, results) => {
       if (err) return reject(err);
 
-      // Get all shifts to help map
       const [shiftErr, allShifts] = await new Promise((res) => {
         pool.query("SELECT * FROM config_shifts", (e, r) => res([e, r]));
       });
 
       if (shiftErr) return reject(shiftErr);
 
-      // Helper to get shift by id
       const findShift = (id) => {
         return allShifts.find((s) => s.id === id) || null;
       };
@@ -365,12 +363,43 @@ export const fetchDeviceShiftByUserId = async (id) => {
       device_shifts.userId = ?
   `;
   return new Promise((resolve, reject) => {
-    pool.query(sql, [id], (err, results) => {
-      if (err) {
-        reject(err);
-      }
+    pool.query(sql, [id], async (err, results) => {
+      if (err) return reject(err);
 
-      resolve(results);
+      const [shiftErr, allShifts] = await new Promise((res) => {
+        pool.query("SELECT * FROM config_shifts", (e, r) => res([e, r]));
+      });
+
+      if (shiftErr) return reject(shiftErr);
+
+      const findShift = (id) => {
+        return allShifts.find((s) => s.id === id) || null;
+      };
+
+      const enriched = results.map((row) => {
+        const driver = JSON.parse(row.driver || "{}");
+        const availability = driver.shift_details;
+
+        if (availability) {
+          try {
+            const parsed = availability;
+            const enrichedShifts = parsed.map((entry) => ({
+              ...entry,
+              shift: findShift(entry.shift),
+            }));
+            driver.shift_details = enrichedShifts;
+          } catch {
+            driver.shift_details = [];
+          }
+        }
+
+        return {
+          ...row,
+          driver,
+        };
+      });
+
+      resolve(enriched);
     });
   });
 };

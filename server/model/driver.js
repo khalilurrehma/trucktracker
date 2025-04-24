@@ -72,13 +72,41 @@ export const fetchDrivers = async () => {
 
 export const fetchDriversByUserId = async (userId) => {
   const sql = "SELECT * FROM drivers WHERE user_id =?";
+  const shiftSQL = "SELECT * FROM config_shifts";
 
   return new Promise((resolve, reject) => {
-    pool.query(sql, [parseInt(userId)], (err, results) => {
-      if (err) {
-        reject(err);
-      }
-      resolve(results);
+    pool.query(sql, [parseInt(userId)], (driverErr, drivers) => {
+      if (driverErr) return reject(driverErr);
+
+      pool.query(shiftSQL, (shiftErr, shifts) => {
+        if (shiftErr) return reject(shiftErr);
+
+        const shiftMap = new Map();
+        shifts.forEach((s) => shiftMap.set(s.id, s));
+
+        const populatedDrivers = drivers.map((driver) => {
+          let availability = [];
+
+          try {
+            const parsed = JSON.parse(driver.availability_details || "[]");
+            availability = parsed.map((entry) => ({
+              ...entry,
+              shift_detail: shiftMap.get(entry.shift) || null,
+            }));
+          } catch (e) {
+            console.warn(
+              `Invalid availability_details JSON for driver ${driver.id}`
+            );
+          }
+
+          return {
+            ...driver,
+            availability_details: availability,
+          };
+        });
+
+        resolve(populatedDrivers);
+      });
     });
   });
 };

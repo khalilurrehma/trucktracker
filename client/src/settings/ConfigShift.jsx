@@ -67,8 +67,6 @@ const ConfigShift = () => {
           ? await fetchDeviceShifts()
           : await fetchDeviceShiftsOfUser(userId);
 
-      console.log(response);
-
       const processedData = response?.map((row) => {
         const driver =
           typeof row.driver === "string" ? JSON.parse(row.driver) : row.driver;
