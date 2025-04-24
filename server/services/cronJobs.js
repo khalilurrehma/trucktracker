@@ -15,7 +15,8 @@ import {
   sendCommandToFlespiDevice,
   telemetryDoutStatus,
 } from "./flespiApis.js";
-import { cron_logs } from "../model/driver.js";
+import { cron_logs } from "../model/reports.js";
+import { EventEmitter } from "events";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -109,8 +110,8 @@ const scheduleResend = async ({
 
         const success = response?.result?.[0];
         const note = success
-          ? `[${dayjs().format()}] Resend Success: ${deviceName}`
-          : `[${dayjs().format()}] Resend Failed: ${deviceName}`;
+          ? `[${dayjs().format()}] Resend Success for Device: ${deviceName}`
+          : `[${dayjs().format()}] Resend Failed for Device: ${deviceName}`;
 
         console[success ? "log" : "error"](note);
 
@@ -124,6 +125,9 @@ const scheduleResend = async ({
           notes: note,
         });
         if (success) {
+          cronEmitter.emit("cronSaved", {
+            loaded: true,
+          });
           resendCompletedMap.set(deviceId, true);
           clearTimeout(retryTimeoutMap.get(deviceId));
           retryTimeoutMap.delete(deviceId);
@@ -132,7 +136,7 @@ const scheduleResend = async ({
         }
       } else if ([2, 3, 6, 7].includes(ignitionValue) && isConnected) {
         console.log(
-          `[${dayjs().format()}] Ignition ON / Not Connected. Retrying again in ${
+          `[${dayjs().format()}] Ignition ON of Device: ${deviceName} Retrying again in ${
             resendTime.formattedTime
           }`
         );
@@ -142,9 +146,25 @@ const scheduleResend = async ({
 
         const timeoutId = setTimeout(attemptResend, delayMs);
         retryTimeoutMap.set(deviceId, timeoutId);
+
+        await cron_logs({
+          device_id: deviceId,
+          device_name: deviceName,
+          cron_type: "resend",
+          cron_expression: `manualRetryAfter:${resendTime.formattedTime}`,
+          scheduled_time: new Date(`${date}T${resendTime.formattedTime}`),
+          status: "pending",
+          notes: `[${dayjs().format()}] Ignition ON of Device: ${deviceName} Retrying again in ${
+            resendTime.formattedTime
+          }`,
+        });
+
+        cronEmitter.emit("cronSaved", {
+          loaded: true,
+        });
       } else if (!isConnected) {
         console.log(
-          `[${dayjs().format()}] Not Connected. Retrying again in ${
+          `[${dayjs().format()}] Device: ${deviceName} Not Connected. Retrying again in ${
             resendTime.formattedTime
           }`
         );
@@ -154,6 +174,21 @@ const scheduleResend = async ({
 
         const timeoutId = setTimeout(attemptResend, delayMs);
         retryTimeoutMap.set(deviceId, timeoutId);
+
+        await cron_logs({
+          device_id: deviceId,
+          device_name: deviceName,
+          cron_type: "resend",
+          cron_expression: `manualRetryAfter:${resendTime.formattedTime}`,
+          scheduled_time: new Date(`${date}T${resendTime.formattedTime}`),
+          status: "pending",
+          notes: `[${dayjs().format()}] Device: ${deviceName} Not Connected. Retrying again in ${
+            resendTime.formattedTime
+          }`,
+        });
+        cronEmitter.emit("cronSaved", {
+          loaded: true,
+        });
       } else {
         console.warn(
           `[${dayjs().format()}] Unexpected Error Occured. Skipping resend.`
@@ -166,6 +201,9 @@ const scheduleResend = async ({
           scheduled_time: new Date(`${date}T${resendTime.formattedTime}`),
           status: "failed",
           notes: `[${dayjs().format()}] Resend aborted due to unexpected error.`,
+        });
+        cronEmitter.emit("cronSaved", {
+          loaded: true,
         });
       }
     } catch (error) {
@@ -185,6 +223,8 @@ const scheduledJobs = new Map();
 
 const getJobKey = (deviceId, type, date) => `${deviceId}-${type}-${date}`;
 
+export const cronEmitter = new EventEmitter();
+
 // CRON FUNCTIONS
 
 const scheduleShiftJobs = async () => {
@@ -194,6 +234,11 @@ const scheduleShiftJobs = async () => {
   );
 
   const shifts = await getDeviceShift();
+
+  if (!shifts || shifts.length === 0) {
+    console.log("No device shift found.");
+    return;
+  }
 
   for (const {
     id,
@@ -211,8 +256,15 @@ const scheduleShiftJobs = async () => {
     const parsedResendTime = JSON.parse(resend_time);
     const shiftDetailsArray = parsedDriver.shift_details;
 
+    if (!shiftDetailsArray || shiftDetailsArray.length === 0) {
+      console.log("No shift details found for device:", parsedDevice.flespiId);
+      return;
+    }
+
     for (const shiftBlock of shiftDetailsArray) {
       const { dates, shift } = shiftBlock;
+
+      if (!shifts) return;
       const graceMinutes = shift.grace_time;
       // const allDates = ["2025-04-17"];
       const allDates = expandDates(dates);
@@ -272,15 +324,23 @@ const scheduleShiftJobs = async () => {
                 scheduled_time: new Date(`${date}T${shiftStart}`),
                 status: success ? "success" : "failed",
                 notes: success
-                  ? `[${dayjs().format()}] Shift Started: ${parsedDevice.name}`
+                  ? `[${dayjs().format()}] Shift Started for Device: ${
+                      parsedDevice.name
+                    } Driver: ${parsedDriver.name}`
                   : `[${dayjs().format()}] Start Command Failed: ${
                       parsedDevice.name
                     }`,
               });
 
+              cronEmitter.emit("cronSaved", {
+                loaded: true,
+              });
+
               console.log(
                 success
-                  ? `[${dayjs().format()}] Shift Started: ${parsedDevice.name}`
+                  ? `[${dayjs().format()}] Shift Started for Device: ${
+                      parsedDevice.name
+                    } Driver: ${parsedDriver.name}`
                   : `[${dayjs().format()}] Start Command Failed: ${
                       parsedDevice.name
                     }`
@@ -321,12 +381,14 @@ const scheduleShiftJobs = async () => {
 
                 const success = response?.result?.[0];
 
-                let noteWhenExtendedTime = `[${dayjs().format()}] Extended Shift Ended: ${
+                let noteWhenExtendedTime = `[${dayjs().format()}] Extended Shift Ended for Device: ${
                   parsedDevice.name
-                } with ${extend_time} hours Driver: ${parsedDriver.name}`;
-                let noteWhenSimpleShift = `[${dayjs().format()}] Shift Ended: ${
-                  parsedDevice.name
+                } with Extended Time: ${extend_time} hours Driver: ${
+                  parsedDriver.name
                 }`;
+                let noteWhenSimpleShift = `[${dayjs().format()}] Shift Ended for Device: ${
+                  parsedDevice.name
+                } Driver: ${parsedDriver.name}`;
 
                 await cron_logs({
                   device_id: parsedDevice.flespiId,
@@ -346,18 +408,23 @@ const scheduleShiftJobs = async () => {
 
                 if (success) {
                   await nullifyExtendTime(id);
+                  cronEmitter.emit("cronSaved", {
+                    loaded: true,
+                  });
                 }
 
                 console.log(
                   success
-                    ? `[${dayjs().format()}] Shift Ended: ${parsedDevice.name}`
+                    ? `[${dayjs().format()}] Shift Ended for Device: ${
+                        parsedDevice.name
+                      } Driver: ${parsedDriver.name}`
                     : `[${dayjs().format()}] End Command Failed: ${
                         parsedDevice.name
                       }`
                 );
               } else if ([2, 3, 6, 7].includes(ignitionValue) && isConnected) {
                 console.log(
-                  `[${dayjs().format()}] Ignition ON, Rescheduling End for: ${
+                  `[${dayjs().format()}] Ignition ON, Rescheduling End for Device: ${
                     parsedDevice.name
                   }`
                 );
@@ -372,7 +439,7 @@ const scheduleShiftJobs = async () => {
                 });
               } else if (!isConnected) {
                 console.log(
-                  `[${dayjs().format()}] Device Not Connected, Rescheduling End for: ${
+                  `[${dayjs().format()}] Device Not Connected, Rescheduling End for Device: ${
                     parsedDevice.name
                   }`
                 );
@@ -406,41 +473,6 @@ const scheduleShiftJobs = async () => {
   }
 };
 
-const verifyDevicesStatus = async () => {
-  const shift = await getDeviceShift();
-
-  if (!shift || shift.length === 0) {
-    console.log("No device shift found.");
-    return;
-  }
-
-  const deviceIds = shift.map(({ device }) => JSON.parse(device).flespiId);
-
-  if (deviceIds.length === 0) return;
-
-  const checkStatus = new CronJob("* * * * *", async () => {
-    const currentDateTime = dayjs().tz(TIMEZONE).format("YYYY-MM-DD HH:mm:ss");
-    try {
-      console.log(
-        `${currentDateTime}: Running device status check deviceIds: ${deviceIds}`
-      );
-      const doutStatusResponses = await telemetryDoutStatus(deviceIds);
-
-      doutStatusResponses.forEach(({ id, telemetry }) => {
-        if (telemetry && telemetry.dout) {
-          console.log(`📡 Device ${id} Status:`, telemetry.dout?.value);
-        } else {
-          console.warn(`⚠️ Device ${id} has no telemetry data.`);
-        }
-      });
-    } catch (error) {
-      console.error("❌ Check Status Error:", error);
-    }
-  });
-
-  checkStatus.start();
-};
-
 const refreshShiftJobs = async () => {
   const currentDateTime = dayjs().tz(TIMEZONE).format("YYYY-MM-DD HH:mm:ss");
   console.log(`${currentDateTime}: Refreshing shift jobs...`);
@@ -456,9 +488,4 @@ const initializeCronJobs = async () => {
 
 initializeCronJobs();
 
-export {
-  scheduleShiftJobs,
-  verifyDevicesStatus,
-  refreshShiftJobs,
-  initializeCronJobs,
-};
+export { scheduleShiftJobs, refreshShiftJobs, initializeCronJobs };

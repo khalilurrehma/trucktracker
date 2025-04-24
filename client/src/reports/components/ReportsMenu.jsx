@@ -147,6 +147,14 @@ const ReportsMenu = () => {
                 "/reports/usage-control/logs"
               )}
             />
+            <MenuItem
+              title="Scheduled Devices Logs"
+              link="/reports/devices/logs"
+              icon={<AssignmentIcon sx={{ ml: 2 }} />}
+              selected={location.pathname.startsWith(
+                "/reports/usage-control/logs"
+              )}
+            />
           </AccordionDetails>
         </Accordion>
         {/* <MenuItem

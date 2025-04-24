@@ -1,4 +1,5 @@
 import { deviceShiftAssigned } from "../model/devices.js";
+import { confirmDriverShift, fetchDriver } from "../model/driver.js";
 import {
   actionCommandByTypeId,
   addDeviceShift,
@@ -71,7 +72,10 @@ export const postUsageReport = async (req, res) => {
 
     await generateUsageReport(body);
 
-    res.status(200).json({ status: true, message: "Command has been configured successfully." });
+    res.status(200).json({
+      status: true,
+      message: "Command has been configured successfully.",
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ status: false, message: "Server error" });
@@ -133,10 +137,20 @@ export const postDeviceShift = async (req, res) => {
   const { deviceId, shiftId, driver_id } = body;
 
   try {
+    const driverResult = await confirmDriverShift(driver_id);
+
+    if (!driverResult.exists) {
+      return res.status(404).json({
+        success: false,
+        message:
+          driverResult.message || "Driver's Shift is missing or not assigned.",
+      });
+    }
+
     const newDeviceShift = await addDeviceShift(body);
 
     if (!newDeviceShift.insertId) {
-      return res
+      return res 
         .status(400)
         .json({ status: false, message: "Failed to add device shift" });
     }

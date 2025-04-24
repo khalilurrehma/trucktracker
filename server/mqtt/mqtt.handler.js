@@ -1,3 +1,4 @@
+import { cronEmitter } from "../services/cronJobs.js";
 import {
   activatedDoutHandler,
   deviceNewEvent,
@@ -58,6 +59,22 @@ mqttEmitter.on("mqttMessage", async ({ topic, payload }) => {
     }
   } catch (error) {
     // console.error("❌ Error processing MQTT:", error.message);
+  }
+});
+
+cronEmitter.on("cronSaved", async (cronData) => {
+  try {
+    const { loaded } = cronData;
+    const message = {
+      type: "cronLogs",
+      loaded,
+    };
+
+    console.log(message, "cronSaved");
+
+    broadcast(message);
+  } catch (error) {
+    console.error("❌ Error processing cron event:", error.message);
   }
 });
 

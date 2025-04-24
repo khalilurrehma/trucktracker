@@ -8,6 +8,7 @@ import {
 import {
   createCalcReport,
   createReport,
+  fetchCronLogs,
   getReportById,
   getReports,
   modifyReport,
@@ -295,6 +296,48 @@ export const deleteReport = async (req, res) => {
     res.status(200).json({
       status: true,
       message: "Report deleted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      status: false,
+      error: "Internal Server Error",
+    });
+  }
+};
+
+export const getCronReports = async (req, res) => {
+  try {
+    const cronReports = await fetchCronLogs();
+
+    res.status(200).json({
+      status: true,
+      message: cronReports,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      error: "Internal Server Error",
+    });
+  }
+};
+
+export const getUserCronReports = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const userDevices = await getDevicesByUserId(userId);
+    const deviceIds = userDevices.map((device) => device.flespiId);
+
+    const cronReports = await fetchCronLogs();
+
+    const filteredReports = cronReports?.filter((report) =>
+      deviceIds.includes(parseInt(report.device_id))
+    );
+
+    res.status(200).json({
+      status: true,
+      message: filteredReports,
     });
   } catch (error) {
     console.error(error);

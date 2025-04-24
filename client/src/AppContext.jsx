@@ -46,6 +46,7 @@ const AppContextProvider = ({ children }) => {
   const [mqttDeviceIgnitionStatus, setDeviceIgnitionStatus] = useState([]);
   const [mqttDeviceConnected, setDeviceConnected] = useState([]);
   const [mqttDeviceDin, setDeviceDin] = useState([]);
+  const [updateCronLogs, setUpdateCronLogs] = useState([]);
 
   const updateMqttMessage = (newMessage, stateType) => {
     if (stateType === "Events") {
@@ -84,6 +85,8 @@ const AppContextProvider = ({ children }) => {
       setDeviceIgnitionStatus((prev) => [...prev, newMessage]);
     } else if (stateType === "connected") {
       setDeviceConnected((prev) => [...prev, newMessage]);
+    } else if (stateType === "cronLogs") {
+      setUpdateCronLogs((prev) => [...prev, newMessage]);
     }
   };
 
@@ -430,6 +433,7 @@ const AppContextProvider = ({ children }) => {
         mqttDeviceDin,
         mqttDeviceIgnitionStatus,
         mqttDeviceConnected,
+        updateCronLogs,
       }}
     >
       {children}

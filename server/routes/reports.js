@@ -5,8 +5,10 @@ import {
   deleteReport,
   generateCalcReport,
   getAllReports,
+  getCronReports,
   getReport,
   getReportByCreatedBy,
+  getUserCronReports,
   updateReport,
 } from "../controllers/reports.js";
 
@@ -28,4 +30,7 @@ router.put("/report/:id", updateReport);
 
 router.delete("/report/:id", deleteReport);
 
+// CRON LOGS REPORTS
+router.get("/cron/reports", getCronReports);
+router.get("/cron/reports/user/:userId", getUserCronReports);
 export default router;

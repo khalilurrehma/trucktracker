@@ -78,7 +78,7 @@ const DriversShifts = () => {
 
   const groupedDrivers = drivers.map((driver) => {
     const availability = driver.availability_details
-      ? JSON.parse(driver.availability_details)
+      ? driver.availability_details
       : [];
 
     const dates = [];

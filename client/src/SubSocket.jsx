@@ -78,6 +78,10 @@ const SubSocket = () => {
         try {
           const recievedData = JSON.parse(event.data);
 
+          if (recievedData.type === "cronLogs") {
+            updateMqttMessage(recievedData, "cronLogs");
+          }
+
           if (recievedData.topic.endsWith("/connected")) {
             updateMqttMessage(recievedData, "deviceConnected");
           }

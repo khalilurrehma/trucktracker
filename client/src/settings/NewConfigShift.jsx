@@ -145,7 +145,11 @@ const NewConfigShift = () => {
       toast.success(presetApiRes.message);
       navigate(-1);
     } catch (error) {
-      toast.error(error.message || "An unexpected error occurred!");
+      const customMessage =
+        error?.response?.data?.message ||
+        error.message ||
+        "An unexpected error occurred!";
+      toast.error(customMessage);
     } finally {
       setIsLoading(false);
     }
@@ -288,7 +292,7 @@ const NewConfigShift = () => {
 
       const filterDriver = response.filter(
         (driver) =>
-          driver.assigned !== 1 && driver.availability_details !== null
+          driver.assigned !== 1 && driver.availability_details.length > 0
       );
 
       setDrivers(filterDriver);
@@ -326,12 +330,8 @@ const NewConfigShift = () => {
     const { data } = await axios.get(`${apiUrl}/action/command/${typeId}`);
     if (data.status === true) {
       const commands = data.message;
-      const onCommand = commands?.find((cmd) =>
-        cmd?.actionName.includes("U")
-      );
-      const offCommand = commands?.find((cmd) =>
-        cmd?.actionName.includes("L")
-      );
+      const onCommand = commands?.find((cmd) => cmd?.actionName.includes("U"));
+      const offCommand = commands?.find((cmd) => cmd?.actionName.includes("L"));
 
       setCommandOn(onCommand?.actionCommand);
       setCommandOff(offCommand?.actionCommand);

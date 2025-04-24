@@ -124,6 +124,52 @@ export const fetchDriver = async (id) => {
   });
 };
 
+export const confirmDriverShift = async (driverId) => {
+  const getDriverQuery =
+    "SELECT availability_details FROM drivers WHERE id = ?";
+
+  return new Promise((resolve, reject) => {
+    pool.query(getDriverQuery, [driverId], (err, driverResults) => {
+      if (err) return reject(err);
+
+      if (driverResults.length === 0) {
+        return resolve({ exists: false, message: "Driver not found" });
+      }
+
+      let shiftIds;
+      try {
+        const availability = JSON.parse(driverResults[0].availability_details);
+        shiftIds = [...new Set(availability.map((item) => item.shift))];
+      } catch (parseErr) {
+        return reject({
+          exists: false,
+          message: "Invalid JSON in availability_details",
+        });
+      }
+
+      if (shiftIds.length === 0) {
+        return resolve({ exists: false, message: "No shifts assigned" });
+      }
+
+      const placeholders = shiftIds.map(() => "?").join(",");
+      const checkShiftQuery = `SELECT id FROM config_shifts WHERE id IN (${placeholders})`;
+
+      pool.query(checkShiftQuery, shiftIds, (err, shiftResults) => {
+        if (err) return reject(err);
+
+        const validIds = shiftResults.map((row) => row.id);
+        const missingShifts = shiftIds.filter((id) => !validIds.includes(id));
+        const allExist = missingShifts.length === 0;
+
+        resolve({
+          exists: allExist,
+          missingShifts,
+        });
+      });
+    });
+  });
+};
+
 export const updateDriver = async (id, body) => {
   const { name, uniqueId, attributes, location } = body;
 
@@ -217,50 +263,42 @@ export const driversShiftDetails = async (userId) => {
   const superAdminSql = `SELECT traccar_id, name, availability_details FROM drivers`;
   const sql = `SELECT traccar_id, name, availability_details FROM drivers WHERE user_id = ?`;
 
-  return new Promise((resolve, reject) => {
+  const drivers = await new Promise((resolve, reject) => {
     pool.query(userId ? sql : superAdminSql, [userId], (err, results) => {
-      if (err) {
-        reject(err);
-      }
+      if (err) return reject(err);
       resolve(results);
     });
   });
-};
 
-export const cron_logs = async (log_body) => {
-  const {
-    device_id,
-    device_name,
-    cron_type,
-    cron_expression,
-    scheduled_time,
-    status = "success",
-    notes = "",
-  } = log_body;
-
-  const sql = `
-    INSERT INTO device_cron_logs (
-      device_id, device_name, cron_type, cron_expression,
-      scheduled_time, status, notes
-    ) VALUES (?, ?, ?, ?, ?, ?, ?)
-  `;
-
-  const values = [
-    device_id,
-    device_name,
-    cron_type,
-    cron_expression,
-    scheduled_time,
-    status,
-    notes,
-  ];
-
-  return new Promise((resolve, reject) => {
-    pool.query(sql, values, (err, results) => {
-      if (err) {
-        reject(err);
-      }
+  // Fetch all shift configs
+  const shifts = await new Promise((resolve, reject) => {
+    pool.query("SELECT * FROM config_shifts", (err, results) => {
+      if (err) return reject(err);
       resolve(results);
     });
   });
+
+  const shiftMap = {};
+  shifts.forEach((s) => {
+    shiftMap[s.id] = s;
+  });
+
+  // Enrich each driver's availability_details
+  const enrichedDrivers = drivers.map((driver) => {
+    if (driver.availability_details) {
+      try {
+        const parsed = JSON.parse(driver.availability_details);
+        const enriched = parsed.map((entry) => ({
+          ...entry,
+          shift: shiftMap[entry.shift] || entry.shift,
+        }));
+        driver.availability_details = enriched;
+      } catch (err) {
+        driver.availability_details = [];
+      }
+    }
+    return driver;
+  });
+
+  return enrichedDrivers;
 };

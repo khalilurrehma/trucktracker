@@ -136,3 +136,57 @@ export const removeReport = async (id) => {
     );
   });
 };
+
+export const cron_logs = async (log_body) => {
+  const {
+    device_id,
+    device_name,
+    cron_type,
+    cron_expression,
+    scheduled_time,
+    status = "success",
+    notes = "",
+  } = log_body;
+
+  const sql = `
+    INSERT INTO device_cron_logs (
+      device_id, device_name, cron_type, cron_expression,
+      scheduled_time, status, notes
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  const values = [
+    device_id,
+    device_name,
+    cron_type,
+    cron_expression,
+    scheduled_time,
+    status,
+    notes,
+  ];
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, values, (err, results) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+export const fetchCronLogs = async () => {
+  const sql = `
+    SELECT * FROM device_cron_logs
+    ORDER BY created_at DESC
+  `;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, (err, results) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(results);
+    });
+  });
+};

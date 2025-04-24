@@ -114,6 +114,7 @@ import ProtocolNotifications from "./settings/ProtocolNotifications";
 import ProtocolNotification from "./settings/ProtocolNotification";
 import DeviceCustomCalcPage from "./settings/DeviceCustomCalcPage";
 import DriversShifts from "./settings/DriversShifts";
+import ScheduledDevicesLogs from "./reports/ScheduledDevicesLogs";
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -339,6 +340,7 @@ const Navigation = () => {
         </Route>
 
         <Route path="reports">
+          <Route path="devices/logs" element={<ScheduledDevicesLogs />} />
           <Route path="usage-control" element={<UsageControlReport />} />
           <Route path="usage-control/logs" element={<UsageControlLogs />} />
           <Route path="combined" element={<CombinedReportPage />} />

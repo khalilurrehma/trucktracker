@@ -17,8 +17,12 @@ import { useSelector } from "react-redux";
 import { fetchShifts, fetchShiftsByUserId } from "../../apis/api";
 import { toast, ToastContainer } from "react-toastify";
 import axios from "axios";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 
-const mockShifts = ["Morning Shift", "Evening Shift", "Night Shift"];
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const DriverSlotPicker = ({ open, selectedDriver, onClose }) => {
   let url;
@@ -28,8 +32,7 @@ const DriverSlotPicker = ({ open, selectedDriver, onClose }) => {
     url = import.meta.env.VITE_PROD_BACKEND_URL;
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const peruToday = dayjs().tz("America/Lima").startOf("day").toDate();
 
   const [values, setValues] = useState([]);
   const [shifts, setShifts] = useState([]);
@@ -205,7 +208,7 @@ const DriverSlotPicker = ({ open, selectedDriver, onClose }) => {
           <DatePicker
             multiple
             range
-            minDate={today}
+            minDate={peruToday}
             value={values}
             onChange={handleChange}
             dateSeparator=" to "
