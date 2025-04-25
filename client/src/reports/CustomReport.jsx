@@ -190,23 +190,23 @@ const CustomReport = () => {
       console.log(traccarId, "traccarId");
       console.log(deviceIds, "deviceIds");
 
-      // const response = await axios.post(
-      //   `${url}/c-report/calcs/${calcId}/user/${traccarId}`,
-      //   {
-      //     deviceIds,
-      //     superAdmin: !!traccarUser?.superAdmin,
-      //   }
-      // );
+      const response = await axios.post(
+        `${url}/c-report/calcs/${calcId}/user/${traccarId}`,
+        {
+          deviceIds,
+          superAdmin: userId === 1 ? true : false,
+        }
+      );
 
-      // const reportData = response.data.message;
+      const reportData = response.data.message;
 
-      // setData(reportData);
-      // setColumns(Object.keys(reportData[0] || {}));
+      setData(reportData);
+      setColumns(Object.keys(reportData[0] || {}));
 
-      // const filteredColumns = Object.keys(reportData[0] || {}).filter(
-      //   (col) => !["points", "route"].includes(col)
-      // );
-      // setSelectedColumns(filteredColumns);
+      const filteredColumns = Object.keys(reportData[0] || {}).filter(
+        (col) => !["points", "route"].includes(col)
+      );
+      setSelectedColumns(filteredColumns);
     } catch (err) {
       console.error("Error fetching data:", err);
       setError("Failed to fetch data");
