@@ -130,8 +130,6 @@ export const generateCalcReport = async (req, res) => {
         }
       );
 
-      console.log(calcResponse.data.result[0]);
-
       if (!calcResponse.data.result[0]) {
         return res.status(404).json({
           status: false,

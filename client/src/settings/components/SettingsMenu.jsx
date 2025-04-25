@@ -104,10 +104,10 @@ const SettingsMenu = () => {
   const features = useFeatures();
 
   useEffect(() => {
-    if (!traccarUser?.superAdmin) {
-      fetchCompanyRealmByTraccarId(traccarUser?.id);
+    if (!userId === 1) {
+      fetchCompanyRealmByTraccarId(userId);
     }
-  }, [traccarUser]);
+  }, [userId]);
 
   const fetchCompanyRealmByTraccarId = async (userId) => {
     try {
@@ -140,7 +140,7 @@ const SettingsMenu = () => {
         />
         {!readonly && (
           <>
-            {traccarUser?.superAdmin && (
+            {userId === 1 && (
               <MenuItem
                 title={t("settingsUsageConfiguration")}
                 link="/settings/view-usage"
@@ -148,7 +148,7 @@ const SettingsMenu = () => {
                 selected={location.pathname.startsWith("/settings/view-usage")}
               />
             )}
-            {traccarUser?.superAdmin && (
+            {userId === 1 && (
               <MenuItem
                 title={t("settingsRealms")}
                 link="/settings/realms"
@@ -156,7 +156,7 @@ const SettingsMenu = () => {
                 selected={location.pathname.startsWith("/settings/realms")}
               />
             )}
-            {traccarUser?.superAdmin && (
+            {userId === 1 && (
               <Accordion
                 expanded={expanded.includes("admin_calcs")}
                 onChange={handleChange("admin_calcs")}
@@ -199,7 +199,7 @@ const SettingsMenu = () => {
                 </AccordionDetails>
               </Accordion>
             )}
-            {traccarUser?.superAdmin && (
+            {userId === 1 && (
               <Accordion
                 expanded={expanded.includes("config")}
                 onChange={handleChange("config")}
@@ -322,7 +322,7 @@ const SettingsMenu = () => {
                     )}
                   />
                 )}
-                {traccarUser?.superAdmin && (
+                {userId === 1 && (
                   <MenuItem
                     title={t("settingsNextopUsers")}
                     link="/settings/subaccounts"
@@ -335,7 +335,7 @@ const SettingsMenu = () => {
                 )}
               </AccordionDetails>
             </Accordion>
-            {traccarUser?.superAdmin && (
+            {userId === 1 && (
               <Accordion
                 expanded={expanded.includes("traccar_related")}
                 onChange={handleChange("traccar_related")}
@@ -433,7 +433,7 @@ const SettingsMenu = () => {
                       icon={<HelpIcon sx={{ ml: 2 }} />}
                     />
                   )}
-                  {traccarUser?.superAdmin && (
+                  {userId === 1 && (
                     <MenuItem
                       title={t("settingsUsers")}
                       link="/settings/users"
@@ -467,7 +467,7 @@ const SettingsMenu = () => {
                     "/settings/notifications"
                   )}
                 />
-                {traccarUser?.superAdmin && (
+                {userId === 1 && (
                   <MenuItem
                     title={t("settingsProtocolconfiguration")}
                     link="/settings/protocol/notifications"
@@ -477,7 +477,7 @@ const SettingsMenu = () => {
                     )}
                   />
                 )}
-                {traccarUser?.superAdmin && (
+                {userId === 1 && (
                   <MenuItem
                     title={t("settingsNotificationLogs")}
                     link="/settings/notifications-logs"
@@ -490,7 +490,7 @@ const SettingsMenu = () => {
           </>
         )}
       </List>
-      {!traccarUser?.superAdmin && admin && (
+      {!userId === 1 && admin && (
         <>
           <Divider />
           <List>
@@ -522,7 +522,7 @@ const SettingsMenu = () => {
           </List>
         </>
       )}
-      {traccarUser?.superAdmin && (
+      {userId === 1 && (
         <>
           <Divider />
           <List>

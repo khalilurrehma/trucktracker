@@ -33,6 +33,9 @@ import {
 import MapIcon from "@mui/icons-material/Map";
 import TableShimmer from "../common/components/TableShimmer";
 import { useSelector } from "react-redux";
+import { useLocalization } from "../common/components/LocalizationProvider";
+import { format } from "date-fns";
+import { enUS, es } from "date-fns/locale";
 
 function MapViewComponent({ routeData }) {
   const mapRef = useRef(null);
@@ -121,12 +124,39 @@ const columnMappings = {
   },
 };
 
+const columnUnits = {
+  "max.speed": "km/h",
+  "avg.speed": "km/h",
+  distance: "km",
+  distance_can: "km",
+  "position.mileage": "km",
+  "total.mileage": "km",
+  "daily.gps.mileage": "km",
+  "total.gps.mileage": "km",
+  "work.hours": "h",
+  "motion.hours": "h",
+  "stop.hours": "h",
+  "idle.hours": "h",
+  duration: "h",
+};
+
+const getLocale = (language) => {
+  switch (language) {
+    case "es":
+      return es;
+    case "en":
+    default:
+      return enUS;
+  }
+};
+
 const CustomReport = () => {
   const url = import.meta.env.DEV
     ? import.meta.env.VITE_DEV_BACKEND_URL
     : import.meta.env.VITE_PROD_BACKEND_URL;
 
   const { reportId } = useParams();
+  const { language } = useLocalization();
   const userId = useSelector((state) => state.session.user.id);
   const { traccarUser } = useAppContext();
   const printRef = useRef(null);
@@ -149,15 +179,79 @@ const CustomReport = () => {
   };
 
   useEffect(() => {
-    if (reportId && traccarUser?.id) {
-      fetchCalculatorReport(reportId, traccarUser.id);
+    if (reportId && userId) {
+      fetchCalculatorReport(reportId, userId);
     }
-  }, [reportId, traccarUser]);
+  }, [reportId, userId]);
+
+  const formatAnyDate = (value, language = "en") => {
+    const locale = getLocale(language);
+    let date;
+
+    if (typeof value === "string") {
+      date = new Date(value);
+    } else if (typeof value === "number") {
+      date = new Date(value > 1e12 ? value : value * 1000);
+    } else {
+      return "Invalid date";
+    }
+
+    if (isNaN(date)) return "Invalid date";
+
+    return format(date, "PPP p", { locale });
+  };
+
+  const formatValue = (key, value, language = "en") => {
+    if (value == null) return "N/A";
+
+    const locale = getLocale(language);
+
+    // Handle timestamps and date strings
+    if (["date", "timestamp", "begin", "end"].includes(key)) {
+      return formatAnyDate(value, language);
+    }
+
+    // Handle duration in seconds -> hours/mins
+    if (
+      ["duration", "stop.seconds", "motion.seconds", "work.seconds"].includes(
+        key
+      )
+    ) {
+      const hours = (value / 3600).toFixed(2); // 2 decimal places
+      return `${hours} h`;
+    }
+
+    // Round float values to 2 decimals if needed
+    if (typeof value === "number" && value % 1 !== 0) {
+      value = value.toFixed(2);
+    }
+
+    // Add units if applicable
+    const units = {
+      "max.speed": "km/h",
+      "avg.speed": "km/h",
+      distance: "km",
+      distance_can: "km",
+      "position.mileage": "km",
+      "gps.mileage": "km",
+      "total.mileage": "km",
+      "total.gps.mileage": "km",
+      "daily.gps.mileage": "km",
+      "odometer.start": "km",
+      "odometer.end": "km",
+      "work.hours": "h",
+      "stop.hours": "h",
+      "idle.hours": "h",
+      "motion.hours": "h",
+    };
+
+    return units[key] ? `${value} ${units[key]}` : value;
+  };
 
   const fetchCalculatorReport = async (calcId, traccarId) => {
     setLoading(true);
     setError(null);
-    setSelectedColumns([]); // Reset selectedColumns before fetching new data
+    setSelectedColumns([]);
 
     try {
       const apiUrl = `${url}/new-devices`;
@@ -185,10 +279,6 @@ const CustomReport = () => {
         userId === 1
           ? newDevices.map((device) => device.id)
           : matchedDevices.map((device) => device.id);
-
-      console.log(calcId, "calcId");
-      console.log(traccarId, "traccarId");
-      console.log(deviceIds, "deviceIds");
 
       const response = await axios.post(
         `${url}/c-report/calcs/${calcId}/user/${traccarId}`,
@@ -355,9 +445,7 @@ const CustomReport = () => {
                     <TableRow key={index}>
                       {sortedOriginalColumns.map((col) => (
                         <TableCell key={col}>
-                          {["begin", "end", "timestamp"].includes(col)
-                            ? formatUnixTimestamp(row[col])
-                            : row[col] ?? "N/A"}
+                          {formatValue(col, row[col], language)}
                         </TableCell>
                       ))}
                       <TableCell>

@@ -208,7 +208,15 @@ const ReportsMenu = () => {
                     padding: "0 0 0 2px",
                   }}
                 ></i>
-                {category.category_name}
+                {category.category_name === "Custom Reports"
+                  ? t("reportsCustomReports")
+                  : category.category_name === "Fuel Reports"
+                  ? t("reportsFuelReports")
+                  : category.category_name === "Platform trips and stops"
+                  ? t("reportsPlatformTripAndStop")
+                  : category.category_name === "Operations Report"
+                  ? t("reportsOperationsReport")
+                  : category.category_name}
               </AccordionSummary>
               <AccordionDetails sx={{ p: 0 }}>
                 {category?.reports.length > 0 &&
@@ -245,7 +253,21 @@ const ReportsMenu = () => {
                       return (
                         <MenuItem
                           key={filteredReport.id}
-                          title={filteredReport.name}
+                          title={
+                            filteredReport.name === "Custom Calc"
+                              ? t("reportsCustomCalc")
+                              : filteredReport.name === "Refuel"
+                              ? t("reportsRefuel")
+                              : filteredReport.name === "Trips"
+                              ? t("reportsTrip")
+                              : filteredReport.name === "Stop"
+                              ? t("reportsStop")
+                              : filteredReport.name === "Ralenti"
+                              ? t("reportsRalenti")
+                              : filteredReport.name === "Daily Report Summary"
+                              ? t("reportsDailyReportSummary")
+                              : filteredReport.name
+                          }
                           link={`/reports/${calcId}`}
                           icon={
                             <i
