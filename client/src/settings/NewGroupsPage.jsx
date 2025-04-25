@@ -58,7 +58,7 @@ const NewGroupsPage = () => {
   const [searchInput, setSearchInput] = useState("");
   const [pagination, setPagination] = React.useState(10);
   const [open, setOpen] = React.useState(false);
-  let printComponentRef = React.useRef();
+  const userId = useSelector((state) => state.session.user.id);
 
   const columnLabels = {
     name: `Name`,
@@ -167,7 +167,7 @@ const NewGroupsPage = () => {
 
   useEffect(() => {
     fetchDataFromAPI();
-  }, []);
+  }, [userId]);
   const fetchDataFromAPI = async () => {
     try {
       setLoading(true);
@@ -183,7 +183,7 @@ const NewGroupsPage = () => {
         const matchedGroups = findMatchingGroups(newGroups, permissionGroups);
         // console.log("matched groups :", matchedGroups);
         // setData(matchedGroups);
-        setData(traccarUser?.superAdmin ? newGroups : matchedGroups);
+        setData(userId === 1 ? newGroups : matchedGroups);
       } else {
         throw new Error("Failed to fetch data from one of the APIs");
       }
@@ -449,7 +449,7 @@ const NewGroupsPage = () => {
 
             <TextField
               id="outlined-basic"
-              label="Search"
+              label={t("sharedSearch")}
               variant="outlined"
               fullWidth
               value={searchInput}
@@ -460,7 +460,7 @@ const NewGroupsPage = () => {
               size="small"
               onClick={handleClickFetchData}
               loading={loading}
-              loadingIndicator="Loading…"
+              loadingIndicator={t("sharedLoading")}
               variant="outlined"
               sx={{
                 whiteSpace: "nowrap",
@@ -470,7 +470,7 @@ const NewGroupsPage = () => {
                 width: "100%",
               }}
             >
-              <span>Fetch Data</span>
+              <span>{t("sharedFetchData")}</span>
             </LoadingButton>
           </Box>
         </Box>

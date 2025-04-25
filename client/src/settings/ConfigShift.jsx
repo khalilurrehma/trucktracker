@@ -30,6 +30,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { TimePicker } from "@mui/x-date-pickers/TimePicker";
 import axios from "axios";
 import dayjs from "dayjs";
+import { useTranslation } from "../common/components/LocalizationProvider";
 
 const formatDate = (isoDate) => {
   const date = new Date(isoDate);
@@ -55,6 +56,7 @@ const ConfigShift = () => {
   const userId = useSelector((state) => state.session.user?.id);
 
   const navigate = useNavigate();
+  const t = useTranslation();
 
   useEffect(() => {
     getDevicesShifts();
@@ -202,12 +204,12 @@ const ConfigShift = () => {
       <Box sx={{ margin: 2 }}>
         <Box sx={{ display: "flex", gap: 2, marginBottom: 2 }}>
           <TextField
-            label="Device Name"
+            label={t("reportDeviceName")}
             value={filters.device_name}
             onChange={(e) => handleFilterChange("device_name", e.target.value)}
           />
           <TextField
-            label="Driver Name"
+            label={t("sharedDriverName")}
             value={filters.driver_name}
             onChange={(e) => handleFilterChange("driver_name", e.target.value)}
           />

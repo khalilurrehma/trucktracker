@@ -237,7 +237,7 @@ export const deviceNewEvent = async (topic, message) => {
     }
 
     processedDbData.audio_file = configured_notification?.audio_file;
-    processedDbData.notificationStatus = true;
+    // processedDbData.notificationStatus = true;
     return processedDbData;
   } catch (error) {
     console.error("Error processing device event:", error);

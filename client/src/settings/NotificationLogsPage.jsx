@@ -14,6 +14,7 @@ import {
 import PageLayout from "../common/components/PageLayout";
 import SettingsMenu from "./components/SettingsMenu";
 import TableShimmer from "../common/components/TableShimmer";
+import { useTranslation } from "../common/components/LocalizationProvider";
 
 const NotificationLogsPage = () => {
   const url = import.meta.env.DEV
@@ -28,6 +29,7 @@ const NotificationLogsPage = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [sortOrder, setSortOrder] = useState("desc");
+  const t = useTranslation();
 
   const fetchNotifications = async () => {
     setLoading(true);
@@ -78,14 +80,14 @@ const NotificationLogsPage = () => {
       <div style={{ padding: "20px" }}>
         <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
           <TextField
-            label="Device ID"
+            label={t("reportDeviceID")}
             variant="outlined"
             size="small"
             value={deviceId}
             onChange={(e) => setDeviceId(e.target.value)}
           />
           <TextField
-            label="Device Name"
+            label={t("reportDeviceName")}
             variant="outlined"
             size="small"
             value={deviceName}
@@ -96,7 +98,7 @@ const NotificationLogsPage = () => {
             color="primary"
             onClick={fetchNotifications}
           >
-            {loading ? "Fetching..." : "Fetch Data"}
+            {loading ? t("sharedFetching") : t("sharedFetchData")}
           </Button>
         </div>
 

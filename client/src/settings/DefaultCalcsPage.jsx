@@ -28,6 +28,7 @@ import { toast, ToastContainer } from "react-toastify";
 import { useAppContext } from "../AppContext";
 import CollectionFab from "./components/CollectionFab";
 import ConfirmDialog from "../common/components/ConfirmDialog";
+import { useTranslation } from "../common/components/LocalizationProvider";
 const DefaultCalcsPage = () => {
   let url;
   if (import.meta.env.DEV) {
@@ -37,6 +38,7 @@ const DefaultCalcsPage = () => {
   }
 
   const navigate = useNavigate();
+  const t = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
 
   let type = searchParams.get("type");
@@ -107,7 +109,7 @@ const DefaultCalcsPage = () => {
       <ToastContainer />
       <Box sx={{ padding: 2 }}>
         <TextField
-          label="Search Calculator"
+          label={t("sharedSearchCalculators")}
           variant="outlined"
           value={search}
           onChange={(e) => setSearch(e.target.value)}

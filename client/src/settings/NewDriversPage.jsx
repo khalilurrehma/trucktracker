@@ -32,9 +32,11 @@ import SettingLoader from "./common/SettingLoader";
 import { useAppContext } from "../AppContext";
 import { useSelector } from "react-redux";
 import DriverSlotPicker from "./components/DriverSlotPicker";
+import { useTranslation } from "../common/components/LocalizationProvider";
 
 const NewDriversPage = () => {
   const { traccarUser } = useAppContext();
+  const t = useTranslation();
   const [drivers, setDrivers] = useState([]);
   const [filteredDrivers, setFilteredDrivers] = useState([]);
   const [rows, setRows] = useState(25);
@@ -228,7 +230,7 @@ const NewDriversPage = () => {
         </FormControl>
 
         <TextField
-          label="Search"
+          label={t("sharedSearch")}
           value={search}
           onChange={(e) => handleSearch(e.target.value)}
           size="small"

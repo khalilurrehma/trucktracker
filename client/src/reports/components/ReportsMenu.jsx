@@ -113,7 +113,7 @@ const ReportsMenu = () => {
           selected={location.pathname === "/reports/new-event"}
         />
         <MenuItem
-          title={"Driver Behaviour"}
+          title={t("reportsDriverBehavior")}
           link="/reports/driver-behaviour"
           icon={<PsychologyIcon />}
           selected={location.pathname === "/reports/driver-behaviour"}
@@ -130,17 +130,17 @@ const ReportsMenu = () => {
             sx={{ pl: 2, m: 0 }}
           >
             <TrackChangesIcon sx={{ mr: 4 }} />
-            Usage Control
+            {t("reportsUsageControl")}
           </AccordionSummary>
           <AccordionDetails sx={{ p: 0 }}>
             <MenuItem
-              title="Daily Reports"
+              title={t("reportsDailyReport")}
               link="/reports/usage-control"
               icon={<NotificationsActiveIcon sx={{ ml: 2 }} />}
               selected={location.pathname === "/reports/usage-control"}
             />
             <MenuItem
-              title="Logs"
+              title={t("reportsLogs")}
               link="/reports/usage-control/logs"
               icon={<AssignmentIcon sx={{ ml: 2 }} />}
               selected={location.pathname.startsWith(
@@ -148,12 +148,10 @@ const ReportsMenu = () => {
               )}
             />
             <MenuItem
-              title="Scheduled Devices Logs"
+              title={t("reportsScheduledDeviceLogs")}
               link="/reports/devices/logs"
               icon={<AssignmentIcon sx={{ ml: 2 }} />}
-              selected={location.pathname.startsWith(
-                "/reports/usage-control/logs"
-              )}
+              selected={location.pathname.endsWith("devices/logs")}
             />
           </AccordionDetails>
         </Accordion>

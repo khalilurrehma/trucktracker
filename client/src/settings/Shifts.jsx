@@ -28,9 +28,11 @@ import { useNavigate } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import { handleDownloadExcel } from "./common/SettingsExcel";
 import { useAppContext } from "../AppContext";
+import { useTranslation } from "../common/components/LocalizationProvider";
 
 const Shifts = () => {
   const { traccarUser } = useAppContext();
+  const t = useTranslation();
   const [shifts, setShifts] = useState([]);
   const [filteredShifts, setFilteredShifts] = useState([]);
   const [isloading, setIsloading] = useState(false);
@@ -184,7 +186,7 @@ const Shifts = () => {
         }}
       >
         <TextField
-          label="Search All Data"
+          label={t("sharedSearchAllData")}
           variant="outlined"
           value={searchQuery}
           onChange={handleSearch}
@@ -193,7 +195,7 @@ const Shifts = () => {
           }}
         />
         <TextField
-          label="Search by Shift Name"
+          label={t("sharedSearchByShiftName")}
           variant="outlined"
           value={shiftNameQuery}
           onChange={handleShiftNameSearch}
@@ -202,10 +204,10 @@ const Shifts = () => {
           }}
         />
         <Button variant="outlined" onClick={handleExport}>
-          Download Excel
+          {t("sharedDownloadExcel")}
         </Button>
         <Button variant="outlined" onClick={handlePrint}>
-          Print
+          {t("sharedPrint")}
         </Button>
       </Box>
 

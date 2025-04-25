@@ -29,8 +29,10 @@ import {
 import TableShimmer from "../common/components/TableShimmer";
 import FleetMap from "../map/FleetMap";
 import { useSelector } from "react-redux";
+import { useTranslation } from "../common/components/LocalizationProvider";
 
 const MqttAlertsPage = () => {
+  const t = useTranslation();
   const { mqttMessages } = useAppContext();
   const userId = useSelector((state) => state.session.user.id);
   const nonAdmin = useSelector(
@@ -126,7 +128,7 @@ const MqttAlertsPage = () => {
         <Box sx={{ display: "flex", justifyContent: "start", gap: 4, mb: 5 }}>
           <LocalizationProvider dateAdapter={AdapterDateFns}>
             <DatePicker
-              label="Select Date"
+              label={t("sharedSelectDate")}
               value={selectedDate}
               onChange={(newValue) => setSelectedDate(newValue)}
               slotProps={{ textField: { size: "small" } }}
@@ -137,7 +139,7 @@ const MqttAlertsPage = () => {
             />
           </LocalizationProvider>
           <TextField
-            label="Search"
+            label={t("sharedSearch")}
             variant="outlined"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -145,7 +147,7 @@ const MqttAlertsPage = () => {
             sx={{ width: "30%" }}
           />
           <Button variant="outlined" onClick={() => setSelectedDate(null)}>
-            Clear Date
+            {t("sharedClearDate")}
           </Button>
         </Box>
         <Table>

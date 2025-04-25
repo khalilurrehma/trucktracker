@@ -142,7 +142,7 @@ const SettingsMenu = () => {
           <>
             {traccarUser?.superAdmin && (
               <MenuItem
-                title="Usage Configuration"
+                title={t("settingsUsageConfiguration")}
                 link="/settings/view-usage"
                 icon={<SupervisedUserCircleIcon />}
                 selected={location.pathname.startsWith("/settings/view-usage")}
@@ -150,7 +150,7 @@ const SettingsMenu = () => {
             )}
             {traccarUser?.superAdmin && (
               <MenuItem
-                title={"Realms"}
+                title={t("settingsRealms")}
                 link="/settings/realms"
                 icon={<PersonIcon />}
                 selected={location.pathname.startsWith("/settings/realms")}
@@ -169,11 +169,11 @@ const SettingsMenu = () => {
                   sx={{ pl: 2, m: 0 }}
                 >
                   <TrackChangesIcon sx={{ mr: 4 }} />
-                  Calculators
+                  {t("settingsCalculators")}
                 </AccordionSummary>
                 <AccordionDetails sx={{ p: 0 }}>
                   <MenuItem
-                    title="Reports Calculators"
+                    title={t("settingsReportsCalculators")}
                     link="/settings/calcs/all/default?type=default"
                     icon={<DifferenceOutlinedIcon sx={{ ml: 2 }} />}
                     selected={location.pathname.startsWith(
@@ -181,7 +181,7 @@ const SettingsMenu = () => {
                     )}
                   />
                   <MenuItem
-                    title="Custom Reports Calculators"
+                    title={t("settingsCustomReportsCalculators")}
                     link="/settings/calcs/all/custom?type=custom"
                     icon={<ContentPasteOutlinedIcon sx={{ ml: 2 }} />}
                     selected={location.pathname.startsWith(
@@ -189,7 +189,7 @@ const SettingsMenu = () => {
                     )}
                   />
                   <MenuItem
-                    title="Alert Calculators"
+                    title={t("settingsAlertCalculators")}
                     link="/settings/calcs/all/notification?type=notification"
                     icon={<ContentPasteOutlinedIcon sx={{ ml: 2 }} />}
                     selected={location.pathname.startsWith(
@@ -199,42 +199,6 @@ const SettingsMenu = () => {
                 </AccordionDetails>
               </Accordion>
             )}
-            {/* {!traccarUser?.attributes?.non_admin &&
-              !traccarUser?.superAdmin && (
-                <Accordion
-                  expanded={expanded.includes("company_calcs")}
-                  onChange={handleChange("company_calcs")}
-                  sx={accordinSX}
-                >
-                  <AccordionSummary
-                    expandIcon={<ExpandMoreIcon />}
-                    aria-controls="dispatchbh-content"
-                    id="dispatchbh-header"
-                    sx={{ pl: 2, m: 0 }}
-                  >
-                    <TrackChangesIcon sx={{ mr: 4 }} />
-                    Calculators
-                  </AccordionSummary>
-                  <AccordionDetails sx={{ p: 0 }}>
-                    <MenuItem
-                      title="Default Calculators"
-                      link="/settings/company/default/calculators"
-                      icon={<DifferenceOutlinedIcon sx={{ ml: 2 }} />}
-                      selected={location.pathname.startsWith(
-                        "/settings/company/default/calculators"
-                      )}
-                    />
-                    <MenuItem
-                      title="Custom Calculators"
-                      link="/settings/company/custom/calculators"
-                      icon={<ContentPasteOutlinedIcon sx={{ ml: 2 }} />}
-                      selected={location.pathname.startsWith(
-                        "/settings/company/custom/calculators"
-                      )}
-                    />
-                  </AccordionDetails>
-                </Accordion>
-              )} */}
             {traccarUser?.superAdmin && (
               <Accordion
                 expanded={expanded.includes("config")}
@@ -248,11 +212,11 @@ const SettingsMenu = () => {
                   sx={{ pl: 2, m: 0 }}
                 >
                   <TrackChangesIcon sx={{ mr: 4 }} />
-                  Configuration Reports
+                  {t("settingsConfigurationReports")}
                 </AccordionSummary>
                 <AccordionDetails sx={{ p: 0 }}>
                   <MenuItem
-                    title="Categories"
+                    title={t("settingsCategories")}
                     link="/settings/categories"
                     icon={<AutoAwesomeMotionIcon sx={{ ml: 2 }} />}
                     selected={location.pathname.startsWith(
@@ -260,7 +224,7 @@ const SettingsMenu = () => {
                     )}
                   />
                   <MenuItem
-                    title="Reports"
+                    title={t("settingsReports")}
                     link="/settings/reports"
                     icon={<InsertDriveFileIcon sx={{ ml: 2 }} />}
                     selected={location.pathname.startsWith("/settings/reports")}
@@ -280,11 +244,11 @@ const SettingsMenu = () => {
                 sx={{ pl: 2, m: 0 }}
               >
                 <TrackChangesIcon sx={{ mr: 4 }} />
-                Usage Control
+                {t("settingsUsageControl")}
               </AccordionSummary>
               <AccordionDetails sx={{ p: 0 }}>
                 <MenuItem
-                  title="Assign Devices"
+                  title={t("settingsAssignDevices")}
                   link="/settings/config-shifts"
                   icon={<TravelExploreIcon sx={{ ml: 2 }} />}
                   selected={location.pathname.startsWith(
@@ -292,13 +256,13 @@ const SettingsMenu = () => {
                   )}
                 />
                 <MenuItem
-                  title="Shifts"
+                  title={t("settingsShifts")}
                   link="/settings/shifts"
                   icon={<AddIcon sx={{ ml: 2 }} />}
                   selected={location.pathname.startsWith("/settings/shifts")}
                 />
                 <MenuItem
-                  title="Drivers Shifts"
+                  title={t("settingsDriversShifts")}
                   link="/settings/drivers/shifts"
                   icon={<PersonIcon sx={{ ml: 2 }} />}
                   selected={location.pathname.startsWith(
@@ -319,11 +283,11 @@ const SettingsMenu = () => {
                 sx={{ pl: 2, m: 0 }}
               >
                 <TrackChangesIcon sx={{ mr: 4 }} />
-                Nextop Management Platform
+                {t("settingsNextopManagementPlatform")}
               </AccordionSummary>
               <AccordionDetails sx={{ p: 0 }}>
                 <MenuItem
-                  title={"Nextop Devices"}
+                  title={t("settingsNextopDevices")}
                   link="/settings/new-devices"
                   icon={<SmartphoneIcon sx={{ ml: 2 }} />}
                   selected={location.pathname.startsWith(
@@ -331,7 +295,7 @@ const SettingsMenu = () => {
                   )}
                 />
                 <MenuItem
-                  title={"Nextop Geofence"}
+                  title={t("settingsNextopGeofence")}
                   link="/new-geofences"
                   icon={<CreateIcon sx={{ ml: 2 }} />}
                   selected={location.pathname.startsWith(
@@ -340,7 +304,7 @@ const SettingsMenu = () => {
                 />
                 {!features.disableGroups && (
                   <MenuItem
-                    title={"Nextop Groups"}
+                    title={t("settingsNextopGroups")}
                     link="/settings/new-groups"
                     icon={<FolderIcon sx={{ ml: 2 }} />}
                     selected={location.pathname.startsWith(
@@ -350,7 +314,7 @@ const SettingsMenu = () => {
                 )}
                 {!traccarUser?.attributes.non_admin && (
                   <MenuItem
-                    title="Nextop Drivers"
+                    title={t("settingsNextopDrivers")}
                     link="/settings/new-drivers"
                     icon={<PersonIcon sx={{ ml: 2 }} />}
                     selected={location.pathname.startsWith(
@@ -360,7 +324,7 @@ const SettingsMenu = () => {
                 )}
                 {traccarUser?.superAdmin && (
                   <MenuItem
-                    title={"Nextop Users"}
+                    title={t("settingsNextopUsers")}
                     link="/settings/subaccounts"
                     icon={<PeopleIcon sx={{ ml: 2 }} />}
                     selected={
@@ -384,7 +348,7 @@ const SettingsMenu = () => {
                   sx={{ pl: 2, m: 0 }}
                 >
                   <TrackChangesIcon sx={{ mr: 4 }} />
-                  Local Management Platform
+                  {t("settingsLocalManagementPlatform")}
                 </AccordionSummary>
                 <AccordionDetails sx={{ p: 0 }}>
                   <MenuItem
@@ -492,7 +456,7 @@ const SettingsMenu = () => {
                 sx={{ pl: 2, m: 0 }}
               >
                 <TrackChangesIcon sx={{ mr: 4 }} />
-                Nextop Notifications
+                {t("settingsNextopNotifications")}
               </AccordionSummary>
               <AccordionDetails sx={{ p: 0 }}>
                 <MenuItem
@@ -505,7 +469,7 @@ const SettingsMenu = () => {
                 />
                 {traccarUser?.superAdmin && (
                   <MenuItem
-                    title={`Protocol configuration`}
+                    title={t("settingsProtocolconfiguration")}
                     link="/settings/protocol/notifications"
                     icon={<NotificationsIcon sx={{ ml: 2 }} />}
                     selected={location.pathname.startsWith(
@@ -515,7 +479,7 @@ const SettingsMenu = () => {
                 )}
                 {traccarUser?.superAdmin && (
                   <MenuItem
-                    title={`Notification Logs`}
+                    title={t("settingsNotificationLogs")}
                     link="/settings/notifications-logs"
                     icon={<NotificationsIcon sx={{ ml: 2 }} />}
                     selected={location.pathname.endsWith("logs")}

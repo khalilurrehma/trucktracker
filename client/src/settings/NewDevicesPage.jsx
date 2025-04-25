@@ -165,7 +165,7 @@ const NewDevicesPage = () => {
 
   useEffect(() => {
     fetchDataFromAPI();
-  }, [traccarUser?.id]);
+  }, [userId]);
 
   const fetchDataFromAPI = async () => {
     try {
@@ -185,7 +185,7 @@ const NewDevicesPage = () => {
           newDevices,
           permissionDevices
         );
-        setData(traccarUser?.superAdmin ? newDevices : matchedDevices);
+        setData(userId === 1 ? newDevices : matchedDevices);
       } else {
         throw new Error("Failed to fetch data from one of the APIs");
       }
@@ -520,7 +520,7 @@ const NewDevicesPage = () => {
               size="small"
               onClick={handleClickFetchData}
               loading={loading}
-              loadingIndicator="Loading…"
+              loadingIndicator={t("sharedLoading")}
               variant="outlined"
               sx={{
                 whiteSpace: "nowrap",
@@ -530,7 +530,7 @@ const NewDevicesPage = () => {
                 width: "100%",
               }}
             >
-              <span>Fetch Data</span>
+              <span>{t("sharedFetchData")}</span>
             </LoadingButton>
           </Box>
         </Box>

@@ -26,6 +26,7 @@ import SettingsMenu from "./components/SettingsMenu";
 import { useSelector } from "react-redux";
 import axios from "axios";
 import TableShimmer from "../common/components/TableShimmer";
+import { useTranslation } from "../common/components/LocalizationProvider";
 
 const DriversShifts = () => {
   let url;
@@ -43,6 +44,7 @@ const DriversShifts = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedShift, setSelectedShift] = useState("");
+  const t = useTranslation();
 
   const fetchFromApi = async () => {
     const superAdminUrl = `${url}/drivers/shifts`;
@@ -142,7 +144,7 @@ const DriversShifts = () => {
     >
       <Box p={2}>
         <TextField
-          placeholder="Search by name, date, or shift name..."
+          placeholder={t("sharedSearchAllData")}
           variant="outlined"
           value={searchTerm}
           onChange={handleSearch}
@@ -151,7 +153,7 @@ const DriversShifts = () => {
 
         <LocalizationProvider dateAdapter={AdapterDateFns}>
           <DatePicker
-            label="Filter by Date"
+            label={t("sharedFilterByDate")}
             value={selectedDate}
             onChange={(newValue) => {
               setSelectedDate(newValue);
@@ -167,7 +169,7 @@ const DriversShifts = () => {
           />
         </LocalizationProvider>
 
-        <FormControl sx={{ width: "20%", ml: 2 }} size="small">
+        {/* <FormControl sx={{ width: "20%", ml: 2 }} size="small">
           <InputLabel>Filter by Shift</InputLabel>
           <Select
             value={selectedShift}
@@ -181,7 +183,7 @@ const DriversShifts = () => {
               </MenuItem>
             ))}
           </Select>
-        </FormControl>
+        </FormControl> */}
         <Button
           variant="outlined"
           color="secondary"
@@ -192,7 +194,7 @@ const DriversShifts = () => {
           }}
           sx={{ ml: 2, height: "40px" }}
         >
-          Clear Filters
+          {t("reportClear")}
         </Button>
 
         <TableContainer>

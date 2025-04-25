@@ -308,7 +308,7 @@ const ReportsPage = () => {
                       width: "100%",
                     }}
                   >
-                    <span>Fetch data</span>
+                    {t("sharedFetchData")}
                   </LoadingButton>
                 </Box>
               </Box>

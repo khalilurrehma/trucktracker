@@ -226,6 +226,7 @@ const getJobKey = (deviceId, type, date) => `${deviceId}-${type}-${date}`;
 export const cronEmitter = new EventEmitter();
 
 // CRON FUNCTIONS
+// 6316928
 
 const scheduleShiftJobs = async () => {
   console.log(
@@ -265,24 +266,24 @@ const scheduleShiftJobs = async () => {
       const { dates, shift } = shiftBlock;
 
       if (!shifts) return;
-      const graceMinutes = shift.grace_time;
+      const graceMinutes = shift?.grace_time;
       // const allDates = ["2025-04-17"];
       const allDates = expandDates(dates);
 
       for (const date of allDates) {
         let shiftStart = applyGraceTime(
-          shift.start_time,
+          shift?.start_time,
           graceMinutes,
           "subtract"
         ).format("HH:mm:ss");
-        let baseShiftEnd = applyGraceTime(shift.end_time, graceMinutes, "add");
+        let baseShiftEnd = applyGraceTime(shift?.end_time, graceMinutes, "add");
 
         let shiftEnd = baseShiftEnd;
         if (is_extended && extend_time) {
           shiftEnd = applyExtendTime(baseShiftEnd, extend_time);
         }
 
-        const shiftEndStr = shiftEnd.format("HH:mm:ss");
+        const shiftEndStr = shiftEnd?.format("HH:mm:ss");
 
         const ttlStartTime = dayjs(`${date}T${shiftStart}`);
         const ttlEndTime = dayjs(`${date}T${shiftEndStr}`);

@@ -294,9 +294,9 @@ const MainToolbar = ({
           <Typography
             variant="caption"
             color="textSecondary"
-            style={{ marginTop: "-10px" }}
+            style={{ marginTop: "-10px", textAlign: "center" }}
           >
-            Logout
+            {t("loginLogout")}
           </Typography>
         </div>
       </Toolbar>

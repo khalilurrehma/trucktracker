@@ -49,6 +49,7 @@ const AlertNotificationTable = () => {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [channelFilter, setChannelFilter] = useState("");
   const [loading, setLoading] = useState(false);
+  const t = useTranslation();
 
   const fetchNotifications = async () => {
     setLoading(true);
@@ -78,7 +79,7 @@ const AlertNotificationTable = () => {
     <Box p={3}>
       <Box display="flex" gap={2} mb={2}>
         <TextField
-          label="Search by Name"
+          label={t("sharedSearchByName")}
           variant="outlined"
           value={searchKeyword}
           onChange={(e) => setSearchKeyword(e.target.value)}
@@ -89,7 +90,7 @@ const AlertNotificationTable = () => {
           onClick={fetchNotifications}
           disabled={loading}
         >
-          {loading ? "Fetching..." : "Fetch Data"}
+          {loading ? t("sharedFetching") : t("sharedFetchData")}
         </Button>
       </Box>
 
@@ -156,6 +157,7 @@ const ProtocolNotificationTable = () => {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [channelFilter, setChannelFilter] = useState("");
   const [loading, setLoading] = useState(false);
+  const t = useTranslation();
 
   const fetchNotifications = async () => {
     setLoading(true);
@@ -186,7 +188,7 @@ const ProtocolNotificationTable = () => {
     <Box p={3}>
       <Box display="flex" gap={2} mb={2}>
         <TextField
-          label="Search by Notification Name"
+          label={t("sharedSearchByName")}
           variant="outlined"
           value={searchKeyword}
           onChange={(e) => setSearchKeyword(e.target.value)}
@@ -197,7 +199,7 @@ const ProtocolNotificationTable = () => {
           onClick={fetchNotifications}
           disabled={loading}
         >
-          {loading ? "Fetching..." : "Fetch Data"}
+          {loading ? t("sharedFetching") : t("sharedFetchData")}
         </Button>
       </Box>
 
@@ -256,6 +258,7 @@ const ProtocolNotificationTable = () => {
 
 const NewNotificationsPage = () => {
   const { traccarUser } = useAppContext();
+  const t = useTranslation();
   const classes = useSettingsStyles();
   const formType = [
     { id: 1, label: "Alert Calculator - Notifications" },
@@ -279,7 +282,7 @@ const NewNotificationsPage = () => {
         <Box sx={{ mt: 4, paddingX: 24 }}>
           <Accordion>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="subtitle1">Select Table View</Typography>
+              <Typography variant="subtitle1">{t("sharedSelectTableView")}</Typography>
             </AccordionSummary>
             <AccordionDetails className={classes.details}>
               <Select
@@ -303,7 +306,7 @@ const NewNotificationsPage = () => {
       )}
       {selectedFormType && (
         <Button variant="outlined" onClick={handleChangeTable}>
-          Change Table View
+          {t("sharedChangeTableView")}
         </Button>
       )}
       {selectedFormType === 1 && <AlertNotificationTable />}

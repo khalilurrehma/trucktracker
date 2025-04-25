@@ -32,8 +32,10 @@ import {
 import SettingLoader from "./common/SettingLoader";
 import { toast, ToastContainer } from "react-toastify";
 import TableShimmer from "../common/components/TableShimmer";
+import { useTranslation } from "../common/components/LocalizationProvider";
 
 const UsageControl = () => {
+  const t = useTranslation();
   const [rows, setRows] = useState(25);
   const [sortColumn, setSortColumn] = useState("userId");
   const [sortType, setSortType] = useState("asc");
@@ -192,7 +194,7 @@ const UsageControl = () => {
         </FormControl>
 
         <TextField
-          label="Search"
+          label={t("sharedSearch")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           size="small"

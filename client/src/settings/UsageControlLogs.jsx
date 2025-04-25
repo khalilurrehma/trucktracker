@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useTransition } from "react";
 import PageLayout from "../common/components/PageLayout";
 import SettingsMenu from "./components/SettingsMenu";
 import { toast, ToastContainer } from "react-toastify";
@@ -26,9 +26,11 @@ import SettingLoader from "./common/SettingLoader";
 import ReportsMenu from "../reports/components/ReportsMenu";
 import { useSelector } from "react-redux";
 import { useAppContext } from "../AppContext";
+import { useTranslation } from "../common/components/LocalizationProvider";
 
 const UsageControlLogs = () => {
   const { traccarUser } = useAppContext();
+  const t = useTranslation();
   const [logs, setLogs] = useState([]);
   const [filteredLogs, setFilteredLogs] = useState([]);
   const [page, setPage] = useState(0);
@@ -101,7 +103,7 @@ const UsageControlLogs = () => {
         }}
       >
         <FormControl variant="outlined" sx={{ minWidth: 150 }}>
-          <InputLabel>Device</InputLabel>
+          <InputLabel>{t("deviceTitle")}</InputLabel>
           <Select
             value={deviceFilter}
             onChange={(e) => setDeviceFilter(e.target.value)}
@@ -120,7 +122,7 @@ const UsageControlLogs = () => {
         </FormControl>
 
         <FormControl variant="outlined" sx={{ minWidth: 250 }}>
-          <InputLabel>User</InputLabel>
+          <InputLabel>{t("settingsUsers")}</InputLabel>
           <Select
             value={userFilter}
             onChange={(e) => setUserFilter(e.target.value)}
@@ -139,7 +141,7 @@ const UsageControlLogs = () => {
         </FormControl>
 
         <TextField
-          label="Command"
+          label={t("positionCommand")}
           variant="outlined"
           value={commandFilter}
           onChange={(e) => setCommandFilter(e.target.value)}

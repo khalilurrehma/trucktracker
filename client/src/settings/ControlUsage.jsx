@@ -34,6 +34,7 @@ import OperationsMenu from "./components/OperationsMenu";
 import { useAppContext } from "../AppContext";
 import { graceTimeConverter } from "./common/New.Helper";
 import axios from "axios";
+import { useTranslation } from "../common/components/LocalizationProvider";
 
 const formatTime = (date) => {
   return date.toLocaleTimeString("en-US", {
@@ -61,6 +62,8 @@ const ControlUsage = () => {
 
   const { traccarUse, mqttDeviceIgnitionStatus, mqttDeviceConnected } =
     useAppContext();
+
+  const t = useTranslation();
 
   useEffect(() => {
     if (page === 1 && devicesShiftData.length === 0) {
@@ -375,7 +378,7 @@ const ControlUsage = () => {
       >
         <Box sx={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
           <TextField
-            label="Search"
+            label={t("sharedSearch")}
             onChange={(e) => {
               setFilters(e.target.value), allDeviceControl(e.target.value);
             }}

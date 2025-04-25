@@ -31,6 +31,7 @@ import { toast, ToastContainer } from "react-toastify";
 import { useAppContext } from "../AppContext";
 import CollectionFab from "./components/CollectionFab";
 import ConfirmDialog from "../common/components/ConfirmDialog";
+import { useTranslation } from "../common/components/LocalizationProvider";
 
 const CustomCalcsPage = () => {
   let url;
@@ -40,6 +41,7 @@ const CustomCalcsPage = () => {
     url = import.meta.env.VITE_PROD_BACKEND_URL;
   }
   const { traccarUser } = useAppContext();
+  const t = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -118,7 +120,7 @@ const CustomCalcsPage = () => {
       <ToastContainer />
       <Box sx={{ padding: 2 }}>
         <TextField
-          label="Search Calculator"
+          label={t("sharedSearchCalculators")}
           variant="outlined"
           value={search}
           onChange={(e) => setSearch(e.target.value)}

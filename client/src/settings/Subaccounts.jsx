@@ -32,6 +32,7 @@ import { useAppContext } from "../AppContext";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useCatch } from "../reactHelper";
+import { useTranslation } from "../common/components/LocalizationProvider";
 
 const Subaccounts = () => {
   const [subaccounts, setSubaccounts] = useState([]);
@@ -45,6 +46,7 @@ const Subaccounts = () => {
   });
   const navigate = useNavigate();
   const { traccarUser } = useAppContext();
+  const t = useTranslation();
 
   let url;
 
@@ -147,7 +149,7 @@ const Subaccounts = () => {
         <TextField
           variant="outlined"
           size="small"
-          placeholder="Search..."
+          label={t("sharedSearch")}
           value={searchQuery}
           onChange={handleSearch}
           sx={{ marginRight: 2 }}

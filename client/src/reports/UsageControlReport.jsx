@@ -19,9 +19,11 @@ import {
 } from "@mui/material";
 import { useAppContext } from "../AppContext";
 import { useSelector } from "react-redux";
+import { useTranslation } from "../common/components/LocalizationProvider";
 
 const UsageControlReport = () => {
   const { traccarUser } = useAppContext();
+  const t = useTranslation();
   const [reports, setReports] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredReports, setFilteredReports] = useState([]);
@@ -77,11 +79,12 @@ const UsageControlReport = () => {
       <ToastContainer />
 
       <TextField
-        label="Search Device"
+        label={t("sharedSearchDevice")}
         variant="outlined"
         value={searchQuery}
         onChange={handleSearchChange}
         margin="normal"
+        sx={{ marginLeft: 2, width: "30%" }}
       />
 
       <TableContainer>

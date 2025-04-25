@@ -136,7 +136,7 @@ const BottomMenu = () => {
           value="map"
         />
         <BottomNavigationAction
-          label={"Operations"}
+          label={t("operationsTitle")}
           icon={<CrisisAlertIcon />}
           value="operations"
         />

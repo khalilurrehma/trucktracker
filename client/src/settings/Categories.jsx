@@ -284,7 +284,7 @@ const Categories = () => {
                   variant="outlined"
                   sx={{ height: 40, width: "100%" }}
                 >
-                  Fetch Data
+                  {t("sharedFetchData")}
                 </LoadingButton>
               </Box>
             </Box>
