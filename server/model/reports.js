@@ -44,18 +44,24 @@ export async function reportsByCreatedBy(createdBy) {
   const values = [createdBy];
 
   try {
-    const reports = await dbQuery(sql, values);
+    return new Promise((resolve, reject) => {
+      pool.query(sql, values, (err, results) => {
+        if (err) {
+          reject(err);
+        }
 
-    const modifiedReports = reports.map((report) => {
-      return {
-        ...report,
-        // devices_ids: report.devices_ids.split("%2C"),
-        // devices: report.devices.map((device) => device),
-        calcs: report.calcs,
-      };
+        const modifiedReports = results.map((report) => {
+          return {
+            ...report,
+            // devices_ids: report.devices_ids.split("%2C"),
+            // devices: report.devices.map((device) => device),
+            calcs: report.calcs,
+          };
+        });
+
+        resolve(modifiedReports);
+      });
     });
-
-    return modifiedReports;
   } catch (err) {
     throw err;
   }

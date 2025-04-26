@@ -91,16 +91,16 @@ const UsageControlReport = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Report ID</TableCell>
-              <TableCell>Log Timestamp</TableCell>
-              <TableCell>Device Name</TableCell>
-              <TableCell>Shift Name</TableCell>
-              <TableCell>Commands</TableCell>
-              <TableCell>Driver</TableCell>
-              <TableCell>Manual Control</TableCell>
-              <TableCell>Reason</TableCell>
-              <TableCell>Auth Location</TableCell>
-              <TableCell>Complied</TableCell>
+              <TableCell>{t("reportId")}</TableCell>
+              <TableCell>{t("reportLogTimestamp")}</TableCell>
+              <TableCell>{t("reportDeviceName")}</TableCell>
+              <TableCell>{t("shiftName")}</TableCell>
+              <TableCell>{t("reportCommands")}</TableCell>
+              <TableCell>{t("sharedDriver")}</TableCell>
+              <TableCell>{t("manualControlReport")}</TableCell>
+              <TableCell>{t("reportReason")}</TableCell>
+              <TableCell>{t("reportAuthLocation")}</TableCell>
+              <TableCell>{t("reportComplied")}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>

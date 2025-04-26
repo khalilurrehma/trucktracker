@@ -156,7 +156,7 @@ const UsageControl = () => {
       >
         <ToastContainer />
         <FormControl sx={{ width: "15%" }} size="small">
-          <InputLabel>Rows</InputLabel>
+          <InputLabel>{t("sharedRows")}</InputLabel>
           <Select value={rows} onChange={(e) => setRows(e.target.value)}>
             {[25, 50, 100, 200].map((option) => (
               <MenuItem key={option} value={option}>
@@ -167,7 +167,7 @@ const UsageControl = () => {
         </FormControl>
 
         <FormControl sx={{ width: "25%" }} size="small">
-          <InputLabel>Sort Column</InputLabel>
+          <InputLabel>{t("sharedSortColumns")}</InputLabel>
           <Select
             value={sortColumn}
             onChange={(e) => setSortColumn(e.target.value)}
@@ -183,13 +183,13 @@ const UsageControl = () => {
         </FormControl>
 
         <FormControl sx={{ width: "25%" }} size="small">
-          <InputLabel>Sort Type</InputLabel>
+          <InputLabel>{t("sharedSortType")}</InputLabel>
           <Select
             value={sortType}
             onChange={(e) => setSortType(e.target.value)}
           >
-            <MenuItem value="asc">Ascending</MenuItem>
-            <MenuItem value="desc">Descending</MenuItem>
+            <MenuItem value="asc">{t("sharedAscending")}</MenuItem>
+            <MenuItem value="desc">{t("sharedDescending")}</MenuItem>
           </Select>
         </FormControl>
 
@@ -205,12 +205,12 @@ const UsageControl = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Model Id</TableCell>
-              <TableCell>Model</TableCell>
-              <TableCell>Command</TableCell>
-              <TableCell>Action</TableCell>
-              <TableCell>Device</TableCell>
-              <TableCell>Actions</TableCell>
+              <TableCell>{t("modelId")}</TableCell>
+              <TableCell>{t("sharedModel")}</TableCell>
+              <TableCell>{t("deviceCommand")}</TableCell>
+              <TableCell>{t("sharedAction")}</TableCell>
+              <TableCell>{t("sharedDevice")}</TableCell>
+              <TableCell>{t("sharedAction")}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>

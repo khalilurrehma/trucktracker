@@ -167,7 +167,7 @@ const Subaccounts = () => {
                   }
                   onClick={() => handleSort("name")}
                 >
-                  Name
+                  {t("sharedName")}
                 </TableSortLabel>
               </TableCell>
               <TableCell>
@@ -178,7 +178,7 @@ const Subaccounts = () => {
                   }
                   onClick={() => handleSort("email")}
                 >
-                  Email
+                  {t("userEmail")}
                 </TableSortLabel>
               </TableCell>
               <TableCell>
@@ -191,7 +191,7 @@ const Subaccounts = () => {
                   }
                   onClick={() => handleSort("devicesLimit")}
                 >
-                  Devices Limit
+                  {t("devicesLimit")}
                 </TableSortLabel>
               </TableCell>
               <TableCell>
@@ -202,12 +202,12 @@ const Subaccounts = () => {
                   }
                   onClick={() => handleSort("created")}
                 >
-                  Created
+                  {t("sharedCreated")}
                 </TableSortLabel>
               </TableCell>
-              <TableCell>Admin</TableCell>
-              <TableCell>Dashboard</TableCell>
-              <TableCell>Actions</TableCell>
+              <TableCell>{t("sharedAdmin")}</TableCell>
+              <TableCell>{t("sharedDashboard")}</TableCell>
+              <TableCell>{t("sharedAction")}</TableCell>
             </TableRow>
           </TableHead>
 

@@ -38,6 +38,7 @@ const UsageControlLogs = () => {
   const [deviceFilter, setDeviceFilter] = useState("");
   const [userFilter, setUserFilter] = useState("");
   const [commandFilter, setCommandFilter] = useState("");
+  const [loading, setLoading] = useState(false);
   const userId = useSelector((state) => state.session.user?.id);
 
   useEffect(() => {
@@ -45,6 +46,7 @@ const UsageControlLogs = () => {
   }, []);
 
   const fetchAllLogs = async () => {
+    setLoading(true);
     try {
       const log = traccarUser?.superAdmin
         ? await fetchControlUsageLogs()
@@ -57,6 +59,8 @@ const UsageControlLogs = () => {
       }
     } catch (error) {
       toast.error(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -150,24 +154,29 @@ const UsageControlLogs = () => {
         />
       </Box>
 
-      {/* MUI Table */}
       <div className="logs-table">
         <TableContainer>
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Date Time</TableCell>
-                <TableCell>Device Name</TableCell>
-                <TableCell>Driver</TableCell>
-                <TableCell>Location</TableCell>
-                <TableCell>Auth Location</TableCell>
-                <TableCell>Command</TableCell>
-                <TableCell>User</TableCell>
-                <TableCell>Reason</TableCell>
+                <TableCell>{t("reportDateTime")}</TableCell>
+                <TableCell>{t("reportDeviceName")}</TableCell>
+                <TableCell>{t("sharedDriver")}</TableCell>
+                <TableCell>{t("sharedLocation")}</TableCell>
+                <TableCell>{t("reportAuthLocation")}</TableCell>
+                <TableCell>{t("deviceCommand")}</TableCell>
+                <TableCell>{t("settingsUser2")}</TableCell>
+                <TableCell>{t("reportReason")}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {paginatedData.length ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center">
+                    <SettingLoader />
+                  </TableCell>
+                </TableRow>
+              ) : paginatedData.length ? (
                 paginatedData.map((log) => (
                   <TableRow key={log.log_id}>
                     <TableCell>
@@ -187,7 +196,11 @@ const UsageControlLogs = () => {
                   </TableRow>
                 ))
               ) : (
-                <SettingLoader />
+                <TableRow>
+                  <TableCell colSpan={8} align="center">
+                    No data available
+                  </TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>

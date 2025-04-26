@@ -99,11 +99,11 @@ const AlertNotificationTable = () => {
           <TableHead>
             <TableRow>
               <TableCell>ID</TableCell>
-              <TableCell>Name</TableCell>
-              <TableCell>MQTT Topic</TableCell>
-              <TableCell>Audio Filename</TableCell>
-              <TableCell>Channels</TableCell>
-              <TableCell>Actions</TableCell>
+              <TableCell>{t("sharedName")}</TableCell>
+              <TableCell>{t("notificationMqttTopic")}</TableCell>
+              <TableCell>{t("notificationAudioFilename")}</TableCell>
+              <TableCell>{t("notificationChannel")}</TableCell>
+              <TableCell>{t("sharedAction")}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -208,11 +208,11 @@ const ProtocolNotificationTable = () => {
           <TableHead>
             <TableRow>
               <TableCell>ID</TableCell>
-              <TableCell>Notification Name</TableCell>
-              <TableCell>Alarm Code</TableCell>
-              <TableCell>Device Type Id</TableCell>
-              <TableCell>Audio Filename</TableCell>
-              <TableCell>Actions</TableCell>
+              <TableCell>{t("notificationName")}</TableCell>
+              <TableCell>{t("notificationAlarmCode")}</TableCell>
+              <TableCell>{t("deviceTypeId")}</TableCell>
+              <TableCell>{t("notificationAudioFilename")}</TableCell>
+              <TableCell>{t("sharedAction")}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -282,7 +282,9 @@ const NewNotificationsPage = () => {
         <Box sx={{ mt: 4, paddingX: 24 }}>
           <Accordion>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="subtitle1">{t("sharedSelectTableView")}</Typography>
+              <Typography variant="subtitle1">
+                {t("sharedSelectTableView")}
+              </Typography>
             </AccordionSummary>
             <AccordionDetails className={classes.details}>
               <Select

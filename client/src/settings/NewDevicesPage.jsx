@@ -97,15 +97,15 @@ const NewDevicesPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const columnLabels = {
-    name: `Name`,
-    uniqueId: `Identifier`,
-    groupName: `Group Name`,
-    phone: `Phone`,
-    model: `Model`,
-    contact: `Contact`,
+    name: t("sharedName"),
+    uniqueId: t("deviceIdentifier"),
+    groupName: t("groupName"),
+    phone: t("sharedPhone"),
+    model: t("deviceModel"),
+    contact: t("deviceContact"),
     created_by: `Created_by`,
-    assignCalc: `Assign Calculator`,
-    actions: `Actions`,
+    assignCalc: t("deviceAssignCalculator"),
+    actions: t("sharedAction"),
   };
 
   let url;
@@ -450,7 +450,9 @@ const NewDevicesPage = () => {
             }}
           >
             <FormControl sx={{ mr: 1, minWidth: "75px" }}>
-              <InputLabel id="pagination-select-label">Rows</InputLabel>
+              <InputLabel id="pagination-select-label">
+                {t("sharedRows")}
+              </InputLabel>
               <Select
                 labelId="pagination-select-label"
                 id="pagination-select"
@@ -468,14 +470,16 @@ const NewDevicesPage = () => {
             </FormControl>
 
             <FormControl sx={{ width: "100%" }}>
-              <InputLabel id="columns-select-label">Columns</InputLabel>
+              <InputLabel id="columns-select-label">
+                {t("sharedColumns")}
+              </InputLabel>
               <Select
                 labelId="columns-select-label"
                 id="columns-select"
                 multiple
                 value={selectedColumns}
                 onChange={handleChange}
-                input={<OutlinedInput label="Columns" />}
+                input={<OutlinedInput label={t("sharedColumns")} />}
               >
                 {initialColumns.map((column) => (
                   <MenuItem key={column} value={column}>
@@ -493,7 +497,7 @@ const NewDevicesPage = () => {
               valueField="value"
               labelField="label"
               value={sortColumn}
-              label="Sort Column"
+              label={t("sharedSortColumns")}
               onChange={(e, v) => setSortColumn(v)}
             />
 
@@ -505,7 +509,7 @@ const NewDevicesPage = () => {
               valueField="value"
               labelField="label"
               value={sortDirection}
-              label="Sort Type"
+              label={t("sharedSortType")}
               onChange={(e, v) => setSortDirection(v)}
             />
 

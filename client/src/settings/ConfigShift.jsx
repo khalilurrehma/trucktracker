@@ -219,13 +219,13 @@ const ConfigShift = () => {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Device Name</TableCell>
-                <TableCell>Driver Name</TableCell>
-                <TableCell>Allotted Shifts</TableCell>
-                <TableCell>Allotted Shifts Date</TableCell>
-                <TableCell>Resend Time</TableCell>
-                <TableCell>Extend Time</TableCell>
-                <TableCell>Actions</TableCell>
+                <TableCell>{t("reportDeviceName")}</TableCell>
+                <TableCell>{t("sharedDriverName")}</TableCell>
+                <TableCell>{t("allottedShifts")}</TableCell>
+                <TableCell>{t("allottedShiftsDate")}</TableCell>
+                <TableCell>{t("resendTime")}</TableCell>
+                <TableCell>{t("extendTime")}</TableCell>
+                <TableCell>{t("sharedAction")}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>

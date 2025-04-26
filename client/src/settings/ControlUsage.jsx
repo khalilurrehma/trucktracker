@@ -409,15 +409,15 @@ const ControlUsage = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Ignition Status</TableCell>
-                  <TableCell>Name</TableCell>
-                  <TableCell>Driver</TableCell>
-                  <TableCell>Shift Names - Grace Time</TableCell>
-                  <TableCell>Auth Location Map</TableCell>
-                  <TableCell>Auth Location</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Manual Control</TableCell>
+                  <TableCell>{t("deviceStatus")}</TableCell>
+                  <TableCell>{t("deviceIgnitionStatus")}</TableCell>
+                  <TableCell>{t("sharedName")}</TableCell>
+                  <TableCell>{t("sharedDriver")}</TableCell>
+                  <TableCell>{t("shiftNamesGraceTime")}</TableCell>
+                  <TableCell>{t("reportAuthLocationMap")}</TableCell>
+                  <TableCell>{t("reportAuthLocation")}</TableCell>
+                  <TableCell>{t("deviceStatus")}</TableCell>
+                  <TableCell>{t("manualControlReport")}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

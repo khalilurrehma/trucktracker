@@ -59,11 +59,12 @@ const NewGroupsPage = () => {
   const [pagination, setPagination] = React.useState(10);
   const [open, setOpen] = React.useState(false);
   const userId = useSelector((state) => state.session.user.id);
+  let printComponentRef = React.useRef();
 
   const columnLabels = {
-    name: `Name`,
+    name: t("sharedName"),
     created_by: `Created_by`,
-    actions: `Actions`,
+    actions: t("sharedAction"),
   };
 
   let url;
@@ -412,7 +413,7 @@ const NewGroupsPage = () => {
             }}
           >
             <FormControl fullWidth>
-              <InputLabel id="pagination-select-label">Rows</InputLabel>
+              <InputLabel id="pagination-select-label">{t("sharedRows")}</InputLabel>
               <Select
                 labelId="pagination-select-label"
                 id="pagination-select"
@@ -430,7 +431,7 @@ const NewGroupsPage = () => {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel id="columns-select-label">Columns</InputLabel>
+              <InputLabel id="columns-select-label">{t("sharedColumns")}</InputLabel>
               <Select
                 labelId="columns-select-label"
                 id="columns-select"

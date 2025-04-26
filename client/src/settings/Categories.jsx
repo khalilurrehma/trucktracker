@@ -62,10 +62,10 @@ const Categories = () => {
 
   const columnLabels = {
     id: `ID`,
-    name: `Name`,
-    icon: `Icon`,
-    created_at_nn: `Created`,
-    actions: `Actions`,
+    name: t("sharedName"),
+    icon: t("sharedIcon"),
+    created_at_nn: t("sharedCreated"),
+    actions: t("sharedAction"),
   };
 
   const url = import.meta.env.DEV
@@ -207,7 +207,9 @@ const Categories = () => {
             <Box sx={{ p: 4 }}>
               <Box display={"flex"} flexDirection={"row"} gap={2}>
                 <FormControl sx={{ minWidth: 75 }}>
-                  <InputLabel id="rows-select-label">Rows</InputLabel>
+                  <InputLabel id="rows-select-label">
+                    {t("sharedRows")}
+                  </InputLabel>
                   <Select
                     labelId="rows-select-label"
                     id="rows-select"
@@ -215,7 +217,7 @@ const Categories = () => {
                     onClose={handleClosePagination}
                     onOpen={handleOpenPagination}
                     value={pagination}
-                    label="Rows"
+                    label={t("sharedRows")}
                     onChange={handleChangePagination}
                   >
                     {[25, 50, 100, 500].map((value) => (
@@ -227,14 +229,16 @@ const Categories = () => {
                 </FormControl>
 
                 <FormControl sx={{ flex: 1, minWidth: 150 }}>
-                  <InputLabel id="columns-select-label">Columns</InputLabel>
+                  <InputLabel id="columns-select-label">
+                    {t("sharedColumns")}
+                  </InputLabel>
                   <Select
                     labelId="columns-select-label"
                     id="columns-select"
                     multiple
                     value={selectedColumns}
                     onChange={handleChange}
-                    input={<OutlinedInput label="Columns" />}
+                    input={<OutlinedInput label={t("sharedColumns")} />}
                     MenuProps={MenuProps}
                   >
                     {initialColumns.map((column) => (
@@ -253,7 +257,7 @@ const Categories = () => {
                   valueField="value"
                   labelField="label"
                   value={sortColumn}
-                  label="Sort Column"
+                  label={t("sharedSortColumns")}
                   onChange={(e, v) => setSortColumn(v)}
                 />
 
@@ -265,7 +269,7 @@ const Categories = () => {
                   valueField="value"
                   labelField="label"
                   value={sortDirection}
-                  label="Sort Type"
+                  label={t("sharedSortType")}
                   onChange={(e, v) => setSortDirection(v)}
                 />
 

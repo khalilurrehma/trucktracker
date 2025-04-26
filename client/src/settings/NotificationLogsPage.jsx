@@ -106,9 +106,9 @@ const NotificationLogsPage = () => {
           <TableHead>
             <TableRow>
               <TableCell>ID</TableCell>
-              <TableCell>Device ID</TableCell>
-              <TableCell>Device Name</TableCell>
-              <TableCell>Topic</TableCell>
+              <TableCell>{t("reportDeviceID")}</TableCell>
+              <TableCell>{t("reportDeviceName")}</TableCell>
+              <TableCell>{t("reportDeviceTopic")}</TableCell>
               {/* <TableCell>Notification Body</TableCell> */}
               <TableCell>
                 <TableSortLabel
@@ -116,7 +116,7 @@ const NotificationLogsPage = () => {
                   direction={sortOrder}
                   onClick={handleSort}
                 >
-                  Created At
+                  {t("sharedCreated")}
                 </TableSortLabel>
               </TableCell>
             </TableRow>

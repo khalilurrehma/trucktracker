@@ -168,22 +168,6 @@ const DriversShifts = () => {
             )}
           />
         </LocalizationProvider>
-
-        {/* <FormControl sx={{ width: "20%", ml: 2 }} size="small">
-          <InputLabel>Filter by Shift</InputLabel>
-          <Select
-            value={selectedShift}
-            label="Filter by Shift"
-            onChange={(e) => setSelectedShift(e.target.value)}
-          >
-            <MenuItem value="">All Shifts</MenuItem>
-            {uniqueShifts.map((shift, idx) => (
-              <MenuItem key={idx} value={shift}>
-                {shift}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl> */}
         <Button
           variant="outlined"
           color="secondary"
@@ -202,13 +186,13 @@ const DriversShifts = () => {
             <TableHead>
               <TableRow>
                 <TableCell>
-                  <strong>Name</strong>
+                  <strong>{t("sharedDriverName")}</strong>
                 </TableCell>
                 <TableCell>
-                  <strong>Dates</strong>
+                  <strong>{t("dates")}</strong>
                 </TableCell>
                 <TableCell>
-                  <strong>Shift Name</strong>
+                  <strong>{t("shiftName")}</strong>
                 </TableCell>
               </TableRow>
             </TableHead>

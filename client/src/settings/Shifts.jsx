@@ -215,14 +215,12 @@ const Shifts = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Shift Name</TableCell>
-              <TableCell>Start Time</TableCell>
-              <TableCell>End Time</TableCell>
-              <TableCell>Grace Time</TableCell>
-              {/* <TableCell>Queue</TableCell> */}
+              <TableCell>{t("shiftName")}</TableCell>
+              <TableCell>{t("reportStartTime")}</TableCell>
+              <TableCell>{t("reportEndTime")}</TableCell>
+              <TableCell>{t("graceTime")}</TableCell>
               <TableCell>Queue TTL</TableCell>
-              {/* <TableCell>Shift Type</TableCell> */}
-              <TableCell>Actions</TableCell>
+              <TableCell>{t("sharedAction")}</TableCell>
             </TableRow>
           </TableHead>
           {isloading ? (

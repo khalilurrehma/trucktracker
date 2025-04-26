@@ -131,11 +131,9 @@ const NotificationCalcsPage = () => {
             <TableHead>
               <TableRow>
                 <TableCell>ID</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Type</TableCell>
-                {/* <TableCell>Reports</TableCell> */}
-                {/* <TableCell>Assign</TableCell> */}
-                <TableCell>Actions</TableCell>
+                <TableCell>{t("sharedName")}</TableCell>
+                <TableCell>{t("sharedType")}</TableCell>
+                <TableCell>{t("sharedAction")}</TableCell>
               </TableRow>
             </TableHead>
             {loading ? (

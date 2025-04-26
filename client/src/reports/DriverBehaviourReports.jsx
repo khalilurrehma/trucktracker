@@ -31,9 +31,11 @@ import axios from "axios";
 import { useAppContext } from "../AppContext";
 import FleetMap from "../map/FleetMap";
 import { useSelector } from "react-redux";
+import { useTranslation } from "../common/components/LocalizationProvider";
 
 const DriverBehaviourReports = () => {
   const { mqttDriverBehaivor } = useAppContext();
+  const t = useTranslation();
   const userId = useSelector((state) => state.session.user.id);
   const classes = useReportStyles();
   let url;
@@ -124,7 +126,7 @@ const DriverBehaviourReports = () => {
         <Box sx={{ display: "flex", justifyContent: "start", gap: 4, mb: 5 }}>
           <LocalizationProvider dateAdapter={AdapterDateFns}>
             <DatePicker
-              label="Select Date"
+              label={t("sharedSelectDate")}
               value={selectedDate}
               onChange={(newValue) => setSelectedDate(newValue)}
               slotProps={{ textField: { size: "small" } }}
@@ -135,7 +137,7 @@ const DriverBehaviourReports = () => {
             />
           </LocalizationProvider>
           <TextField
-            label="Search"
+            label={t("sharedSearch")}
             variant="outlined"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -143,20 +145,20 @@ const DriverBehaviourReports = () => {
             sx={{ width: "30%" }}
           />
           <Button variant="outlined" onClick={() => setSelectedDate(null)}>
-            Clear Date
+            {t("sharedClearDate")}
           </Button>
         </Box>
         <Table>
           <TableHead>
             <TableRow>
               <TableCell></TableCell>
-              <TableCell>Begin</TableCell>
-              <TableCell>Device ID</TableCell>
-              <TableCell>Device Name</TableCell>
-              <TableCell>Driver Behaivor</TableCell>
-              <TableCell>End</TableCell>
-              <TableCell>Event Time</TableCell>
-              <TableCell>Event Created At</TableCell>
+              <TableCell>{t("sharedBegin")}</TableCell>
+              <TableCell>{t("reportDeviceID")}</TableCell>
+              <TableCell>{t("reportDeviceName")}</TableCell>
+              <TableCell>{t("reportDriverBehaivor")}</TableCell>
+              <TableCell>{t("sharedEnd")}</TableCell>
+              <TableCell>{t("sharedEventTime")}</TableCell>
+              <TableCell>{t("sharedEventCreatedAt")}</TableCell>
             </TableRow>
           </TableHead>
           {filteredData.length === 0 ? (

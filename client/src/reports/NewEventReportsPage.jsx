@@ -31,9 +31,11 @@ import { useAppContext } from "../AppContext";
 import useReportStyles from "./common/useReportStyles";
 import FleetMap from "../map/FleetMap";
 import { useSelector } from "react-redux";
+import { useTranslation } from "../common/components/LocalizationProvider";
 
 const NewEventReportsPage = () => {
   const { mqttReportsEvents } = useAppContext();
+  const t = useTranslation();
   const userId = useSelector((state) => state.session.user.id);
   const nonAdmin = useSelector(
     (state) => state.session.user.attributes.non_admin
@@ -128,7 +130,7 @@ const NewEventReportsPage = () => {
         <Box sx={{ display: "flex", justifyContent: "start", gap: 4, mb: 5 }}>
           <LocalizationProvider dateAdapter={AdapterDateFns}>
             <DatePicker
-              label="Select Date"
+              label={t("sharedSelectDate")}
               value={selectedDate}
               onChange={(newValue) => setSelectedDate(newValue)}
               slotProps={{ textField: { size: "small" } }}
@@ -139,7 +141,7 @@ const NewEventReportsPage = () => {
             />
           </LocalizationProvider>
           <TextField
-            label="Search"
+            label={t("sharedSearch")}
             variant="outlined"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -147,7 +149,7 @@ const NewEventReportsPage = () => {
             sx={{ width: "30%" }}
           />
           <Button variant="outlined" onClick={() => setSelectedDate(null)}>
-            Clear Date
+            {t("sharedClearDate")}
           </Button>
         </Box>
 
@@ -155,13 +157,13 @@ const NewEventReportsPage = () => {
           <TableHead>
             <TableRow>
               <TableCell></TableCell>
-              <TableCell>Begin</TableCell>
-              <TableCell>Device ID</TableCell>
-              <TableCell>Device Name</TableCell>
-              <TableCell>Alarm Type</TableCell>
-              <TableCell>End</TableCell>
-              <TableCell>Event Time</TableCell>
-              <TableCell>Event Created At</TableCell>
+              <TableCell>{t("sharedBegin")}</TableCell>
+              <TableCell>{t("reportDeviceID")}</TableCell>
+              <TableCell>{t("reportDeviceName")}</TableCell>
+              <TableCell>{t("sharedAlarmType")}</TableCell>
+              <TableCell>{t("sharedEnd")}</TableCell>
+              <TableCell>{t("sharedEventTime")}</TableCell>
+              <TableCell>{t("sharedEventCreatedAt")}</TableCell>
             </TableRow>
           </TableHead>
           {filteredData.length === 0 && !loading ? (

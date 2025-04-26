@@ -184,7 +184,7 @@ const NewDriversPage = () => {
         }}
       >
         <FormControl sx={{ width: "15%" }} size="small">
-          <InputLabel>Rows</InputLabel>
+          <InputLabel>{t("sharedRows")}</InputLabel>
           <Select value={rows} onChange={(e) => setRows(e.target.value)}>
             {[25, 50, 100, 200].map((option) => (
               <MenuItem key={option} value={option}>
@@ -195,21 +195,21 @@ const NewDriversPage = () => {
         </FormControl>
 
         <FormControl sx={{ width: "25%" }} size="small">
-          <InputLabel>Sort Column</InputLabel>
+          <InputLabel>{t("sharedSortColumns")}</InputLabel>
           <Select
             value={sortColumn}
             onChange={(e) => setSortColumn(e.target.value)}
           >
             {[
-              "name",
-              "lastName",
-              "grade",
-              "internalCode",
-              "licenceId",
+              t("sharedName"),
+              t("sharedLastName"),
+              t("shareGrade"),
+              t("sharedinternalCode"),
+              t("sharedlicenceId"),
               "DNI",
-              "phone",
-              "email",
-              "station",
+              t("sharedPhone"),
+              t("userEmail"),
+              t("sharedStation"),
             ].map((column) => (
               <MenuItem key={column} value={column}>
                 {column}
@@ -219,13 +219,13 @@ const NewDriversPage = () => {
         </FormControl>
 
         <FormControl sx={{ width: "25%" }} size="small">
-          <InputLabel>Sort Type</InputLabel>
+          <InputLabel>{t("sharedSortType")}</InputLabel>
           <Select
             value={sortType}
             onChange={(e) => setSortType(e.target.value)}
           >
-            <MenuItem value="asc">Ascending</MenuItem>
-            <MenuItem value="desc">Descending</MenuItem>
+            <MenuItem value="asc">{t("sharedAscending")}</MenuItem>
+            <MenuItem value="asc">{t("sharedDescending")}</MenuItem>
           </Select>
         </FormControl>
 
@@ -241,18 +241,18 @@ const NewDriversPage = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Last Name</TableCell>
-              <TableCell>Grade</TableCell>
-              <TableCell>Internal Code</TableCell>
-              <TableCell>Licence ID</TableCell>
+              <TableCell>{t("sharedName")}</TableCell>
+              <TableCell>{t("sharedLastName")}</TableCell>
+              <TableCell>{t("shareGrade")}</TableCell>
+              <TableCell>{t("sharedinternalCode")}</TableCell>
+              <TableCell>{t("sharedlicenceId")}</TableCell>
               <TableCell>DNI</TableCell>
-              <TableCell>Phone</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Station</TableCell>
+              <TableCell>{t("sharedPhone")}</TableCell>
+              <TableCell>{t("userEmail")}</TableCell>
+              <TableCell>{t("sharedStation")}</TableCell>
               {/* <TableCell>Location</TableCell> */}
-              <TableCell>Actions</TableCell>
-              <TableCell>Calendar</TableCell>
+              <TableCell>{t("sharedAction")}</TableCell>
+              <TableCell>{t("sharedCalendar")}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>

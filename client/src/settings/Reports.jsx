@@ -79,13 +79,13 @@ const ReportsPage = () => {
 
   const columnLabels = {
     id: `ID`,
-    name: `Report Name`,
-    icon: `Icon`,
-    category_name: `Category`,
+    name: t("reportsName"),
+    icon: t("sharedIcon"),
+    category_name: t("deviceCategory"),
     // device_types: `Device Type Name`,
     // devices_ids: `Device ID`,
     calcs_ids: `Calc ID`,
-    actions: `Actions`,
+    actions: t("sharedAction"),
   };
 
   const url = import.meta.env.DEV
@@ -222,7 +222,7 @@ const ReportsPage = () => {
               <Box display={"flex"} flexDirection={"row"} gap={2}>
                 <FormControl sx={{ mr: 1, minWidth: "75px" }}>
                   <InputLabel id="demo-controlled-open-select-label">
-                    Rows
+                    {t("sharedRows")}
                   </InputLabel>
                   <Select
                     labelId="demo-controlled-open-select-label"
@@ -231,7 +231,7 @@ const ReportsPage = () => {
                     onClose={handleClosePagination}
                     onOpen={handleOpenPagination}
                     value={pagination}
-                    label="Rows"
+                    label={t("sharedRows")}
                     onChange={handleChangePagination}
                   >
                     {[25, 50, 100, 500]?.map((value) => (
@@ -242,7 +242,7 @@ const ReportsPage = () => {
                   </Select>
                 </FormControl>
                 <FormControl sx={{ width: "30%" }}>
-                  <InputLabel id="demo-multiple-name-label">Columns</InputLabel>
+                  <InputLabel id="demo-multiple-name-label">{t("sharedColumns")}</InputLabel>
                   <Select
                     labelId="demo-multiple-name-label"
                     id="demo-multiple-name"

@@ -65,10 +65,17 @@ const ProtocolNotifications = () => {
           <TableRow>
             {columns.map((column) => (
               <TableCell key={column}>
-                {column.charAt(0).toUpperCase() + column.slice(1)}
+                {(column === "name" && t("sharedName")) ||
+                  (column === "id" && column) ||
+                  (column === "type" && t("sharedType")) ||
+                  (column === "deviceType" && t("deviceTypeId")) ||
+                  (column === "parameter" && t("parameter")) ||
+                  (column === "Alarm Code" && t("notificationAlarmCode")) ||
+                  (column === "createdAt" && t("sharedCreated")) ||
+                  column}
               </TableCell>
             ))}
-            <TableCell>Actions</TableCell>
+            <TableCell>{t("sharedAction")}</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>

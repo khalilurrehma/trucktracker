@@ -154,14 +154,14 @@ const MqttAlertsPage = () => {
           <TableHead>
             <TableRow>
               <TableCell></TableCell>
-              <TableCell>Begin</TableCell>
-              <TableCell>Device ID</TableCell>
-              <TableCell>Device Name</TableCell>
-              <TableCell>Alarm Code</TableCell>
-              <TableCell>Alarm Type</TableCell>
-              <TableCell>End</TableCell>
-              <TableCell>Event Time</TableCell>
-              <TableCell>Alarm Created At</TableCell>
+              <TableCell>{t("sharedBegin")}</TableCell>
+              <TableCell>{t("reportDeviceID")}</TableCell>
+              <TableCell>{t("reportDeviceName")}</TableCell>
+              <TableCell>{t("notificationAlarmCode")}</TableCell>
+              <TableCell>{t("sharedAlarmType")}</TableCell>
+              <TableCell>{t("sharedEnd")}</TableCell>
+              <TableCell>{t("sharedEventTime")}</TableCell>
+              <TableCell>{t("sharedCreated")}</TableCell>
             </TableRow>
           </TableHead>
           {filteredMessages.length === 0 ? (
