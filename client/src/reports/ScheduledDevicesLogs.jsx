@@ -141,7 +141,7 @@ const ScheduledDevicesLogs = () => {
           </TextField>
 
           <TextField
-            label="Search"
+            label={t("sharedSearch")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             size="small"
