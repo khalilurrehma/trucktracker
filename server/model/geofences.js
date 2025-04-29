@@ -200,3 +200,82 @@ export async function softDeleteGeofenceById(id) {
     throw err;
   }
 }
+
+export const saveGeofenceType = async (body) => {
+  const { name, userId } = body;
+
+  const sql = `INSERT INTO geofences_types (name, userId) VALUES (?, ?)`;
+
+  const values = [name, userId];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result.insertId;
+  } catch (err) {
+    throw err;
+  }
+};
+
+export const fetchGeofencesTypes = async () => {
+  const sql = `SELECT * FROM geofences_types`;
+
+  try {
+    const result = await dbQuery(sql);
+    return result;
+  } catch (err) {
+    throw err;
+  }
+};
+
+export const fetchGeofencesTypesByUserId = async (id) => {
+  const sql = `SELECT * FROM geofences_types WHERE userId = ?`;
+
+  const values = [id];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result;
+  } catch (err) {
+    throw err;
+  }
+};
+
+export const fetchGeofenceTypeById = async (id) => {
+  const sql = `SELECT * FROM geofences_types WHERE id = ?`;
+
+  const values = [id];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result[0];
+  } catch (err) {
+    throw err;
+  }
+};
+
+export const modifyGeofenceTypeById = async (id, body) => {
+  const { name } = body;
+
+  const sql = `UPDATE geofences_types SET name = ? WHERE id = ?`;
+
+  const values = [name, id];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result.affectedRows;
+  } catch (err) {
+    throw err;
+  }
+};
+
+export const removeGeofenceTypeById = async (id) => {
+  const sql = `DELETE FROM geofences_types WHERE id = ?`;
+
+  const values = [id];
+  try {
+    const result = await dbQuery(sql, values);
+    return result.affectedRows;
+  } catch (err) {
+    throw err;
+  }
+};

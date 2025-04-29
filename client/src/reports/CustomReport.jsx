@@ -33,7 +33,10 @@ import {
 import MapIcon from "@mui/icons-material/Map";
 import TableShimmer from "../common/components/TableShimmer";
 import { useSelector } from "react-redux";
-import { useLocalization } from "../common/components/LocalizationProvider";
+import {
+  useLocalization,
+  useTranslation,
+} from "../common/components/LocalizationProvider";
 import { format } from "date-fns";
 import { enUS, es } from "date-fns/locale";
 
@@ -88,58 +91,6 @@ function MapViewComponent({ routeData }) {
   );
 }
 
-const columnMappings = {
-  1742524: {
-    "device.name": "Device Name",
-    begin: "Begin",
-    duration: "Duration",
-    "max.speed": "Max Speed",
-    distance: "Distance",
-    distance_can: "Distance (CAN)",
-    "avg.speed": "Average Speed",
-    end: "End",
-    route: "Route",
-  },
-  1742525: {
-    "device.name": "Device Name",
-    imei: "IMEI",
-    date: "Date",
-    "position.mileage": "GPS Mileage",
-    "total.mileage": "Total Mileage",
-    "work.hours": "Engine Hours",
-    "motion.hours": "Motion Hours",
-    "stop.hours": "Stop Hours",
-    "idle.hours": "Idle Hours",
-    "max.speed": "Max Speed",
-    "avg.speed": "Average Speed",
-    "daily.gps.mileage": "Daily GPS Mileage",
-    "total.gps.mileage": "Total GPS Mileage",
-  },
-  1742527: {
-    "device.name": "Device Name",
-    begin: "Begin",
-    end: "End",
-    duration: "Duration",
-    route: "Route",
-  },
-};
-
-const columnUnits = {
-  "max.speed": "km/h",
-  "avg.speed": "km/h",
-  distance: "km",
-  distance_can: "km",
-  "position.mileage": "km",
-  "total.mileage": "km",
-  "daily.gps.mileage": "km",
-  "total.gps.mileage": "km",
-  "work.hours": "h",
-  "motion.hours": "h",
-  "stop.hours": "h",
-  "idle.hours": "h",
-  duration: "h",
-};
-
 const getLocale = (language) => {
   switch (language) {
     case "es":
@@ -151,6 +102,62 @@ const getLocale = (language) => {
 };
 
 const CustomReport = () => {
+  const t = useTranslation();
+  const columnMappings = {
+    1742524: {
+      "device.name": t("reportDeviceName"),
+      begin: t("sharedBegin"),
+      duration: t("reportDuration"),
+      "max.speed": t("sharedMaxSpeed"),
+      distance: t("sharedDistance"),
+      distance_can: t("sharedDistanCAN"),
+      "avg.speed": t("reportAverageSpeed"),
+      end: t("sharedEnd"),
+      route: t("reportRoute"),
+    },
+    1742525: {
+      "device.name": t("reportDeviceName"),
+      imei: "IMEI",
+      date: "Date",
+      "position.mileage": t("reportGPSMileage"),
+      "total.mileage": t("reportTotalMileage"),
+      "work.hours": t("reportEngineHours"),
+      "motion.hours": t("reportMotionHours"),
+      "stop.hours": t("reportStopHours"),
+      "idle.hours": t("reportIdleHours"),
+      "max.speed": t("sharedMaxSpeed"),
+      "avg.speed": t("reportAverageSpeed"),
+      "daily.gps.mileage": t("reportDailyGPSMileage"),
+      "total.gps.mileage": t("reportTotalGPSMileage"),
+    },
+    1742527: {
+      "device.name": t("reportDeviceName"),
+      begin: t("sharedBegin"),
+      end: t("sharedEnd"),
+      duration: t("reportDuration"),
+      route: "Route",
+    },
+    1746972: {
+      "device.id": t("reportDeviceID"),
+      begin: t("sharedBegin"),
+      "device.name": t("reportDeviceName"),
+      "driver.id": t("reportDriverID"),
+      "driver.validation": t("reportDriverValidation"),
+      duration: t("reportDuration"),
+      end: t("sharedEnd"),
+      "fuel.end": t("sharedFuelEnd"),
+      "fuel.end.liters": t("sharedFuelEndLiters"),
+      "fuel.start": t("sharedFuelStart"),
+      "fuel.start.liters": t("sharedFuelStartLiters"),
+      "fuel.total.day": t("sharedFuelTotalDay"),
+      id: "ID",
+      imei: "IMEI",
+      "odometer.end": t("sharedOdometerEnd"),
+      "odometer.start": t("sharedOdometerStart"),
+      "odometer.total": t("sharedOdometerTotal"),
+      timestamp: t("sharedTimestamp"),
+    },
+  };
   const url = import.meta.env.DEV
     ? import.meta.env.VITE_DEV_BACKEND_URL
     : import.meta.env.VITE_PROD_BACKEND_URL;
@@ -367,6 +374,8 @@ const CustomReport = () => {
       return 0;
     });
 
+    console.log(mappedColumns);
+
     return mappedColumns;
   };
 
@@ -385,7 +394,7 @@ const CustomReport = () => {
       <div style={{ display: "flex", gap: "20px", padding: "30px" }}>
         <LocalizationProvider dateAdapter={AdapterDateFns}>
           <DatePicker
-            label="Select Date"
+            label={t("sharedSelectDate")}
             value={selectedDate}
             onChange={(newValue) => setSelectedDate(newValue)}
             shouldDisableDate={(date) => {
@@ -399,7 +408,7 @@ const CustomReport = () => {
         </LocalizationProvider>
 
         <TextField
-          label="Search Device"
+          label={t("sharedSearchDevice")}
           variant="outlined"
           size="small"
           sx={{ width: "30%" }}
@@ -412,14 +421,14 @@ const CustomReport = () => {
           onClick={handleExportExcel}
           sx={{ width: "20%" }}
         >
-          Download Excel
+          {t("sharedDownloadExcel")}
         </Button>
         <Button
           variant="contained"
           onClick={() => fetchCalculatorReport(reportId, traccarUser.id)}
           sx={{ width: "15%" }}
         >
-          Fetch Data
+          {t("sharedFetchData")}
         </Button>
       </div>
 

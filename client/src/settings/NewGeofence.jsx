@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
   Accordion,
   AccordionSummary,
@@ -7,6 +7,10 @@ import {
   Typography,
   TextField,
   Button,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import makeStyles from "@mui/styles/makeStyles";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -30,6 +34,12 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const NewGeofencePage = () => {
+  let url;
+  if (import.meta.env.DEV) {
+    url = import.meta.env.VITE_DEV_BACKEND_URL;
+  } else {
+    url = import.meta.env.VITE_PROD_BACKEND_URL;
+  }
   const classes = useStyles();
   const dispatch = useDispatch();
   const t = useTranslation();
@@ -37,7 +47,9 @@ const NewGeofencePage = () => {
   const geofenceAttributes = useGeofenceAttributes(t);
 
   const { traccarUser, traccarToken, subaccount } = useAppContext();
+  const userId = useSelector((state) => state.session.user.id);
   const [item, setItem] = useState();
+  const [geofencesTypes, setGeofencesTypes] = useState();
 
   useEffect(() => {
     setItem({
@@ -49,7 +61,26 @@ const NewGeofencePage = () => {
     });
   }, [traccarUser, traccarToken]);
 
-  const validate = () => item && item.name && item.area;
+  useEffect(() => {
+    fetchGeofencesTypes();
+  }, [userId]);
+
+  const fetchGeofencesTypes = async () => {
+    try {
+      const { data } =
+        userId === 1
+          ? await axios.get(`${url}/geofence/geofences-types`)
+          : await axios.get(`${url}/geofence/geofences-types/${userId}`);
+
+      if (data.status) {
+        setGeofencesTypes(data.message);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const validate = () => item && item.name && item.area && item.geofenceType;
 
   return (
     <EditItemView
@@ -75,6 +106,23 @@ const NewGeofencePage = () => {
                 }
                 label={t("sharedName")}
               />
+              <FormControl fullWidth>
+                <InputLabel id="geofence-type-label">Geofence Type</InputLabel>
+                <Select
+                  labelId="geofence-type-label"
+                  value={item.geofenceType || ""}
+                  onChange={(event) =>
+                    setItem({ ...item, geofenceType: event.target.value })
+                  }
+                  label="Geofence Type"
+                >
+                  {geofencesTypes?.map((type) => (
+                    <MenuItem key={type.id} value={type}>
+                      {type.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </AccordionDetails>
           </Accordion>
           <Accordion>

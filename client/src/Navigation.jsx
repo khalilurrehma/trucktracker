@@ -115,6 +115,8 @@ import ProtocolNotification from "./settings/ProtocolNotification";
 import DeviceCustomCalcPage from "./settings/DeviceCustomCalcPage";
 import DriversShifts from "./settings/DriversShifts";
 import ScheduledDevicesLogs from "./reports/ScheduledDevicesLogs";
+import GeofenceTypes from "./settings/GeofenceTypes";
+import GeofenceType from "./settings/GeofenceType";
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -261,6 +263,9 @@ const Navigation = () => {
           <Route path="new-geofence" element={<NewGeofencePage />} />
           <Route path="geofence/:id" element={<GeofencePage />} />
           <Route path="geofence" element={<GeofencePage />} />
+          <Route path="geofence-types" element={<GeofenceTypes />} />
+          <Route path="geofence-type" element={<GeofenceType />} />
+          <Route path="edit/geofence-type/:id" element={<GeofenceType />} />
           <Route path="groups" element={<GroupsPage />} />
           <Route
             path="group/:id/connections"

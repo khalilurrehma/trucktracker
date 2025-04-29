@@ -1,9 +1,15 @@
 import axios from "axios";
 import {
   createGeofence,
+  fetchGeofencesTypes,
+  fetchGeofencesTypesByUserId,
+  fetchGeofenceTypeById,
   getAllGeofences,
   getGeofenceById,
   getGeofencesByUserId,
+  modifyGeofenceTypeById,
+  removeGeofenceTypeById,
+  saveGeofenceType,
   softDeleteGeofenceById,
   updateGeofenceById,
 } from "../model/geofences.js";
@@ -228,7 +234,11 @@ export const newGeofenceByUserId = async (req, res) => {
 
 export const updateNewGeofence = async (req, res) => {
   const { userId, isSuperAdmin, traccarUserToken, ...Fields } = req.body;
+  const { geofenceType } = Fields;
   const id = req.params.id;
+  const geofenceIsStation = geofenceType?.name?.toLowerCase() === "station";
+  let newGeofence;
+  let assigningResult;
 
   try {
     const result = await getGeofenceById(id);
@@ -243,7 +253,9 @@ export const updateNewGeofence = async (req, res) => {
     const { attributes, calendarId, description, area, name } = Fields;
     const requestData = {
       id: result.traccarId,
-      attributes,
+      attributes: {
+        geofenceStation: geofenceType.name,
+      },
       calendarId,
       description,
       area: JSON.parse(area),
@@ -262,7 +274,7 @@ export const updateNewGeofence = async (req, res) => {
 
     const flespiResponse = await axios.put(
       `https://flespi.io/gw/geofences/${result?.flespiId}?fields=id%2Cname`,
-      { name },
+      { name, metadata: { geofenceStation: geofenceType.name } },
       {
         headers: {
           Authorization: `FlespiToken ${flespiToken}`,
@@ -270,6 +282,19 @@ export const updateNewGeofence = async (req, res) => {
       }
     );
     const flespiDb = flespiResponse.data.result[0];
+
+    if (flespiDb && geofenceIsStation) {
+      newGeofence = flespiResponse.data.result[0]?.id;
+      assigningResult = await axios.post(
+        `https://flespi.io/gw/calcs/1766118/geofences/${newGeofence}`,
+        null,
+        {
+          headers: {
+            Authorization: `FlespiToken ${flespiToken}`,
+          },
+        }
+      );
+    }
 
     const update = await updateGeofenceById(id, response.data, flespiDb);
 
@@ -355,6 +380,149 @@ export const deleteNewGeofence = async (req, res) => {
     return res.status(statusCode).json({
       status: false,
       error: errorMessage,
+    });
+  }
+};
+
+export const postGeofenceType = async (req, res) => {
+  const body = req.body;
+
+  try {
+    if (!body || !body.name || !body.userId) {
+      return res.status(400).json({
+        status: false,
+        error: "Bad Request: Missing required fields",
+      });
+    }
+
+    const result = await saveGeofenceType(body);
+
+    return res.status(200).json({
+      status: true,
+      message: `Geofence Type '${body.name}' created successfully, ID: ${result}`,
+    });
+  } catch (error) {
+    let errorMessage = "Internal Server Error";
+    let statusCode = 500;
+
+    if (error.code === "ER_DUP_ENTRY") {
+      errorMessage = `Geofence Type '${body.name}' already exists.`;
+      statusCode = 409;
+    } else if (error.code === "ER_BAD_NULL_ERROR") {
+      errorMessage = "Required fields are missing.";
+      statusCode = 400;
+    } else if (error.name === "ValidationError") {
+      errorMessage = error.message;
+      statusCode = 400;
+    }
+
+    return res.status(statusCode).json({
+      status: false,
+      error: errorMessage,
+    });
+  }
+};
+
+export const getGeofencesTypes = async (req, res) => {
+  try {
+    const results = await fetchGeofencesTypes();
+
+    if (!results) {
+      return res.status(404).json({
+        status: false,
+        error: "Geofences Types not found",
+      });
+    }
+    return res.status(200).json({
+      status: true,
+      message: results,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      error: error.message,
+    });
+  }
+};
+
+export const getGeofencesTypesByUserId = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const results = await fetchGeofencesTypesByUserId(parseInt(id));
+
+    if (!results) {
+      return res.status(404).json({
+        status: false,
+        error: "Geofences Types not found",
+      });
+    }
+    return res.status(200).json({
+      status: true,
+      message: results,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      error: error.message,
+    });
+  }
+};
+
+export const getGeofenceTypeById = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const results = await fetchGeofenceTypeById(parseInt(id));
+
+    if (!results) {
+      return res.status(404).json({
+        status: false,
+        error: "Geofence Type not found",
+      });
+    }
+    return res.status(200).json({
+      status: true,
+      message: results,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      error: error.message,
+    });
+  }
+};
+
+export const updateGeofenceType = async (req, res) => {
+  const { id } = req.params;
+  const body = req.body;
+
+  try {
+    await modifyGeofenceTypeById(parseInt(id), body);
+
+    return res.status(200).json({
+      status: true,
+      message: "Geofence Type updated successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      error: error.message,
+    });
+  }
+};
+
+export const deleteGeofenceType = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await removeGeofenceTypeById(parseInt(id));
+
+    return res.status(200).json({
+      status: true,
+      message: "Geofence Type deleted successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      error: error.message,
     });
   }
 };

@@ -302,6 +302,14 @@ const SettingsMenu = () => {
                     "/settings/new-geofences"
                   )}
                 />
+                <MenuItem
+                  title={t("settingsNextopGeofenceType")}
+                  link="/settings/geofence-types"
+                  icon={<CreateIcon sx={{ ml: 2 }} />}
+                  selected={location.pathname.startsWith(
+                    "/settings/geofence-types"
+                  )}
+                />
                 {!features.disableGroups && (
                   <MenuItem
                     title={t("settingsNextopGroups")}

@@ -59,6 +59,7 @@ const EditItemView = ({
   const { id } = useParams();
 
   const userId = useSelector((state) => state.session.user.id);
+  
 
   let url;
   if (import.meta.env.DEV) {
@@ -233,7 +234,9 @@ const EditItemView = ({
         });
         if (response.status === 200) {
           toast.success(response.data.message);
-          navigate(-1);
+          setTimeout(() => {
+            navigate(-1);
+          }, 1000);
         }
       } catch (error) {
         if (error.response.data.errors) {
