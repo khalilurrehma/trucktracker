@@ -35,6 +35,12 @@ import { useAppContext } from "../AppContext";
 import { graceTimeConverter } from "./common/New.Helper";
 import axios from "axios";
 import { useTranslation } from "../common/components/LocalizationProvider";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const formatTime = (date) => {
   return date.toLocaleTimeString("en-US", {
@@ -216,40 +222,34 @@ const ControlUsage = () => {
     const status = doutStatus === 1 ? unlock : lock;
 
     let body;
-    const logTimestamp = new Date()
-      .toISOString()
-      .slice(0, 19)
-      .replace("T", " ");
+    const logTimestamp = dayjs()
+      .tz("America/Lima")
+      .format("YYYY-MM-DD HH:mm:ss");
 
     let logBody;
     let ignitionAndConnection;
 
     if (ignitionStatus && connectionStatus) {
-      ignitionAndConnection = window.confirm(
-        `The vehicle is with ignition status on. Do you still want to execute?`
-      );
+      ignitionAndConnection = window.confirm(t("realtimeIgnitionOnWarning"));
     } else if (!ignitionStatus && connectionStatus) {
-      ignitionAndConnection = window.confirm(
-        `The vehicle is with ignition status off. Do you want to execute?`
-      );
+      ignitionAndConnection = window.confirm(t("realtimeIgnitionOffWarning"));
     } else {
-      alert(`Device is not connected , commanad can not be execute`);
+      t("realtimeDeviceNotConnected");
     }
     if (ignitionAndConnection) {
       const isConfirmed = window.confirm(
         doutStatus === 1
-          ? "Are you sure you want to turn on the device?"
-          : "Are you sure you want to turn off the device?"
+          ? t("realtimeConfirmationMessageOn")
+          : t("realtimeConfirmationMessageOff")
       );
 
       if (isConfirmed) {
-        const reason = prompt("Please provide a reason for this action:");
+        const reason = prompt(t("realtimeActionReason"));
 
         if (!reason || reason.trim().length < 3) {
-          toast.warn("Please provide a valid reason (at least 3 characters)");
+          toast.warn(t("realtimeReasonWarning"));
           return;
         }
-
         try {
           setDeviceStatus((prev) => ({ ...prev, [deviceId]: true }));
 

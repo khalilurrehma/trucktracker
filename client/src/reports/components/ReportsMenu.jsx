@@ -113,6 +113,12 @@ const ReportsMenu = () => {
           selected={location.pathname === "/reports/new-event"}
         />
         <MenuItem
+          title={t("reportAssistanceControl")}
+          link="/reports/assistance"
+          icon={<AssignmentIcon />}
+          selected={location.pathname === "/reports/assistance"}
+        />
+        <MenuItem
           title={t("reportsDriverBehavior")}
           link="/reports/driver-behaviour"
           icon={<PsychologyIcon />}

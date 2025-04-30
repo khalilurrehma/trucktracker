@@ -367,3 +367,20 @@ export const handleDeviceIgnition = async (topic, message) => {
 
   return dataFormat;
 };
+
+export const geofenceEntryAndExit = async (topic, payload) => {
+  const topicParts = topic.split("/");
+  const deviceIdIndex = topicParts.indexOf("devices") + 1;
+  const deviceId = parseInt(topicParts[deviceIdIndex]);
+
+  // payload.enter_geofence
+  // payload.exit_geofence
+  // payload.event_type
+  // if (payload.event_type === "enter") {
+  //   console.log(`${deviceId}`);
+  //   console.log(payload.enter_geofence);
+  // } else if (payload.event_type === "exit") {
+  //   console.log(`${deviceId}`);
+  //   console.log(payload.exit_geofence);
+  // }
+};

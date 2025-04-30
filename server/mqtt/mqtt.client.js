@@ -30,6 +30,9 @@ const topics = [
     topic: "flespi/interval/gw/calcs/1742077/devices/+/created,updated,deleted", // Default - Reports - Driver Behaivor
   },
   {
+    topic: "flespi/interval/gw/calcs/1766118/devices/+/+", // Default - Geofence
+  },
+  {
     topic: "flespi/state/gw/devices/+/telemetry/position",
   },
   {

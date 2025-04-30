@@ -4,6 +4,7 @@ import {
   deviceNewEvent,
   devicesAlarmMQTT,
   driverBehaivor,
+  geofenceEntryAndExit,
   handleDeviceConnection,
   handleDeviceDin,
   handleDeviceIgnition,
@@ -52,6 +53,9 @@ mqttEmitter.on("mqttMessage", async ({ topic, payload }) => {
         topic.endsWith("/telemetry/engine.ignition.status"):
         const ignitionStatus = await handleDeviceIgnition(topic, payload);
         if (ignitionStatus) broadcast(ignitionStatus);
+        break;
+      case topic.includes("calcs/1766118"):
+        const geofenceResults = await geofenceEntryAndExit(topic, payload);
         break;
 
       default:

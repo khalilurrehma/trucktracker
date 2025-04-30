@@ -117,6 +117,7 @@ import DriversShifts from "./settings/DriversShifts";
 import ScheduledDevicesLogs from "./reports/ScheduledDevicesLogs";
 import GeofenceTypes from "./settings/GeofenceTypes";
 import GeofenceType from "./settings/GeofenceType";
+import AssistanceControlReports from "./reports/AssistanceControlReports";
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -347,6 +348,7 @@ const Navigation = () => {
         <Route path="reports">
           <Route path="devices/logs" element={<ScheduledDevicesLogs />} />
           <Route path="usage-control" element={<UsageControlReport />} />
+          <Route path="assistance" element={<AssistanceControlReports />} />
           <Route path="usage-control/logs" element={<UsageControlLogs />} />
           <Route path="combined" element={<CombinedReportPage />} />
           <Route path="chart" element={<ChartReportPage />} />

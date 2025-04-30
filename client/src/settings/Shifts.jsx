@@ -29,9 +29,9 @@ import { toast, ToastContainer } from "react-toastify";
 import { handleDownloadExcel } from "./common/SettingsExcel";
 import { useAppContext } from "../AppContext";
 import { useTranslation } from "../common/components/LocalizationProvider";
+import { useSelector } from "react-redux";
 
 const Shifts = () => {
-  const { traccarUser } = useAppContext();
   const t = useTranslation();
   const [shifts, setShifts] = useState([]);
   const [filteredShifts, setFilteredShifts] = useState([]);
@@ -44,19 +44,19 @@ const Shifts = () => {
   const [timers, setTimers] = useState({});
   const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const navigate = useNavigate();
+  const userId = useSelector((state) => state.session.user.id);
 
   useEffect(() => {
-    if (traccarUser) {
+    if (userId) {
       getShifts();
     }
-  }, [traccarUser]);
+  }, [userId]);
 
   const getShifts = async () => {
     try {
       setIsloading(true);
-      const res = traccarUser?.superAdmin
-        ? await fetchShifts()
-        : await fetchShiftsByUserId(traccarUser?.id);
+      const res =
+        userId === 1 ? await fetchShifts() : await fetchShiftsByUserId(userId);
 
       if (res) {
         const sortedShifts = res.sort(

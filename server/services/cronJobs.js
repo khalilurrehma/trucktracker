@@ -17,6 +17,7 @@ import {
 } from "./flespiApis.js";
 import { cron_logs } from "../model/reports.js";
 import { EventEmitter } from "events";
+import { createOrUpdateAttendanceReport } from "../model/shift.js";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -36,8 +37,6 @@ dayjs.extend(duration);
 
 // const TIMEZONE = "Asia/Karachi"; // Karachi timezone
 const TIMEZONE = "America/Lima"; // Peru timezone
-
-const activeJobs = new Map();
 
 const expandDates = (dates) => {
   const [startDate, endDate] = dates;
@@ -301,6 +300,9 @@ const scheduleShiftJobs = async () => {
         const endKey = getJobKey(parsedDevice.flespiId, "end", date);
 
         if (!scheduledJobs.has(startKey)) {
+          console.log(
+            `[START] Scheduling Job for: ${parsedDevice.name} on ${date}`
+          );
           const startJob = new CronJob(cronStart, async () => {
             try {
               const body = [
@@ -316,6 +318,19 @@ const scheduleShiftJobs = async () => {
                 body
               );
               const success = response?.result?.[0];
+
+              let bodyForReport = {
+                device: { id: parsedDevice.flespiId, name: parsedDevice.name },
+                driver: parsedDriver.name,
+                shiftStart: shift?.start_time,
+                graceTime: graceMinutes,
+              };
+
+              await createOrUpdateAttendanceReport(
+                bodyForReport,
+                parsedDevice.flespiId,
+                "create"
+              );
 
               await cron_logs({
                 device_id: parsedDevice.flespiId,
@@ -355,9 +370,16 @@ const scheduleShiftJobs = async () => {
 
           startJob.start();
           scheduledJobs.set(startKey, startJob);
+        } else {
+          console.warn(
+            `[SKIP START] Job already scheduled for device ${parsedDevice.name} on ${date} with key: ${startKey}`
+          );
         }
 
         if (!scheduledJobs.has(endKey)) {
+          console.log(
+            `[END] Scheduling Job for: ${parsedDevice.name} on ${date}`
+          );
           const endJob = new CronJob(cronEnd, async () => {
             try {
               const deviceStatus = await flespiDevicesConnectionStatus(
@@ -468,6 +490,10 @@ const scheduleShiftJobs = async () => {
 
           endJob.start();
           scheduledJobs.set(endKey, endJob);
+        } else {
+          console.warn(
+            `[SKIP END] Job already scheduled for device ${parsedDevice.name} on ${date} with key: ${endKey}`
+          );
         }
       }
     }

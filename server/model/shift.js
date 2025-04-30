@@ -1,4 +1,5 @@
 import pool from "../config/dbConfig.js";
+import dayjs from "dayjs";
 
 export const addNewShift = async (body) => {
   const {
@@ -155,4 +156,74 @@ export const fetchShiftByUserId = async (userId) => {
       }
     );
   });
+};
+
+// attendance report's
+
+export const createOrUpdateAttendanceReport = async (
+  body,
+  deviceId,
+  action
+) => {
+  const {
+    device,
+    driver,
+    shiftStart,
+    shiftEnd,
+    graceTime,
+    igBeforeShiftStart,
+    stationArrivalTime,
+    igBeforeShiftEnd,
+    igOffAfterShiftEnd,
+    shiftBeginStatus,
+    shiftEndStatus,
+  } = body;
+
+  if (action === "create") {
+    const createSql = `
+      INSERT INTO attendance_reports 
+        (date, flespi_device_id, device, driver, shift_begin, grace_time, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, NOW());
+    `;
+
+    const values = [
+      dayjs().format("YYYY-MM-DD"),
+      deviceId,
+      JSON.stringify(device),
+      driver,
+      shiftStart,
+      graceTime,
+    ];
+
+    return new Promise((resolve, reject) => {
+      pool.query(createSql, values, (err, results) => {
+        if (err) return reject(err);
+        resolve(results);
+      });
+    });
+  }
+
+  if (action === "update") {
+    const updateSql = `
+      UPDATE attendance_reports 
+      SET 
+        shift_end = ?, 
+        ignition_before_shift_end = ?, 
+        ignition_off_after_shift_end = ?
+      WHERE flespi_device_id = ?
+    `;
+
+    const values = [shiftEnd, igBeforeShiftEnd, igOffAfterShiftEnd, deviceId];
+
+    return new Promise((resolve, reject) => {
+      pool.query(updateSql, values, (err, results) => {
+        if (err) return reject(err);
+        resolve(results);
+      });
+    });
+  }
+
+  return Promise.reject(
+    new Error("Invalid action type. Use 'create' or 'update'.")
+  );
 };
