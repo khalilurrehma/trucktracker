@@ -44,6 +44,10 @@ const topics = [
   {
     topic: "flespi/state/gw/devices/+/telemetry/engine.ignition.status",
   },
+  // {
+  //   topic:
+  //     "flespi/state/gw/devices/+/telemetry/engine.ignition.status,timestamp",
+  // },
 ];
 client.on("connect", () => {
   console.log("✅ Connected to Flespi MQTT broker");

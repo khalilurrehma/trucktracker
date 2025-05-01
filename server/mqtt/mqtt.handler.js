@@ -57,6 +57,9 @@ mqttEmitter.on("mqttMessage", async ({ topic, payload }) => {
       case topic.includes("calcs/1766118"):
         const geofenceResults = await geofenceEntryAndExit(topic, payload);
         break;
+      // case topic.includes("flespi/message/gw/devices"):
+      //   console.log("MQTT Message:", payload["position.satellites"]);
+      //   break;
 
       default:
         console.log("No handler for topic:", topic);

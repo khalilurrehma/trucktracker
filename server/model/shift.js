@@ -185,6 +185,7 @@ export const createOrUpdateAttendanceReport = async (
         (date, flespi_device_id, device, driver, shift_begin, grace_time, created_at)
         VALUES (?, ?, ?, ?, ?, ?, NOW());
     `;
+    // convert startTime format into YYYY-MM-DD HH:MM:SS only!
 
     const values = [
       dayjs().format("YYYY-MM-DD"),
