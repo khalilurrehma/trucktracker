@@ -1,3 +1,4 @@
+import { getDevicesByUserId } from "../model/devices.js";
 import {
   addNewShift,
   fetchShifts,
@@ -6,6 +7,7 @@ import {
   fetchShiftById,
   fetchShiftByType,
   fetchShiftByUserId,
+  fetchAttendanceReports,
 } from "../model/shift.js";
 import { refreshShiftJobs } from "../services/cronJobs.js";
 
@@ -106,4 +108,30 @@ export const removeShift = async (req, res) => {
   } catch (error) {
     res.status(500).json({ status: false, message: error.message });
   }
+};
+
+export const getAttendanceReports = async (req, res) => {
+  const { userId } = req.query;
+  let filterDevicesReport;
+  try {
+    const attendanceReports = await fetchAttendanceReports();
+
+    if (userId) {
+      const companyDevices = await getDevicesByUserId(userId);
+
+      if (companyDevices.length > 0) {
+        const deviceIds = companyDevices.map((device) => device.flespiId);
+        filterDevicesReport = attendanceReports?.filter((report) =>
+          deviceIds.includes(report.flespi_device_id)
+        );
+      } else {
+        filterDevicesReport = [];
+      }
+    }
+
+    res.status(200).json({
+      status: true,
+      message: userId ? filterDevicesReport : attendanceReports,
+    });
+  } catch (error) {}
 };

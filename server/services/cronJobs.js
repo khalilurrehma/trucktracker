@@ -342,6 +342,7 @@ const scheduleShiftJobs = async () => {
               device: { id: parsedDevice.flespiId, name: parsedDevice.name },
               driver: parsedDriver.name,
               shiftStart: shift?.start_time,
+              shiftEnd: shift?.end_time,
               graceTime: graceMinutes,
             };
 

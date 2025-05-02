@@ -12,9 +12,14 @@ import {
   subcribedEventPNByDeviceTypeId,
   subcribedAlarmPNByDeviceTypeId,
 } from "../model/notifications.js";
+import {
+  fetchAttendanceByDateAndDeviceId,
+  updateAttendanceField,
+} from "../model/shift.js";
 import { fetchDeviceShiftByFlespiId } from "../model/usageControl.js";
 import { getDeviceRadiusReport } from "../utils/device.radius.js";
 import { getRealmUsersWithDeviceIds } from "../utils/mqtt.helper.js";
+import dayjs from "dayjs";
 
 const deviceNames = {};
 const deviceShiftCache = {};
@@ -178,8 +183,9 @@ export const deviceNewEvent = async (topic, message) => {
   try {
     const topicParts = topic.split("/");
     const deviceIdIndex = topicParts.indexOf("devices") + 1;
-
+    const [attendanceDate, time] = message?.event_time?.split(" ");
     const deviceId = parseInt(topicParts[deviceIdIndex]);
+    let attendanceReport;
 
     if (!deviceId) {
       return;
@@ -217,6 +223,14 @@ export const deviceNewEvent = async (topic, message) => {
       userId: deviceUserId || null,
     };
 
+    console.log(
+      deviceId,
+      message.device_name,
+      message.event_type,
+      message.event_time,
+      attendanceDate
+    );
+
     await newDeviceEvent(processedDbData);
 
     const realmUser = await getRealmUsersWithDeviceIds(deviceUserId);
@@ -237,7 +251,102 @@ export const deviceNewEvent = async (topic, message) => {
     }
 
     processedDbData.audio_file = configured_notification?.audio_file;
-    // processedDbData.notificationStatus = true;
+
+    if (message.event_type === "ignition on") {
+      attendanceReport = await fetchAttendanceByDateAndDeviceId(
+        deviceId,
+        attendanceDate
+      );
+
+      if (!attendanceReport) {
+        console.log(
+          `No attendance report found for device ${deviceId} on ${attendanceDate}`
+        );
+        return;
+      }
+
+      const shiftEndTime = attendanceReport.shift_end;
+      const shiftEndDateTime = dayjs(`${attendanceDate}T${shiftEndTime}`);
+      const eventDateTime = dayjs(`${attendanceDate}T${time}`);
+
+      if (!attendanceReport?.ignition_before_shift_begin) {
+        await updateAttendanceField(
+          deviceId,
+          attendanceDate,
+          "ignition_before_shift_begin",
+          time
+        );
+      } else {
+        console.log(
+          `Ignition status already updated for device ${deviceId} on ${attendanceDate}`
+        );
+      }
+
+      if (
+        eventDateTime.isBefore(
+          shiftEndDateTime.add(attendanceReport.grace_time, "minute")
+        )
+      ) {
+        const existingIgnitionBeforeShiftEnd =
+          attendanceReport.ignition_before_shift_end;
+        const existingTime = existingIgnitionBeforeShiftEnd
+          ? dayjs(`${attendanceDate}T${existingIgnitionBeforeShiftEnd}`)
+          : null;
+
+        if (
+          !existingIgnitionBeforeShiftEnd ||
+          eventDateTime.isAfter(existingTime)
+        ) {
+          await updateAttendanceField(
+            deviceId,
+            attendanceDate,
+            "ignition_before_shift_end",
+            time
+          );
+          console.log(
+            `Updated ignition_before_shift_end for device ${deviceId} on ${attendanceDate}`
+          );
+        } else {
+          console.log(
+            `Not updating ignition_before_shift_end; current one is more recent.`
+          );
+        }
+      }
+    } else if (message.event_type === "ignition off") {
+      attendanceReport = await fetchAttendanceByDateAndDeviceId(
+        deviceId,
+        attendanceDate
+      );
+
+      if (!attendanceReport) {
+        console.log(
+          `No attendance report found for device ${deviceId} on ${attendanceDate}`
+        );
+        return;
+      }
+
+      const shiftEndTime = attendanceReport.shift_end;
+      const shiftEndDateTime = dayjs(`${attendanceDate}T${shiftEndTime}`);
+      const eventDateTime = dayjs(`${attendanceDate}T${time}`);
+
+      if (eventDateTime.isAfter(shiftEndDateTime)) {
+        if (!attendanceReport.ignition_off_after_shift_end) {
+          await updateAttendanceField(deviceId, attendanceDate, {
+            ignition_off_after_shift_end: time,
+          });
+          console.log(
+            `Updated ignition_off_after_shift_end for device ${deviceId} on ${attendanceDate}`
+          );
+        } else {
+          console.log(
+            `ignition_off_after_shift_end already exists for device ${deviceId}`
+          );
+        }
+      } else {
+        console.log(`ignition off event is before shift end; skipping`);
+      }
+    }
+
     return processedDbData;
   } catch (error) {
     console.error("Error processing device event:", error);

@@ -182,10 +182,9 @@ export const createOrUpdateAttendanceReport = async (
   if (action === "create") {
     const createSql = `
       INSERT INTO attendance_reports 
-        (date, flespi_device_id, device, driver, shift_begin, grace_time, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, NOW());
+        (date, flespi_device_id, device, driver, shift_begin, shift_end, grace_time, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, NOW());
     `;
-    // convert startTime format into YYYY-MM-DD HH:MM:SS only!
 
     const values = [
       dayjs().format("YYYY-MM-DD"),
@@ -193,6 +192,7 @@ export const createOrUpdateAttendanceReport = async (
       JSON.stringify(device),
       driver,
       shiftStart,
+      shiftEnd,
       graceTime,
     ];
 
@@ -227,4 +227,73 @@ export const createOrUpdateAttendanceReport = async (
   return Promise.reject(
     new Error("Invalid action type. Use 'create' or 'update'.")
   );
+};
+
+export const fetchAttendanceByDateAndDeviceId = async (deviceId, date) => {
+  const sql = `
+  SELECT *
+  FROM attendance_reports
+  WHERE date = ? AND flespi_device_id = ?
+  LIMIT 1
+`;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [date, deviceId], (err, results) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(results[0]);
+    });
+  });
+};
+
+export const updateAttendanceField = async (
+  deviceId,
+  date,
+  fieldName,
+  value
+) => {
+  const allowedFields = [
+    "ignition_before_shift_begin",
+    "station_arrival_time",
+    "ignition_before_shift_end",
+    "ignition_off_after_shift_end",
+    "shift_begin_status",
+    "shift_end_status",
+  ];
+
+  if (!allowedFields.includes(fieldName)) {
+    throw new Error(`Invalid field name: ${fieldName}`);
+  }
+
+  const sql = `
+    UPDATE attendance_reports
+    SET ${fieldName} = ?
+    WHERE flespi_device_id = ?
+      AND date = ?
+  `;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [value, deviceId, date], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+export const fetchAttendanceReports = async () => {
+  const sql = `
+    SELECT *
+    FROM attendance_reports
+  `;
+  return new Promise((resolve, reject) => {
+    pool.query(sql, (err, results) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(results);
+    });
+  });
 };

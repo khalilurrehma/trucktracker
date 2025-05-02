@@ -311,3 +311,8 @@ export const convertMinutesToDayjs = (minutes) => {
   date.setMinutes(minutes);
   return date;
 };
+
+export const formatDateTime = (date, time) => {
+  if (!date || !time) return null;
+  return `${dayjs(date).format("YYYY-MM-DD")} ${time}`;
+};

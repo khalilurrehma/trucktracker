@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  getAttendanceReports,
   getShiftById,
   getShiftByType,
   getShiftByUserId,
@@ -24,5 +25,7 @@ router.get("/shifts/by-type", getShiftByType);
 router.put("/shift/:id", modifyShifts);
 
 router.delete("/shift/:id", removeShift);
+
+router.get("/attendance/report", getAttendanceReports);
 
 export default router;
