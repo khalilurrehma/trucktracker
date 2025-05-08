@@ -390,3 +390,72 @@ export const deviceShiftAssigned = async (deviceId, assign = false) => {
     throw new Error(`deviceShiftAssigned failed: ${error.message}`);
   }
 };
+
+export const saveNewServiceType = async (body) => {
+  const { name, userId } = body;
+
+  const sql = `INSERT INTO device_service_type (name, user_id) VALUE (?, ?)`;
+
+  const values = [name, userId];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result;
+  } catch (error) {
+    throw new Error(`saveNewServiceType failed: ${error.message}`);
+  }
+};
+
+export const fetchAllServiceTypes = async () => {
+  const sql = "SELECT * FROM device_service_type";
+
+  return new Promise((resolve, reject) => {
+    dbQuery(sql, (err, results) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+export const serviceById = async (id) => {
+  const sql = "SELECT * FROM device_service_type WHERE id = ?";
+  const values = [id];
+
+  return new Promise((resolve, reject) => {
+    dbQuery(sql, values, (err, results) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(results[0]);
+    });
+  });
+};
+
+export const modifyServiceType = async (id, body) => {
+  const { name } = body;
+
+  const sql = `UPDATE device_service_type SET name = ? WHERE id = ?`;
+
+  const values = [name, id];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result;
+  } catch (error) {
+    throw new Error(`modifyServiceType failed: ${error.message}`);
+  }
+};
+
+export const removeServiceType = async (id) => {
+  const sql = "DELETE FROM device_service_type WHERE id = ?";
+  const values = [id];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result;
+  } catch (error) {
+    throw new Error(`removeServiceType failed: ${error.message}`);
+  }
+};

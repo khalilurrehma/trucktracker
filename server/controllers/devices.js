@@ -1,10 +1,15 @@
 import axios from "axios";
 import {
   createDevice,
+  fetchAllServiceTypes,
   getAllDevices,
   getDeviceById,
   getDevicesByIMEI,
   getDevicesByUserId,
+  modifyServiceType,
+  removeServiceType,
+  saveNewServiceType,
+  serviceById,
   softDeleteDeviceById,
   updateDeviceById,
 } from "../model/devices.js";
@@ -592,6 +597,19 @@ export const updateNewDevice = async (req, res) => {
       }
     });
 
+    const serviceType = requestData.serviceType || {};
+    if (serviceType?.name) {
+      traccarRequestData.attributes = {
+        ...(traccarRequestData.attributes || {}),
+        serviceType: serviceType.name,
+      };
+
+      flespiRequestData.metadata = {
+        ...(flespiRequestData.metadata || {}),
+        serviceType: serviceType.name,
+      };
+    }
+
     const [flespiResponse, traccarResponse] = await Promise.all([
       axios.put(
         `${flespiApiUrl}/devices/${device.flespiId}?fields=id%2Cname%2Cconfiguration%2Cmetadata%2Cdevice_type_id%2Cdevice_type_name%2Cprotocol_id%2Cprotocol_name`,
@@ -785,6 +803,105 @@ export const devicesNotifications = async (req, res) => {
     res.status(500).json({
       status: false,
       error: "Internal Server Error",
+    });
+  }
+};
+
+export const addNewServiceType = async (req, res) => {
+  const body = req.body;
+  try {
+    await saveNewServiceType(body);
+
+    res.status(200).json({
+      status: true,
+      message: `Service Type ${body.name} added successfully.`,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
+export const allDeviceServiceTypes = async (req, res) => {
+  try {
+    const services = await fetchAllServiceTypes();
+
+    if (!services) {
+      return res.status(404).json({
+        status: false,
+        message: "No services found",
+      });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: services,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
+export const getDeviceServiceType = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const service = await serviceById(id);
+
+    if (!service) {
+      return res.status(404).json({
+        status: false,
+        message: "Service not found",
+      });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: service,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
+export const updateServiceTypeById = async (req, res) => {
+  const { id } = req.params;
+  const body = req.body;
+  try {
+    await modifyServiceType(id, body);
+
+    res.status(200).json({
+      status: true,
+      message: `Service Type ${body.name} updated successfully.`,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
+export const deleteServiceType = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await removeServiceType(id);
+
+    res.status(200).json({
+      status: true,
+      message: `Service Type deleted successfully.`,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: error.message,
     });
   }
 };

@@ -495,6 +495,33 @@ const SettingsMenu = () => {
                 )}
               </AccordionDetails>
             </Accordion>
+            {userId === 1 && (
+              <Accordion
+                expanded={expanded.includes("device_service_types")}
+                onChange={handleChange("device_service_types")}
+                sx={accordinSX}
+              >
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon />}
+                  aria-controls="dispatchbh-content"
+                  id="dispatchbh-header"
+                  sx={{ pl: 2, m: 0 }}
+                >
+                  <TrackChangesIcon sx={{ mr: 4 }} />
+                  {t("settingsDispatch")}
+                </AccordionSummary>
+                <AccordionDetails sx={{ p: 0 }}>
+                  <MenuItem
+                    title={t("settingsVehicleServiceType")}
+                    link="/settings/devices/service-types"
+                    icon={<SmartphoneIcon sx={{ ml: 2 }} />}
+                    selected={location.pathname.startsWith(
+                      "/settings/devices/service-types"
+                    )}
+                  />
+                </AccordionDetails>
+              </Accordion>
+            )}
           </>
         )}
       </List>

@@ -55,6 +55,7 @@ const NewDevicePage = () => {
   const [item, setItem] = useState();
   const [deviceTypes, setDeviceTypes] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [servicesTypes, setServicesTypes] = useState([]);
 
   useEffect(() => {
     setItem({
@@ -115,6 +116,18 @@ const NewDevicePage = () => {
     }
   };
 
+  const fetchServiceType = async () => {
+    try {
+      const { data } = await axios.get(`${url}/all/device/service-types`);
+
+      if (data.status) {
+        setServicesTypes(data.message);
+      }
+    } catch (error) {
+      console.error("Error fetching geofences types:", error);
+    }
+  };
+
   const findMatchingGroups = (newGroups, permissionGroups) => {
     return newGroups?.filter((newGroup) => {
       return permissionGroups?.some(
@@ -137,6 +150,7 @@ const NewDevicePage = () => {
   useEffect(() => {
     fetchDevices();
     fetchGroups();
+    fetchServiceType();
   }, []);
 
   return (
@@ -260,19 +274,35 @@ const NewDevicePage = () => {
                   <TextField {...params} label={t("groupParent")} />
                 )}
               />
-              {/* <FormControl fullWidth>
-          <InputLabel>{t('groupParent')}</InputLabel>
-          <Select
-            label={t('groupParent')}
-            // multiple={multiple}
-            value={item.groupId || 0}
-            onChange={(event) => setItem({ ...item, groupId: Number(event.target.value) })}
-          >
-            {items.map((item) => (
-              <MenuItem key={keyGetter(item)} value={keyGetter(item)}>{titleGetter(item)}</MenuItem>
-            ))}
-          </Select>
-        </FormControl> */}
+              <Autocomplete
+                options={servicesTypes}
+                getOptionLabel={(option) => option.name}
+                value={
+                  servicesTypes.find((opt) => opt.id === item.serviceTypeId) ||
+                  null
+                }
+                onChange={(event, newValue) => {
+                  setItem({
+                    ...item,
+                    serviceTypeId: newValue?.id,
+                    serviceType: newValue || null,
+                  });
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label={t("settingsVehicleServiceType")}
+                  />
+                )}
+              />
+
+              <TextField
+                value={item.costByKm || ""}
+                onChange={(event) =>
+                  setItem({ ...item, costByKm: event.target.value })
+                }
+                label={t("sharedCostByKm")}
+              />
               <TextField
                 value={item.phone || ""}
                 onChange={(event) =>

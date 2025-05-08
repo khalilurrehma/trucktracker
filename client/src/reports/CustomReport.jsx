@@ -157,6 +157,26 @@ const CustomReport = () => {
       "odometer.total": t("sharedOdometerTotal"),
       timestamp: t("sharedTimestamp"),
     },
+    1745151: {
+      "1_Nombre": t("reportDeviceName"),
+      "4_Vehiculo_en_plataforma": t("reportvehicleOnPlatform"),
+      "2_Inicio": t("sharedBegin"),
+      "3_Fin": t("sharedEnd"),
+      "5_Duracion_formateada": t("reportDuration"),
+      "7_Mapa_Inicio": t("reportmapLinkFinish"),
+      "9_Mapa_Fin": t("reportmapLinkStart"),
+      // avg_speed: t("reportAverageSpeed"),
+      // device_type_id: t("deviceTypeId"),
+      // distance_activity: t("reportDistanceActivity"),
+      // event_time_finish: t("reportEventTimeFinish"),
+      // event_time_start: t("reportEventTimeStart"),
+      // id: "ID",
+      // latitude_finish: t("reportLatitudeFinish"),
+      // latitude_start: t("reportLatitudeStart"),
+      // longitude_finish: t("reportLongitudeFinish"),
+      // longitude_start: t("reportLongitudeStart"),
+      // timestamp: t("timestamp"),
+    },
   };
   const url = import.meta.env.DEV
     ? import.meta.env.VITE_DEV_BACKEND_URL
@@ -211,29 +231,23 @@ const CustomReport = () => {
   const formatValue = (key, value, language = "en") => {
     if (value == null) return "N/A";
 
-    const locale = getLocale(language);
-
-    // Handle timestamps and date strings
     if (["date", "timestamp", "begin", "end"].includes(key)) {
       return formatAnyDate(value, language);
     }
 
-    // Handle duration in seconds -> hours/mins
     if (
       ["duration", "stop.seconds", "motion.seconds", "work.seconds"].includes(
         key
       )
     ) {
-      const hours = (value / 3600).toFixed(2); // 2 decimal places
+      const hours = (value / 3600).toFixed(2);
       return `${hours} h`;
     }
 
-    // Round float values to 2 decimals if needed
     if (typeof value === "number" && value % 1 !== 0) {
       value = value.toFixed(2);
     }
 
-    // Add units if applicable
     const units = {
       "max.speed": "km/h",
       "avg.speed": "km/h",
@@ -300,10 +314,8 @@ const CustomReport = () => {
       setData(reportData);
       setColumns(Object.keys(reportData[0] || {}));
 
-      const filteredColumns = Object.keys(reportData[0] || {}).filter(
-        (col) => !["points", "route"].includes(col)
-      );
-      setSelectedColumns(filteredColumns);
+      const mappingKeys = Object.keys(columnMappings[calcId] || {});
+      setSelectedColumns(mappingKeys);
     } catch (err) {
       console.error("Error fetching data:", err);
       setError("Failed to fetch data");
@@ -329,17 +341,29 @@ const CustomReport = () => {
   const filteredData = useMemo(() => {
     let result = [...data];
 
+    const hasDateField = data.length > 0 && "date" in data[0];
+    const dateField = hasDateField ? "date" : "begin";
+
     if (selectedDate) {
       result = result.filter((row) => {
-        const date = new Date(row["date"]);
+        const rawValue = row[dateField];
+        const date = new Date(
+          typeof rawValue === "number" && rawValue < 1e12
+            ? rawValue * 1000
+            : rawValue
+        );
         return date.toDateString() === selectedDate.toDateString();
       });
     }
 
     if (searchQuery) {
-      result = result.filter((row) =>
-        row["device.name"]?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      result = result.filter((row) => {
+        const name1 = row["device.name"]?.toLowerCase() || "";
+        const name2 = row["1_Nombre"]?.toLowerCase() || "";
+        const query = searchQuery.toLowerCase();
+
+        return name1.includes(query) || name2.includes(query);
+      });
     }
 
     return result;
@@ -374,8 +398,6 @@ const CustomReport = () => {
       return 0;
     });
 
-    console.log(mappedColumns);
-
     return mappedColumns;
   };
 
@@ -389,23 +411,30 @@ const CustomReport = () => {
 
   const today = new Date();
 
+  const hasDateField = columns.some(
+    (col) =>
+      col.toLowerCase().includes("date") || col.toLowerCase().includes("time")
+  );
+
   return (
     <PageLayout menu={<ReportsMenu />} breadcrumbs2={["reportTitle", "Wait"]}>
       <div style={{ display: "flex", gap: "20px", padding: "30px" }}>
-        <LocalizationProvider dateAdapter={AdapterDateFns}>
-          <DatePicker
-            label={t("sharedSelectDate")}
-            value={selectedDate}
-            onChange={(newValue) => setSelectedDate(newValue)}
-            shouldDisableDate={(date) => {
-              return date.toDateString() === today.toDateString();
-            }}
-            disableFuture
-            renderInput={(params) => (
-              <TextField {...params} size="small" sx={{ width: "30%" }} />
-            )}
-          />
-        </LocalizationProvider>
+        {hasDateField && (
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <DatePicker
+              label={t("sharedSelectDate")}
+              value={selectedDate}
+              onChange={(newValue) => setSelectedDate(newValue)}
+              shouldDisableDate={(date) =>
+                date.toDateString() === today.toDateString()
+              }
+              disableFuture
+              renderInput={(params) => (
+                <TextField {...params} size="small" sx={{ width: "30%" }} />
+              )}
+            />
+          </LocalizationProvider>
+        )}
 
         <TextField
           label={t("sharedSearchDevice")}
@@ -452,11 +481,17 @@ const CustomReport = () => {
                 .map((row, index) => {
                   return (
                     <TableRow key={index}>
-                      {sortedOriginalColumns.map((col) => (
-                        <TableCell key={col}>
-                          {formatValue(col, row[col], language)}
-                        </TableCell>
-                      ))}
+                      {sortedOriginalColumns.map((col) => {
+                        let value = formatValue(col, row[col], language);
+                        value =
+                          value === true
+                            ? "True"
+                            : value === false
+                            ? "False"
+                            : value;
+
+                        return <TableCell key={col}>{value}</TableCell>;
+                      })}
                       <TableCell>
                         {row.route && (
                           <IconButton

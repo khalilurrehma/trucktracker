@@ -20,13 +20,18 @@ import {
 } from "../controllers/device.js";
 import {
   addNewDevice,
+  addNewServiceType,
+  allDeviceServiceTypes,
   allNewDevices,
   deleteNewDevice,
+  deleteServiceType,
   devicesNotifications,
   extractDeviceIMEIS,
+  getDeviceServiceType,
   newDeviceById,
   newDeviceByUserId,
   updateNewDevice,
+  updateServiceTypeById,
 } from "../controllers/devices.js";
 import { checkDeviceLimit } from "../middlewares/limit.middleware.js";
 
@@ -82,5 +87,13 @@ router.post("/devices-by-imeis");
 // ------------------------------------------------------------------------------------------ DEVICES Notifications
 
 router.get("/devices/notifications", devicesNotifications);
+
+//  ------------------------------------------------------------------------------------------ DEVICE SERVICE TYPE CRUD
+
+router.post("/device/service-type", addNewServiceType);
+router.get("/all/device/service-types", allDeviceServiceTypes);
+router.get("/device/service-type/:id", getDeviceServiceType);
+router.put("/device/service-type/:id", updateServiceTypeById);
+router.delete("/device/service-type/:id", deleteServiceType);
 
 export default router;

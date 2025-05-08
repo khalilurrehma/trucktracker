@@ -118,6 +118,8 @@ import ScheduledDevicesLogs from "./reports/ScheduledDevicesLogs";
 import GeofenceTypes from "./settings/GeofenceTypes";
 import GeofenceType from "./settings/GeofenceType";
 import AssistanceControlReports from "./reports/AssistanceControlReports";
+import DeviceServiceTypes from "./settings/DeviceServiceTypes";
+import DeviceServiceType from "./settings/DeviceServiceType";
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -250,6 +252,18 @@ const Navigation = () => {
           <Route path="device/:id/share" element={<SharePage />} />
           <Route path="device/:id" element={<DevicePage />} />
           <Route path="device" element={<DevicePage />} />
+          <Route
+            path="devices/service-types"
+            element={<DeviceServiceTypes />}
+          />
+          <Route
+            path="devices/service-types/add"
+            element={<DeviceServiceType />}
+          />
+          <Route
+            path="devices/service-types/edit/:id"
+            element={<DeviceServiceType />}
+          />
           <Route path="new-device/:id" element={<NewDevicePage />} />
           <Route path="new-devices" element={<NewDevicesPage />} />
           <Route path="new-device" element={<NewDevicePage />} />

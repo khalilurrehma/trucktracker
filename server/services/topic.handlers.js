@@ -265,9 +265,9 @@ export const deviceNewEvent = async (topic, message) => {
         return;
       }
 
-      const shiftEndTime = attendanceReport.shift_end;
-      const shiftEndDateTime = dayjs(`${attendanceDate}T${shiftEndTime}`);
-      const eventDateTime = dayjs(`${attendanceDate}T${time}`);
+      // const shiftEndTime = attendanceReport.shift_end;
+      // const shiftEndDateTime = dayjs(`${attendanceDate}T${shiftEndTime}`);
+      // const eventDateTime = dayjs(`${attendanceDate}T${time}`);
 
       if (!attendanceReport?.ignition_before_shift_begin) {
         await updateAttendanceField(
@@ -282,70 +282,71 @@ export const deviceNewEvent = async (topic, message) => {
         );
       }
 
-      if (
-        eventDateTime.isBefore(
-          shiftEndDateTime.add(attendanceReport.grace_time, "minute")
-        )
-      ) {
-        const existingIgnitionBeforeShiftEnd =
-          attendanceReport.ignition_before_shift_end;
-        const existingTime = existingIgnitionBeforeShiftEnd
-          ? dayjs(`${attendanceDate}T${existingIgnitionBeforeShiftEnd}`)
-          : null;
+      // if (
+      //   eventDateTime.isBefore(
+      //     shiftEndDateTime.add(attendanceReport.grace_time, "minute")
+      //   )
+      // ) {
+      //   const existingIgnitionBeforeShiftEnd =
+      //     attendanceReport.ignition_before_shift_end;
+      //   const existingTime = existingIgnitionBeforeShiftEnd
+      //     ? dayjs(`${attendanceDate}T${existingIgnitionBeforeShiftEnd}`)
+      //     : null;
 
-        if (
-          !existingIgnitionBeforeShiftEnd ||
-          eventDateTime.isAfter(existingTime)
-        ) {
-          await updateAttendanceField(
-            deviceId,
-            attendanceDate,
-            "ignition_before_shift_end",
-            time
-          );
-          console.log(
-            `Updated ignition_before_shift_end for device ${deviceId} on ${attendanceDate}`
-          );
-        } else {
-          console.log(
-            `Not updating ignition_before_shift_end; current one is more recent.`
-          );
-        }
-      }
-    } else if (message.event_type === "ignition off") {
-      attendanceReport = await fetchAttendanceByDateAndDeviceId(
-        deviceId,
-        attendanceDate
-      );
-
-      if (!attendanceReport) {
-        console.log(
-          `No attendance report found for device ${deviceId} on ${attendanceDate}`
-        );
-        return;
-      }
-
-      const shiftEndTime = attendanceReport.shift_end;
-      const shiftEndDateTime = dayjs(`${attendanceDate}T${shiftEndTime}`);
-      const eventDateTime = dayjs(`${attendanceDate}T${time}`);
-
-      if (eventDateTime.isAfter(shiftEndDateTime)) {
-        if (!attendanceReport.ignition_off_after_shift_end) {
-          await updateAttendanceField(deviceId, attendanceDate, {
-            ignition_off_after_shift_end: time,
-          });
-          console.log(
-            `Updated ignition_off_after_shift_end for device ${deviceId} on ${attendanceDate}`
-          );
-        } else {
-          console.log(
-            `ignition_off_after_shift_end already exists for device ${deviceId}`
-          );
-        }
-      } else {
-        console.log(`ignition off event is before shift end; skipping`);
-      }
+      //   if (
+      //     !existingIgnitionBeforeShiftEnd ||
+      //     eventDateTime.isAfter(existingTime)
+      //   ) {
+      //     await updateAttendanceField(
+      //       deviceId,
+      //       attendanceDate,
+      //       "ignition_before_shift_end",
+      //       time
+      //     );
+      //     console.log(
+      //       `Updated ignition_before_shift_end for device ${deviceId} on ${attendanceDate}`
+      //     );
+      //   } else {
+      //     console.log(
+      //       `Not updating ignition_before_shift_end; current one is more recent.`
+      //     );
+      //   }
+      // }
     }
+    // else if (message.event_type === "ignition off") {
+    //   attendanceReport = await fetchAttendanceByDateAndDeviceId(
+    //     deviceId,
+    //     attendanceDate
+    //   );
+
+    //   if (!attendanceReport) {
+    //     console.log(
+    //       `No attendance report found for device ${deviceId} on ${attendanceDate}`
+    //     );
+    //     return;
+    //   }
+
+    //   const shiftEndTime = attendanceReport.shift_end;
+    //   const shiftEndDateTime = dayjs(`${attendanceDate}T${shiftEndTime}`);
+    //   const eventDateTime = dayjs(`${attendanceDate}T${time}`);
+
+    //   if (eventDateTime.isAfter(shiftEndDateTime)) {
+    //     if (!attendanceReport.ignition_off_after_shift_end) {
+    //       await updateAttendanceField(deviceId, attendanceDate, {
+    //         ignition_off_after_shift_end: time,
+    //       });
+    //       console.log(
+    //         `Updated ignition_off_after_shift_end for device ${deviceId} on ${attendanceDate}`
+    //       );
+    //     } else {
+    //       console.log(
+    //         `ignition_off_after_shift_end already exists for device ${deviceId}`
+    //       );
+    //     }
+    //   } else {
+    //     console.log(`ignition off event is before shift end; skipping`);
+    //   }
+    // }
 
     return processedDbData;
   } catch (error) {
