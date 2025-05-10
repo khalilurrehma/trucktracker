@@ -197,11 +197,9 @@ const NewDevicePage = () => {
               <TextField
                 value={item.uniqueId || ""}
                 onChange={(event) => {
-                  const numericValue = event.target.value.replace(/\D/g, "");
                   setItem({
                     ...item,
                     uniqueId: event.target.value,
-                    // uniqueId: event.target.value === '' ? '' : numericValue,
                   });
                 }}
                 label={t("deviceIdentifier")}
@@ -278,13 +276,13 @@ const NewDevicePage = () => {
                 options={servicesTypes}
                 getOptionLabel={(option) => option.name}
                 value={
-                  servicesTypes.find((opt) => opt.id === item.serviceTypeId) ||
+                  servicesTypes.find((opt) => opt.id === item.service_type) ||
                   null
                 }
                 onChange={(event, newValue) => {
                   setItem({
                     ...item,
-                    serviceTypeId: newValue?.id,
+                    service_type: newValue?.id,
                     serviceType: newValue || null,
                   });
                 }}
@@ -297,9 +295,9 @@ const NewDevicePage = () => {
               />
 
               <TextField
-                value={item.costByKm || ""}
+                value={item.cost_by_km || ""}
                 onChange={(event) =>
-                  setItem({ ...item, costByKm: event.target.value })
+                  setItem({ ...item, cost_by_km: event.target.value })
                 }
                 label={t("sharedCostByKm")}
               />

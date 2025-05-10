@@ -113,8 +113,17 @@ export async function createDevice(data) {
 }
 
 export async function getAllDevices() {
-  const sql =
-    "SELECT id, name, traccarId, flespiId, device_type_id, uniqueId, groupId, phone, model, contact, category, expirationTime, disabled, attributes, userId, traccar_status, traccar_lastUpdate, flespi_protocol_name, flespi_protocol_id, flespi_device_type_name, media_ttl, messages_ttl, created_role, created_by, shift_assigned FROM new_settings_devices";
+  const sql = `
+  SELECT d.id, d.name, d.traccarId, d.flespiId, d.device_type_id, d.uniqueId, d.groupId,
+         d.phone, d.model, d.contact, d.category, d.expirationTime, d.disabled,
+         d.attributes, d.userId, d.traccar_status, d.traccar_lastUpdate,
+         d.flespi_protocol_name, d.flespi_protocol_id, d.flespi_device_type_name,
+         d.media_ttl, d.messages_ttl, d.created_role, d.created_by, d.shift_assigned,
+         d.service_type, d.cost_by_km,
+         st.name AS service_type_name
+  FROM new_settings_devices d
+  LEFT JOIN device_service_type st ON d.service_type = st.id
+`;
 
   try {
     const result = await dbQuery(sql);
@@ -135,8 +144,19 @@ export async function getAllDevices() {
 }
 
 export async function getDeviceById(deviceId) {
-  const sql =
-    "SELECT id, name, traccarId, flespiId, device_type_id , uniqueId, groupId, phone, model, contact, category, expirationTime, disabled, attributes, userId, traccar_status, traccar_lastUpdate, flespi_protocol_name, flespi_protocol_id, flespi_device_type_name, media_ttl, messages_ttl, created_by FROM new_settings_devices WHERE id = ?";
+  const sql = `
+  SELECT d.id, d.name, d.traccarId, d.flespiId, d.device_type_id, d.uniqueId, d.groupId,
+         d.phone, d.model, d.contact, d.category, d.expirationTime, d.disabled,
+         d.attributes, d.userId, d.traccar_status, d.traccar_lastUpdate,
+         d.flespi_protocol_name, d.flespi_protocol_id, d.flespi_device_type_name,
+         d.media_ttl, d.messages_ttl, d.created_by,
+         d.service_type, d.cost_by_km,
+         st.name AS service_type_name
+  FROM new_settings_devices d
+  LEFT JOIN device_service_type st ON d.service_type = st.id
+  WHERE d.id = ?
+`;
+
   const values = [deviceId];
 
   try {
@@ -156,7 +176,19 @@ export async function getDeviceById(deviceId) {
 }
 
 export async function getDeviceUserIdByFlespiId(flespId) {
-  const sql = "SELECT userId FROM new_settings_devices WHERE flespiId =?";
+  const sql = `
+  SELECT d.id, d.name, d.traccarId, d.flespiId, d.device_type_id, d.uniqueId, d.groupId,
+         d.phone, d.model, d.contact, d.category, d.expirationTime, d.disabled,
+         d.attributes, d.userId, d.traccar_status, d.traccar_lastUpdate,
+         d.flespi_protocol_name, d.flespi_protocol_id, d.flespi_device_type_name,
+         d.media_ttl, d.messages_ttl, d.created_by,
+         d.service_type, d.cost_by_km,
+         st.name AS service_type_name
+  FROM new_settings_devices d
+  LEFT JOIN device_service_type st ON d.service_type = st.id
+  WHERE d.flespiId = ?
+`;
+
   const values = [flespId];
 
   try {
@@ -172,8 +204,19 @@ export async function getDeviceUserIdByFlespiId(flespId) {
 }
 
 export async function getDeviceByTraccarId(deviceId) {
-  const sql =
-    "SELECT id, name, traccarId, flespiId, device_type_id , uniqueId, groupId, phone, model, contact, category, expirationTime, disabled, attributes, userId, traccar_status, traccar_lastUpdate, flespi_protocol_name, flespi_protocol_id, flespi_device_type_name, media_ttl, messages_ttl, created_by FROM new_settings_devices WHERE traccarId = ?";
+  const sql = `
+  SELECT d.id, d.name, d.traccarId, d.flespiId, d.device_type_id, d.uniqueId, d.groupId,
+         d.phone, d.model, d.contact, d.category, d.expirationTime, d.disabled,
+         d.attributes, d.userId, d.traccar_status, d.traccar_lastUpdate,
+         d.flespi_protocol_name, d.flespi_protocol_id, d.flespi_device_type_name,
+         d.media_ttl, d.messages_ttl, d.created_by,
+         d.service_type, d.cost_by_km,
+         st.name AS service_type_name
+  FROM new_settings_devices d
+  LEFT JOIN device_service_type st ON d.service_type = st.id
+  WHERE d.traccarId = ?
+`;
+
   const values = [deviceId];
 
   try {
@@ -193,8 +236,19 @@ export async function getDeviceByTraccarId(deviceId) {
 }
 
 export async function getDevicesByUserId(userId) {
-  const sql =
-    "SELECT id, name, traccarId, flespiId, device_type_id , uniqueId, groupId, phone, model, contact, category, expirationTime, disabled, attributes, userId, traccar_status, traccar_lastUpdate, flespi_protocol_name, flespi_protocol_id, flespi_device_type_name, media_ttl, messages_ttl, created_by, shift_assigned FROM new_settings_devices WHERE userId = ?";
+  const sql = `
+  SELECT d.id, d.name, d.traccarId, d.flespiId, d.device_type_id, d.uniqueId, d.groupId,
+         d.phone, d.model, d.contact, d.category, d.expirationTime, d.disabled,
+         d.attributes, d.userId, d.traccar_status, d.traccar_lastUpdate,
+         d.flespi_protocol_name, d.flespi_protocol_id, d.flespi_device_type_name,
+         d.media_ttl, d.messages_ttl, d.created_by, d.shift_assigned,
+         d.service_type, d.cost_by_km,
+         st.name AS service_type_name
+  FROM new_settings_devices d
+  LEFT JOIN device_service_type st ON d.service_type = st.id
+  WHERE d.userId = ?
+`;
+
   const values = [userId];
 
   try {
@@ -282,7 +336,9 @@ export async function updateDeviceById(id, data) {
       flespi_configuration = ?,
       media_ttl = ?,
       messages_ttl = ?,
-      flespi_metadata = ?
+      flespi_metadata = ?,
+      cost_by_km = ?,
+      service_type = ?
     WHERE id = ?;
   `;
 
@@ -308,10 +364,11 @@ export async function updateDeviceById(id, data) {
     data.flespi.media_ttl,
     data.flespi.messages_ttl,
     JSON.stringify(data.flespi.metadata),
+    parseInt(data.costByKm),
+    data.service_type,
     id,
   ];
 
-  // Conditionally add password to the update statement
   if (
     data.password !== undefined &&
     data.password !== null &&

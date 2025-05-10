@@ -59,7 +59,6 @@ const EditItemView = ({
   const { id } = useParams();
 
   const userId = useSelector((state) => state.session.user.id);
-  
 
   let url;
   if (import.meta.env.DEV) {

@@ -493,6 +493,8 @@ export const updateNewDevice = async (req, res) => {
   const deviceId = req.params.id;
   const requestData = req.body;
 
+  console.log(requestData);
+
   try {
     const device = await getDeviceById(deviceId);
     if (!device) {
@@ -642,6 +644,8 @@ export const updateNewDevice = async (req, res) => {
         messages_ttl:
           req.body.messages_ttl !== undefined ? req.body.messages_ttl : 3,
       },
+      service_type: serviceType.id,
+      costByKm: requestData.cost_by_km,
     };
 
     const update = await updateDeviceById(device.id, responses);
