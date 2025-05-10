@@ -1,351 +1,256 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { Box, Button, Grid, MenuItem, TextField } from "@mui/material";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Button,
-  IconButton,
-} from "@mui/material";
-import LocationSearchingIcon from "@mui/icons-material/LocationSearching";
+  GoogleMap,
+  Marker,
+  Circle,
+  useJsApiLoader,
+  InfoWindow,
+} from "@react-google-maps/api";
+import carPng from "../images/car-4-48.png";
+import { useSelector } from "react-redux";
 import PageLayout from "../common/components/PageLayout";
-import ReportsMenu from "./components/ReportsMenu";
-import DispatchResultHeader from "./components/DispatchResultHeader";
-import GoogleMapComponent from "./components/GoogleMapComponent";
-import useReportStyles from "./common/useReportStyles";
-import { useTranslation } from "../common/components/LocalizationProvider";
 import OperationsMenu from "../settings/components/OperationsMenu";
+import axios from "axios";
 
-const initialColumns = [
-  "location",
-  "plateId",
-  "status",
-  "distance",
-  "driver",
-  "gpsStatus",
-  "eta",
-  "price",
-  "lastConnection",
-];
+const mapContainerStyle = {
+  width: "100%",
+  height: "500px",
+  borderRadius: "10px",
+};
+
+const centerDefault = {
+  lat: -12.0464,
+  lng: -77.0428,
+};
+
+function generateCaseNumber() {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let result = "";
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371e3;
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 const DispatchResult = () => {
-  const [initialAddress, setInitialAddress] = React.useState("");
-  const [caseNumber, setCaseNumber] = React.useState("");
-  const [serviceOption, setServicOption] = React.useState([
-    "Accidente - Servicio de Grua",
-    "Otro Servicio",
-  ]);
-  const t = useTranslation();
-  // const { traccarUser, url } = useAppContext();
-  const classes = useReportStyles();
-  const [loading, setLoading] = React.useState(false);
-  const [selectedColumns, setSelectedColumns] = React.useState(initialColumns);
-  const [data, setData] = React.useState([]);
-  const [driversData, setDriversData] = React.useState([]);
-  const [devicesData, setDevicesData] = React.useState([]);
-  const [groupsData, setGroupsData] = React.useState([]);
+  let url = import.meta.env.DEV
+    ? import.meta.env.VITE_DEV_BACKEND_URL
+    : import.meta.env.VITE_PROD_BACKEND_URL;
 
-  const [lat, setLat] = React.useState("");
-  const [lng, setLng] = React.useState("");
-  const [radius, setRadius] = React.useState("");
-  const [pagination, setPagination] = React.useState(25);
+  const [serviceTypes, setServiceTypes] = useState([]);
+  const [selectedServiceType, setSelectedServiceType] = useState("");
+  const [caseNumber, setCaseNumber] = useState("");
+  const [address, setAddress] = useState("");
+  const [mapCenter, setMapCenter] = useState(centerDefault);
+  const [markerPosition, setMarkerPosition] = useState(null);
+  const [radius] = useState(2000);
+  const [selectedDeviceId, setSelectedDeviceId] = useState(null);
 
-  const [currentPage, setCurrentPage] = React.useState(1);
-  let printComponentRef = React.useRef();
-  // const navigate = useNavigate();
+  const positionsObj = useSelector((state) => state.session.positions) || {};
+  const positions = Array.isArray(positionsObj)
+    ? positionsObj
+    : Object.values(positionsObj);
 
-  const [value, setValue] = React.useState(null);
-  const [inputValue, setInputValue] = React.useState("");
-  const [options, setOptions] = React.useState([]);
-  const [error, setError] = React.useState(false);
-  const loaded = React.useRef(false);
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAP_API,
+  });
 
-  const radiusOptions = [
-    { label: "500m", value: 500 },
-    { label: "1km", value: 1000 },
-    { label: "2km", value: 2000 },
-    { label: "3km", value: 3000 },
-  ];
-
-  const [selectedItem, setSelectedItem] = React.useState(null);
-  const [selectedRows, setSelectedRows] = React.useState([]);
-  const [openAssignModal, setOpenAssignModal] = React.useState(false);
-
-  const columnLabels = {
-    location: `${t("sharedLocation")}`,
-    plateId: `Plate ID`,
-    status: `${t("deviceStatus")}`,
-    distance: `${t("sharedDistance")}`,
-    driver: `${t("sharedDriver")}`,
-    gpsStatus: `GPS Status`,
-    eta: `ETA`,
-    price: "Price",
-    lastConnection: "Last Connection",
-  };
-
-  function formatTimestamp(timestamp) {
-    const date = new Date(timestamp * 1000);
-    const day = date.getDate().toString().padStart(2, "0");
-    const month = (date.getMonth() + 1).toString().padStart(2, "0");
-    const year = date.getFullYear();
-    const hours = date.getHours().toString().padStart(2, "0");
-    const minutes = date.getMinutes().toString().padStart(2, "0");
-
-    return `${day}-${month}-${year} ${hours}:${minutes}`;
-  }
-
-  const getStatusText = (timestamp) => {
-    const deviceTime = new Date(timestamp * 1000).getTime();
-    const currentTime = new Date().getTime();
-    const timeDifference = (currentTime - deviceTime) / (1000 * 60 * 60);
-
-    if (timeDifference < 0.5) {
-      return `ACTIVO`;
-    } else if (timeDifference < 24) {
-      return `INACTIVO`;
-    } else {
-      return `DESCONOCIDO`;
-    }
-  };
-
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    return haversine(
-      { latitude: lat1, longitude: lon1 },
-      { latitude: lat2, longitude: lon2 }
+  const handleShowClick = async () => {
+    if (!address) return;
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+        address
+      )}&components=locality:Lima|country:PE&key=${
+        import.meta.env.VITE_GOOGLE_MAP_API
+      }`
     );
-  };
-
-  const handlePageChange = (event, newPage) => {
-    setCurrentPage(newPage);
-  };
-
-  function formatTimeDuration(timestamp) {
-    const currentTime = new Date().getTime();
-    const itemTime = new Date(timestamp * 1000).getTime();
-    const diffMilliseconds = currentTime - itemTime;
-    const diffMinutes = diffMilliseconds / (1000 * 60);
-    const diffHours = diffMinutes / 60;
-    const diffDays = diffHours / 24;
-    const diffWeeks = diffDays / 7;
-    const diffMonths = diffDays / 30;
-    const diffYears = diffDays / 365;
-
-    if (diffMinutes < 60) {
-      return `${diffMinutes.toFixed(0)} min`;
-    } else if (diffHours < 24) {
-      return `${diffHours.toFixed(0)} hours`;
-    } else if (diffDays < 7) {
-      return `${diffDays.toFixed(0)} days`;
-    } else if (diffWeeks < 4) {
-      return `${diffWeeks.toFixed(0)} weeks`;
-    } else if (diffMonths < 12) {
-      return `${diffMonths.toFixed(0)} months`;
+    const data = await response.json();
+    if (data.status === "OK") {
+      const { lat, lng } = data.results[0].geometry.location;
+      setMapCenter({ lat, lng });
+      setMarkerPosition({ lat, lng });
     } else {
-      return `${diffYears.toFixed(0)} years`;
+      alert("Address not found");
     }
-  }
-
-  const startIndex = (currentPage - 1) * pagination;
-  const endIndex = startIndex + pagination;
-
-  const testData = [
-    {
-      id: 1,
-      location: "Calle Jose Gonzalez 359, Miraflores, Lima, Peru",
-      plateId: "AXG-11123",
-      status: "En Route",
-      distance: "12.5 km",
-      driver: "Juan Perez",
-      gpsStatus: "Active",
-      eta: "15 min",
-      price: "$25.50",
-      lastConnection: "2024-06-25 14:30:00",
-    },
-    {
-      id: 2,
-      location: "Av. Larco 345, Miraflores, Lima, Peru",
-      plateId: "BXP-56789",
-      status: "Pending",
-      distance: "8.3 km",
-      driver: "Carlos Rivera",
-      gpsStatus: "Inactive",
-      eta: "N/A",
-      price: "$18.00",
-      lastConnection: "2024-06-25 13:55:00",
-    },
-    {
-      id: 3,
-      location: "Jr. Puno 678, Centro de Lima, Lima, Peru",
-      plateId: "CQP-90876",
-      status: "Delivered",
-      distance: "0.0 km",
-      driver: "Lucia Gomez",
-      gpsStatus: "Active",
-      eta: "Arrived",
-      price: "$30.75",
-      lastConnection: "2024-06-25 15:10:00",
-    },
-  ];
-
-  const slicedFilteredData = testData.slice(startIndex, endIndex);
-
-  const handleSelectRow = (event, id) => {
-    const selectedIndex = selectedRows.indexOf(id);
-    let newSelectedRows = [];
-
-    if (selectedIndex === -1) {
-      newSelectedRows = newSelectedRows.concat(selectedRows, id);
-    } else if (selectedIndex === 0) {
-      newSelectedRows = newSelectedRows.concat(selectedRows.slice(1));
-    } else if (selectedIndex === selectedRows.length - 1) {
-      newSelectedRows = newSelectedRows.concat(selectedRows.slice(0, -1));
-    } else if (selectedIndex > 0) {
-      newSelectedRows = newSelectedRows.concat(
-        selectedRows.slice(0, selectedIndex),
-        selectedRows.slice(selectedIndex + 1)
-      );
-    }
-
-    setSelectedRows(newSelectedRows);
   };
 
-  const isRowSelected = (id) => selectedRows.indexOf(id) !== -1;
+  const fetchServiceTypes = async () => {
+    try {
+      const { data } = await axios.get(`${url}/all/device/service-types`);
+      if (data.status) setServiceTypes(data.message);
+    } catch (error) {
+      console.error("Error fetching service types:", error);
+    }
+  };
 
-  const isButtonDisabled = () => {
-    return !slicedFilteredData.some((item) =>
-      selectedRows.includes(item["device.id"])
+  useEffect(() => {
+    fetchServiceTypes();
+  }, []);
+
+  const devicesInRadius = positions.filter((pos) => {
+    if (!markerPosition) return true;
+    const distance = getDistanceFromLatLonInMeters(
+      pos.latitude,
+      pos.longitude,
+      markerPosition.lat,
+      markerPosition.lng
     );
-  };
+    return distance <= radius;
+  });
 
-  React.useEffect(() => {
-    console.log(initialAddress, caseNumber);
-  }, [initialAddress]);
+  const selectedDevice = devicesInRadius.find(
+    (pos) => pos.deviceId === selectedDeviceId
+  );
 
-  const [selectedRow, setSelectedRow] = React.useState(null);
-
-  const handleRowSelect = (rowIndex) => {
-    setSelectedRow(selectedRow === rowIndex ? null : rowIndex);
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "En Route":
-        return "primary";
-      case "Pending":
-        return "secondary";
-      case "Delivered":
-        return "success";
-      default:
-        return "default";
-    }
-  };
+  console.log("Devices under radius:", devicesInRadius);
 
   return (
     <PageLayout
       menu={<OperationsMenu />}
       breadcrumbs={["Operations", "reportDispatchResult"]}
     >
-      <DispatchResultHeader
-        caseNumber={caseNumber}
-        setCaseNumber={setCaseNumber}
-        initialAddress={initialAddress}
-        setInitialAddress={setInitialAddress}
-      />
-      <div className={classes.containerMap}>
-        <GoogleMapComponent initialAddress={initialAddress} />
-      </div>
-      <div className={classes.container}>
-        <div className={classes.header} style={{ padding: "25px" }}>
-          <div className="flex items-baseline justify-center  gap-20">
-            <div className="mb-4 flex items-center gap-6">
-              <label className="block text-black text-xl mb-1">
-                Aceptacion de Rimac
-              </label>
-              <select className="w-[40%] bg-gray-50 border border-gray-300 p-2 rounded outline-none">
-                {serviceOption.map((option, index) => (
-                  <option key={index}>{option}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex justify-space-between items-center gap-8">
-              <button className="bg-gray-900 text-white px-8 py-4 rounded-3xl hover:bg-gray-700 w-full sm:w-auto">
-                Archive
-              </button>
-              <button className="bg-blue-500 text-white px-8 py-4 rounded-3xl hover:bg-blue-700 w-full sm:w-auto">
-                Assigned
-              </button>
-            </div>
-          </div>
+      <Box sx={{ p: 3 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} sm={4}>
+            <TextField
+              select
+              label="Service Type"
+              fullWidth
+              value={selectedServiceType}
+              onChange={(e) => setSelectedServiceType(e.target.value)}
+            >
+              {serviceTypes.map((option) => (
+                <MenuItem key={option.id} value={option.id}>
+                  {option.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <TextField
+              label="Case Number"
+              fullWidth
+              value={caseNumber}
+              InputProps={{ readOnly: true }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <Button
+              variant="contained"
+              onClick={() => setCaseNumber(generateCaseNumber())}
+              sx={{ height: "56px", width: "100%" }}
+            >
+              Generate Case
+            </Button>
+          </Grid>
 
-          <div>
-            <Table ref={(el) => (printComponentRef = el)}>
-              <TableHead>
-                <TableRow>
-                  {selectedColumns.map((column) => (
-                    <TableCell key={column}>{columnLabels[column]}</TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {testData.map((item, index) => (
-                  <TableRow
-                    key={index}
-                    selected={selectedRow === index}
-                    onClick={() => handleRowSelect(index)}
-                    style={{
-                      cursor: "pointer",
-                      backgroundColor:
-                        selectedRow === index ? "#800000" : "inherit",
+          <Grid item xs={12} sm={10}>
+            <TextField
+              label="Incident Address"
+              fullWidth
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+            />
+          </Grid>
+          <Grid item xs={12} sm={2}>
+            <Button
+              variant="outlined"
+              disabled={!address}
+              onClick={handleShowClick}
+              sx={{ height: "56px", width: "100%" }}
+            >
+              Show
+            </Button>
+          </Grid>
+        </Grid>
+
+        {isLoaded && (
+          <Box sx={{ mt: 3 }}>
+            <GoogleMap
+              mapContainerStyle={mapContainerStyle}
+              center={mapCenter}
+              zoom={15}
+            >
+              {markerPosition && (
+                <>
+                  <Marker position={markerPosition} />
+                  <Circle
+                    center={markerPosition}
+                    radius={radius}
+                    options={{
+                      fillColor: "#FF0000",
+                      fillOpacity: 0.2,
+                      strokeWeight: 1,
                     }}
-                  >
-                    <TableCell
-                      style={{
-                        color: selectedRow === index ? "white" : "inherit",
-                      }}
-                    >
-                      {item.location}
-                    </TableCell>
-                    <TableCell
-                      style={{
-                        color: selectedRow === index ? "white" : "inherit",
-                      }}
-                    >
-                      {item.plateId}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="contained"
-                        color={getStatusColor(item.status)}
-                        size="small"
+                  />
+                </>
+              )}
+              {devicesInRadius.map((pos) => (
+                <Marker
+                  key={pos.deviceId}
+                  position={{ lat: pos.latitude, lng: pos.longitude }}
+                  icon={{
+                    url: carPng,
+                    scaledSize: new window.google.maps.Size(30, 30),
+                  }}
+                  onClick={() => setSelectedDeviceId(pos.deviceId)}
+                  title={`Device ${pos.deviceId}`}
+                />
+              ))}
+              {selectedDevice && (
+                <InfoWindow
+                  position={{
+                    lat: selectedDevice.latitude,
+                    lng: selectedDevice.longitude,
+                  }}
+                  onCloseClick={() => setSelectedDeviceId(null)}
+                >
+                  <div>
+                    <h3>
+                      {selectedDevice.attributes?.["device.name"] ??
+                        selectedDevice.deviceId}
+                    </h3>
+                    <p>
+                      Fix Time:{" "}
+                      {new Date(selectedDevice.fixTime).toLocaleString()}
+                    </p>
+                    <p>
+                      Address:{" "}
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${selectedDevice.latitude},${selectedDevice.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                       >
-                        {item.status}
-                      </Button>
-                    </TableCell>
-                    <TableCell>{item.distance}</TableCell>
-                    <TableCell>{item.driver}</TableCell>
-                    <TableCell>{item.gpsStatus}</TableCell>
-                    <TableCell>{item.eta}</TableCell>
-                    <TableCell>{item.price}</TableCell>
-                    <TableCell>{item.lastConnection}</TableCell>
-                    <TableCell>
-                      <IconButton size="small">
-                        {
-                          selectedRow === index ? (
-                            ""
-                          ) : (
-                            <LocationSearchingIcon fontSize="small" />
-                          )
-                          // <GpsFixedIcon fontSize="small" />
-                        }
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      </div>
+                        Show Address
+                      </a>
+                    </p>
+                    <p>Speed: {(selectedDevice.speed || 0).toFixed(2)} km/h</p>
+                    <p>
+                      Distance:{" "}
+                      {((selectedDevice.totalDistance || 0) / 1000).toFixed(2)}
+                      km
+                    </p>
+                  </div>
+                </InfoWindow>
+              )}
+            </GoogleMap>
+          </Box>
+        )}
+      </Box>
     </PageLayout>
   );
 };

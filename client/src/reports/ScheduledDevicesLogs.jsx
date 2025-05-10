@@ -66,7 +66,7 @@ const ScheduledDevicesLogs = () => {
 
   useEffect(() => {
     filterData();
-    setPage(1); // Reset page when filters change
+    setPage(1);
   }, [search, selectedCronType, selectedDeviceName, initialData]);
 
   const filterData = () => {
@@ -91,13 +91,11 @@ const ScheduledDevicesLogs = () => {
     setFilteredData(data);
   };
 
-  // Pagination
   const paginatedData = filteredData.slice(
     (page - 1) * rowsPerPage,
     page * rowsPerPage
   );
 
-  // Unique dropdown options
   const cronTypes = [...new Set(initialData.map((item) => item.cron_type))];
   const deviceNames = [...new Set(initialData.map((item) => item.device_name))];
 

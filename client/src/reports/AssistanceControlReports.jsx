@@ -12,6 +12,7 @@ import {
   Box,
   Typography,
   Button,
+  TablePagination,
 } from "@mui/material";
 import PageLayout from "../common/components/PageLayout";
 import ReportsMenu from "./components/ReportsMenu";
@@ -46,6 +47,8 @@ const AssistanceControlReports = () => {
   });
 
   const [reports, setReports] = useState([]);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   useEffect(() => {
     fetchFromApi();
@@ -114,6 +117,15 @@ const AssistanceControlReports = () => {
     );
   };
 
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
   return (
     <PageLayout
       menu={<ReportsMenu />}
@@ -135,19 +147,6 @@ const AssistanceControlReports = () => {
             value={filters.driver}
             onChange={(e) => setFilters({ ...filters, driver: e.target.value })}
           />
-          {/* <TextField
-            select
-            label={t("shiftEndStatus")}
-            value={filters.shiftEndStatus}
-            size="small"
-            onChange={(e) =>
-              setFilters({ ...filters, shiftEndStatus: e.target.value })
-            }
-          >
-            <MenuItem value="">All</MenuItem>
-            <MenuItem value="On Time">On Time</MenuItem>
-            <MenuItem value="Late">Late</MenuItem>
-          </TextField> */}
 
           <Button
             variant="outlined"
@@ -176,22 +175,24 @@ const AssistanceControlReports = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredData.map((row, index) => (
-                <TableRow key={index}>
-                  <TableCell sx={{ width: "110px" }}>{row.date}</TableCell>
-                  <TableCell>{row.device}</TableCell>
-                  <TableCell>{row.driver}</TableCell>
-                  <TableCell>{row.shiftBegin}</TableCell>
-                  <TableCell>{row.shiftEnd}</TableCell>
-                  <TableCell>{row.graceTime}</TableCell>
-                  <TableCell>{row.igBeforeShiftBegin}</TableCell>
-                  <TableCell>{row.stationArrivalTime}</TableCell>
-                  <TableCell>{row.igBeforeShiftEnd}</TableCell>
-                  <TableCell>{row.igOffAfterShiftEnd}</TableCell>
-                  <TableCell>{row.shiftBeginStatus}</TableCell>
-                  <TableCell>{row.shiftEndStatus}</TableCell>
-                </TableRow>
-              ))}
+              {filteredData
+                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                .map((row, index) => (
+                  <TableRow key={index}>
+                    <TableCell sx={{ width: "110px" }}>{row.date}</TableCell>
+                    <TableCell>{row.device}</TableCell>
+                    <TableCell>{row.driver}</TableCell>
+                    <TableCell>{row.shiftBegin}</TableCell>
+                    <TableCell>{row.shiftEnd}</TableCell>
+                    <TableCell>{row.graceTime}</TableCell>
+                    <TableCell>{row.igBeforeShiftBegin}</TableCell>
+                    <TableCell>{row.stationArrivalTime}</TableCell>
+                    <TableCell>{row.igBeforeShiftEnd}</TableCell>
+                    <TableCell>{row.igOffAfterShiftEnd}</TableCell>
+                    <TableCell>{row.shiftBeginStatus}</TableCell>
+                    <TableCell>{row.shiftEndStatus}</TableCell>
+                  </TableRow>
+                ))}
               {filteredData.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={11} align="center">
@@ -202,6 +203,16 @@ const AssistanceControlReports = () => {
             </TableBody>
           </Table>
         </TableContainer>
+
+        <TablePagination
+          rowsPerPageOptions={[5, 10, 25, 50]}
+          component="div"
+          count={filteredData.length}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+        />
       </Box>
     </PageLayout>
   );
