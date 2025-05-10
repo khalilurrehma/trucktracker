@@ -308,6 +308,30 @@ export const getLatestDeviceEvents = async () => {
   });
 };
 
+export const getLastIgnitionEventBefore = async (
+  deviceId,
+  eventType,
+  beforeTimestamp
+) => {
+  const sql = `
+        SELECT * FROM reports_events 
+        WHERE deviceId = ? 
+          AND eventType = ? 
+          AND createdAt < ? 
+        ORDER BY createdAt DESC 
+        LIMIT 1
+    `;
+
+  return new Promise((resolve, reject) => {
+    dbQuery(sql, [deviceId, eventType, beforeTimestamp], (err, results) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(results.length > 0 ? results[0] : null);
+    });
+  });
+};
+
 export const getLatestDeviceEventsByUserId = async (userId) => {
   const sql = `SELECT * FROM reports_events WHERE userId = ? ORDER BY createdAt DESC`;
 

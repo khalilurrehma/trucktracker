@@ -17,7 +17,11 @@ import {
 } from "./flespiApis.js";
 import { cron_logs } from "../model/reports.js";
 import { EventEmitter } from "events";
-import { createOrUpdateAttendanceReport } from "../model/shift.js";
+import {
+  createOrUpdateAttendanceReport,
+  updateAttendanceField,
+} from "../model/shift.js";
+import { getLastIgnitionEventBefore } from "../model/notifications.js";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -35,8 +39,8 @@ dayjs.extend(duration);
  * @returns {string} - Adjusted time in "HH:mm:ss" format.
  */
 
-const TIMEZONE = "Asia/Karachi"; // Karachi timezone
-// const TIMEZONE = "America/Lima"; // Peru timezone
+// const TIMEZONE = "Asia/Karachi"; // Karachi timezone
+const TIMEZONE = "America/Lima"; // Peru timezone
 
 const expandDates = (dates) => {
   const [startDate, endDate] = dates;
@@ -126,6 +130,54 @@ const scheduleResend = async ({
           notes: note,
         });
         if (success) {
+          const lockTimestamp = dayjs();
+          const lastIgnitionOn = await getLastIgnitionEventBefore(
+            deviceId,
+            "ignition on",
+            lockTimestamp.toDate()
+          );
+          const lastIgnitionOff = await getLastIgnitionEventBefore(
+            deviceId,
+            "ignition off",
+            lockTimestamp.toDate()
+          );
+
+          const lastOnTime = lastIgnitionOn
+            ? dayjs(lastIgnitionOn.createdAt).format("HH:mm:ss")
+            : null;
+          const lastOffTime = lastIgnitionOff
+            ? dayjs(lastIgnitionOff.createdAt).format("HH:mm:ss")
+            : null;
+
+          const report = await fetchAttendanceByDateAndDeviceId(deviceId, date);
+          let shiftEndStatus = "";
+          if (report && lastOnTime) {
+            const lastOn = dayjs(`${date}T${lastOnTime}`);
+            const shiftEnd = dayjs(`${date}T${report.shift_end}`);
+            shiftEndStatus = lastOn.isBefore(shiftEnd)
+              ? `${shiftEnd.diff(lastOn, "minute")} min earlier`
+              : `${lastOn.diff(shiftEnd, "minute")} min late`;
+          }
+
+          await updateAttendanceField(
+            deviceId,
+            date,
+            "ignition_before_shift_end",
+            lastOnTime
+          );
+          await updateAttendanceField(
+            deviceId,
+            date,
+            "ignition_off_after_shift_end",
+            lastOffTime
+          );
+          await updateAttendanceField(
+            deviceId,
+            date,
+            "shift_end_status",
+            shiftEndStatus
+          );
+
           cronEmitter.emit("cronSaved", {
             loaded: true,
           });
@@ -287,7 +339,6 @@ const scheduleShiftJobs = async () => {
       const { dates, shift } = shiftBlock;
 
       const graceMinutes = shift?.grace_time;
-      // const allDates = ["2025-04-17"];
       const allDates = expandDates(dates);
 
       for (const date of allDates) {
@@ -311,8 +362,6 @@ const scheduleShiftJobs = async () => {
 
         const cronStart = getCronFromDateTime(date, shiftStart);
         const cronEnd = getCronFromDateTime(date, shiftEndStr);
-        // const cronStart = "0 12 18 21 4 *"; // Example cron expression for testing
-        // const cronEnd = "0 55 2 18 4 *"; // Example cron expression for testing
 
         console.log(cronStart);
         console.log(cronEnd);
@@ -415,6 +464,53 @@ const scheduleShiftJobs = async () => {
               );
 
               const success = response?.result?.[0];
+
+              const lockTimestamp = dayjs();
+              const lastIgnitionOn = await getLastIgnitionEventBefore(
+                parsedDevice.flespiId,
+                "ignition on",
+                lockTimestamp.toDate()
+              );
+              const lastIgnitionOff = await getLastIgnitionEventBefore(
+                parsedDevice.flespiId,
+                "ignition off",
+                lockTimestamp.toDate()
+              );
+
+              const lastOnTime = lastIgnitionOn
+                ? dayjs(lastIgnitionOn.createdAt).format("HH:mm:ss")
+                : null;
+              const lastOffTime = lastIgnitionOff
+                ? dayjs(lastIgnitionOff.createdAt).format("HH:mm:ss")
+                : null;
+              let shiftEndStatus = "";
+
+              if (lastOnTime) {
+                const lastOn = dayjs(`${date}T${lastOnTime}`);
+                const endTime = dayjs(`${date}T${shiftEndStr}`);
+                shiftEndStatus = lastOn.isBefore(endTime)
+                  ? `${endTime.diff(lastOn, "minute")} min earlier`
+                  : `${lastOn.diff(endTime, "minute")} min late`;
+              }
+
+              await updateAttendanceField(
+                parsedDevice.flespiId,
+                date,
+                "ignition_before_shift_end",
+                lastOnTime
+              );
+              await updateAttendanceField(
+                parsedDevice.flespiId,
+                date,
+                "ignition_off_after_shift_end",
+                lastOffTime
+              );
+              await updateAttendanceField(
+                parsedDevice.flespiId,
+                date,
+                "shift_end_status",
+                shiftEndStatus
+              );
 
               let noteWhenExtendedTime = `[${dayjs().format()}] Extended Shift Ended for Device: ${
                 parsedDevice.name
@@ -521,7 +617,6 @@ const refreshShiftJobs = async () => {
 const initializeCronJobs = async () => {
   setTimeout(async () => {
     await scheduleShiftJobs();
-    // await verifyDevicesStatus();
   }, 3000);
 };
 

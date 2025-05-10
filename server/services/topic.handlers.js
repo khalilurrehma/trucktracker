@@ -23,6 +23,7 @@ import dayjs from "dayjs";
 
 const deviceNames = {};
 const deviceShiftCache = {};
+const TIME_FORMAT_12H = "hh:mm:ss A";
 
 export const deviceTopicAinHandler = async (topic, message) => {
   if (!topic.includes("ain.1")) return;
@@ -265,10 +266,6 @@ export const deviceNewEvent = async (topic, message) => {
         return;
       }
 
-      // const shiftEndTime = attendanceReport.shift_end;
-      // const shiftEndDateTime = dayjs(`${attendanceDate}T${shiftEndTime}`);
-      // const eventDateTime = dayjs(`${attendanceDate}T${time}`);
-
       if (!attendanceReport?.ignition_before_shift_begin) {
         await updateAttendanceField(
           deviceId,
@@ -281,72 +278,7 @@ export const deviceNewEvent = async (topic, message) => {
           `Ignition status already updated for device ${deviceId} on ${attendanceDate}`
         );
       }
-
-      // if (
-      //   eventDateTime.isBefore(
-      //     shiftEndDateTime.add(attendanceReport.grace_time, "minute")
-      //   )
-      // ) {
-      //   const existingIgnitionBeforeShiftEnd =
-      //     attendanceReport.ignition_before_shift_end;
-      //   const existingTime = existingIgnitionBeforeShiftEnd
-      //     ? dayjs(`${attendanceDate}T${existingIgnitionBeforeShiftEnd}`)
-      //     : null;
-
-      //   if (
-      //     !existingIgnitionBeforeShiftEnd ||
-      //     eventDateTime.isAfter(existingTime)
-      //   ) {
-      //     await updateAttendanceField(
-      //       deviceId,
-      //       attendanceDate,
-      //       "ignition_before_shift_end",
-      //       time
-      //     );
-      //     console.log(
-      //       `Updated ignition_before_shift_end for device ${deviceId} on ${attendanceDate}`
-      //     );
-      //   } else {
-      //     console.log(
-      //       `Not updating ignition_before_shift_end; current one is more recent.`
-      //     );
-      //   }
-      // }
     }
-    // else if (message.event_type === "ignition off") {
-    //   attendanceReport = await fetchAttendanceByDateAndDeviceId(
-    //     deviceId,
-    //     attendanceDate
-    //   );
-
-    //   if (!attendanceReport) {
-    //     console.log(
-    //       `No attendance report found for device ${deviceId} on ${attendanceDate}`
-    //     );
-    //     return;
-    //   }
-
-    //   const shiftEndTime = attendanceReport.shift_end;
-    //   const shiftEndDateTime = dayjs(`${attendanceDate}T${shiftEndTime}`);
-    //   const eventDateTime = dayjs(`${attendanceDate}T${time}`);
-
-    //   if (eventDateTime.isAfter(shiftEndDateTime)) {
-    //     if (!attendanceReport.ignition_off_after_shift_end) {
-    //       await updateAttendanceField(deviceId, attendanceDate, {
-    //         ignition_off_after_shift_end: time,
-    //       });
-    //       console.log(
-    //         `Updated ignition_off_after_shift_end for device ${deviceId} on ${attendanceDate}`
-    //       );
-    //     } else {
-    //       console.log(
-    //         `ignition_off_after_shift_end already exists for device ${deviceId}`
-    //       );
-    //     }
-    //   } else {
-    //     console.log(`ignition off event is before shift end; skipping`);
-    //   }
-    // }
 
     return processedDbData;
   } catch (error) {
@@ -479,18 +411,75 @@ export const handleDeviceIgnition = async (topic, message) => {
 };
 
 export const geofenceEntryAndExit = async (topic, payload) => {
-  const topicParts = topic.split("/");
-  const deviceIdIndex = topicParts.indexOf("devices") + 1;
-  const deviceId = parseInt(topicParts[deviceIdIndex]);
+  try {
+    const topicParts = topic.split("/");
+    const deviceIdIndex = topicParts.indexOf("devices") + 1;
+    const deviceId = parseInt(topicParts[deviceIdIndex]);
 
-  // payload.enter_geofence
-  // payload.exit_geofence
-  // payload.event_type
-  // if (payload.event_type === "enter") {
-  //   console.log(`${deviceId}`);
-  //   console.log(payload.enter_geofence);
-  // } else if (payload.event_type === "exit") {
-  //   console.log(`${deviceId}`);
-  //   console.log(payload.exit_geofence);
-  // }
+    if (!payload || payload.event_type !== "enter") {
+      return;
+    }
+
+    const currentDate = dayjs().format("YYYY-MM-DD");
+    const currentTime = dayjs().format(TIME_FORMAT_12H);
+
+    console.log(
+      `Device ${deviceId} entered geofence at ${payload.enter_geofence}`
+    );
+    console.log(`Simulated event date: ${currentDate}, time: ${currentTime}`);
+
+    const attendanceReport = await fetchAttendanceByDateAndDeviceId(
+      deviceId,
+      currentDate
+    );
+
+    if (!attendanceReport) {
+      console.log(
+        `No attendance report for device ${deviceId} on ${currentDate}`
+      );
+      return;
+    }
+
+    if (!attendanceReport.station_arrival_time) {
+      await updateAttendanceField(
+        deviceId,
+        currentDate,
+        "station_arrival_time",
+        currentTime
+      );
+      console.log(
+        `Station arrival time set for device ${deviceId} on ${currentDate}: ${currentTime}`
+      );
+
+      const shiftStart = attendanceReport.shift_begin;
+
+      if (shiftStart) {
+        const actualShiftStart = dayjs(shiftStart, TIME_FORMAT_12H);
+        const arrivalTime = dayjs(currentTime, TIME_FORMAT_12H);
+
+        let shiftBeginStatus = "";
+
+        if (arrivalTime.isBefore(actualShiftStart)) {
+          const minutesEarly = actualShiftStart.diff(arrivalTime, "minute");
+          shiftBeginStatus = `${minutesEarly} min early`;
+        } else {
+          const minutesLate = arrivalTime.diff(actualShiftStart, "minute");
+          shiftBeginStatus = `${minutesLate} min late`;
+        }
+
+        await updateAttendanceField(
+          deviceId,
+          currentDate,
+          "shift_begin_status",
+          shiftBeginStatus
+        );
+      }
+    } else {
+      console.log(
+        `Station arrival time already set for device ${deviceId} on ${currentDate}`
+      );
+    }
+  } catch (error) {
+    console.error("Error in geofenceEntryAndExit:", error.message);
+  }
 };
