@@ -15,48 +15,19 @@ import axios from "axios";
 import { useAppContext } from "../AppContext";
 import {
   formatTime,
+  generateCaseNumber,
   getAuthenticatedAudioUrl,
+  getDistanceFromLatLonInMeters,
 } from "../settings/common/New.Helper";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
-
-const mapContainerStyle = {
-  width: "100%",
-  height: "500px",
-  borderRadius: "10px",
-};
-
-const centerDefault = {
-  lat: -12.0464,
-  lng: -77.0428,
-};
-
-function generateCaseNumber() {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let result = "";
-  for (let i = 0; i < 6; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-}
-
-function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
-  const R = 6371e3;
-  const φ1 = (lat1 * Math.PI) / 180;
-  const φ2 = (lat2 * Math.PI) / 180;
-  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
+import DispatchResultTable from "./components/DispatchResultTable";
 
 const DispatchResult = () => {
   let url = import.meta.env.DEV
     ? import.meta.env.VITE_DEV_BACKEND_URL
     : import.meta.env.VITE_PROD_BACKEND_URL;
 
+  const centerDefault = { lat: -12.0464, lng: -77.0428 };
   const { newAllDevices } = useAppContext();
   const [peruTime, setPeruTime] = useState(new Date());
   const [serviceTypes, setServiceTypes] = useState([]);
@@ -119,7 +90,6 @@ const DispatchResult = () => {
       const peruDate = new Date(utc - 5 * 60 * 60000);
       setPeruTime(peruDate);
     }, 1000);
-
     return () => clearInterval(interval);
   }, []);
 
@@ -128,30 +98,23 @@ const DispatchResult = () => {
       setFilteredDeviceIds(newAllDevices.map((device) => device.id));
       return;
     }
-
     const selectedType = serviceTypes.find(
       (type) => type.id === selectedServiceType
     );
     if (!selectedType) return;
 
-    const authIconUrl = getAuthenticatedAudioUrl(selectedType.icon_url);
     const lowerCaseServiceName = selectedType.name.toLowerCase();
-
     const filteredDevices = newAllDevices.filter((device) => {
-      const newDeviceServiceType =
-        device.attributes?.serviceType?.toLowerCase();
-      return newDeviceServiceType?.includes(lowerCaseServiceName);
+      const deviceServiceType = device.attributes?.serviceType?.toLowerCase();
+      return deviceServiceType?.includes(lowerCaseServiceName);
     });
-
-    setSelectedServiceTypeIcon(authIconUrl);
+    setSelectedServiceTypeIcon(selectedType.icon_url);
     setFilteredDeviceIds(filteredDevices.map((device) => device.id));
   }, [selectedServiceType, newAllDevices, serviceTypes]);
 
   const devicesInRadius = positions.filter((pos) => {
     if (!filteredDeviceIds.includes(pos.deviceId)) return false;
-
     if (!markerPosition) return true;
-
     const distance = getDistanceFromLatLonInMeters(
       pos.latitude,
       pos.longitude,
@@ -165,11 +128,8 @@ const DispatchResult = () => {
     (pos) => pos.deviceId === selectedDeviceId
   );
 
-  console.log("Devices under radius:", devicesInRadius);
-
   const handleAssignClick = () => {
-    // handle assign logic here
-    console.log("Assign clicked");
+    console.log("Assign case to device:", selectedDeviceId);
   };
 
   return (
@@ -236,7 +196,7 @@ const DispatchResult = () => {
         {isLoaded && (
           <Box sx={{ mt: 3 }}>
             <GoogleMap
-              mapContainerStyle={mapContainerStyle}
+              mapContainerStyle={{ width: "100%", height: "500px" }}
               center={mapCenter}
               zoom={15}
             >
@@ -259,11 +219,10 @@ const DispatchResult = () => {
                   key={pos.deviceId}
                   position={{ lat: pos.latitude, lng: pos.longitude }}
                   icon={{
-                    url: selectedServiceTypeIcon || carPng,
+                    url: selectedServiceTypeIcon || "/car.png",
                     scaledSize: new window.google.maps.Size(30, 30),
                   }}
                   onClick={() => setSelectedDeviceId(pos.deviceId)}
-                  title={`Device ${pos.deviceId}`}
                 />
               ))}
               {selectedDevice && (
@@ -296,7 +255,7 @@ const DispatchResult = () => {
                     <p>Speed: {(selectedDevice.speed || 0).toFixed(2)} km/h</p>
                     <p>
                       Distance:{" "}
-                      {((selectedDevice.totalDistance || 0) / 1000).toFixed(2)}
+                      {((selectedDevice.totalDistance || 0) / 1000).toFixed(2)}{" "}
                       km
                     </p>
                   </div>
@@ -315,19 +274,15 @@ const DispatchResult = () => {
               px: 2,
               py: 1,
               borderRadius: "10px",
-              // backgroundColor: "#E3F2FD",
               color: "#0D47A1",
               fontWeight: 600,
               fontFamily: "monospace",
             }}
           >
-            {/* Left: Clock */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <AccessTimeIcon fontSize="small" />
-              <span>Peru Time: {formatTime(peruTime)}</span>
+              <span>Peru Time: {peruTime.toLocaleTimeString()}</span>
             </Box>
-
-            {/* Center: Search */}
             <Box sx={{ flexGrow: 1, mx: 2 }}>
               <TextField
                 fullWidth
@@ -344,19 +299,26 @@ const DispatchResult = () => {
                 }}
               />
             </Box>
-
-            {/* Right: Assign Button */}
             <Button
               variant="contained"
               color="primary"
               sx={{ minWidth: "100px", ml: 2 }}
-              disabled={!selectedDevice}
+              disabled={!selectedDeviceId}
               onClick={handleAssignClick}
             >
               Assign Case
             </Button>
           </Box>
         </Box>
+
+        <DispatchResultTable
+          devicesInRadius={devicesInRadius}
+          markerPosition={markerPosition}
+          searchValue={searchValue}
+          newAllDevices={newAllDevices}
+          setMapCenter={setMapCenter}
+          setSelectedDeviceId={setSelectedDeviceId}
+        />
       </Box>
     </PageLayout>
   );

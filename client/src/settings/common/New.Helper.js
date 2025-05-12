@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import customParseFormat from "dayjs/plugin/customParseFormat";
+import axios from "axios";
 
 dayjs.extend(customParseFormat);
 dayjs.extend(utc);
@@ -333,3 +334,48 @@ export function getAuthenticatedAudioUrl(originalUrl) {
 
   return originalUrl.replace("/notificationsaudio", `/${authKey}`);
 }
+
+export function generateCaseNumber() {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let result = "";
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+export function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371e3;
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+export const getDistrictFromCoordinates = async (lat, lng) => {
+  const apiKey = import.meta.env.VITE_GOOGLE_MAP_API;
+
+  try {
+    const response = await axios.get(
+      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&result_type=administrative_area_level_2&key=${apiKey}`
+    );
+
+    if (response.data.status === "OK" && response.data.results.length > 0) {
+      const components = response.data.results[0].address_components;
+      const district = components.find((comp) =>
+        comp.types.includes("administrative_area_level_2")
+      );
+      return district ? district.long_name : "Unknown";
+    } else {
+      return "Unknown";
+    }
+  } catch (error) {
+    console.error("Error fetching district:", error.message);
+    return "Unknown";
+  }
+};

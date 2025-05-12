@@ -1,5 +1,6 @@
 import axios from "axios";
 import {
+  bulkServiceUpdate,
   createDevice,
   fetchAllServiceTypes,
   fetchAllSubServices,
@@ -815,6 +816,34 @@ export const devicesNotifications = async (req, res) => {
       error: "Internal Server Error",
     });
   }
+};
+
+export const deviceBulkServices = async (req, res) => {
+  const { deviceIds, serviceIds } = req.body;
+
+  const isValidArray = (arr) =>
+    Array.isArray(arr) &&
+    arr.length > 0 &&
+    arr.every((id) => Number.isInteger(id) && id > 0);
+
+  if (!isValidArray(deviceIds) || !isValidArray(serviceIds)) {
+    return res.status(400).json({
+      message: "deviceIds and serviceIds must be arrays of positive integers",
+    });
+  }
+
+  try {
+    for (const deviceId of deviceIds) {
+      for (const serviceId of serviceIds) {
+        await bulkServiceUpdate(deviceId, serviceId);
+      }
+    }
+
+    res.status(200).json({
+      status: true,
+      message: `Device services assigned successfully for ${deviceIds.length} devices.`,
+    });
+  } catch (error) {}
 };
 
 export const addNewServiceType = async (req, res) => {

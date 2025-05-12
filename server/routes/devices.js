@@ -96,6 +96,8 @@ router.get("/devices/notifications", devicesNotifications);
 
 //  ------------------------------------------------------------------------------------------ DEVICE SERVICE TYPE CRUD
 
+router.post("/services/bulk/assign");
+
 router.post("/device/service-type", upload.any(), addNewServiceType);
 router.get("/all/device/service-types", allDeviceServiceTypes);
 router.get("/device/service-type/:id", getDeviceServiceType);

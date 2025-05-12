@@ -589,3 +589,17 @@ export const removeSubService = async (id) => {
     throw new Error(`removeSubService failed: ${error.message}`);
   }
 };
+
+export const bulkServiceUpdate = async (device_id, service_id) => {
+  const sql =
+    "INSERT IGNORE INTO device_service_relations (device_id, service_type_id) VALUES (?, ?)";
+
+  const values = [device_id, service_id];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result;
+  } catch (error) {
+    throw new Error(`bulkServiceUpdate failed: ${error.message}`);
+  }
+};
