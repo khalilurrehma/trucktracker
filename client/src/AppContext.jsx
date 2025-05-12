@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useSelector } from "react-redux";
 
 const AppContext = createContext();
 
@@ -47,6 +48,8 @@ const AppContextProvider = ({ children }) => {
   const [mqttDeviceConnected, setDeviceConnected] = useState([]);
   const [mqttDeviceDin, setDeviceDin] = useState([]);
   const [updateCronLogs, setUpdateCronLogs] = useState([]);
+
+  const user = useSelector((state) => state.session.user);
 
   const updateMqttMessage = (newMessage, stateType) => {
     if (stateType === "Events") {
@@ -159,7 +162,7 @@ const AppContextProvider = ({ children }) => {
         const res = await axios.get(apiUrl);
 
         if (res.status === 200) {
-          console.log(res);
+          // console.log(res);
           setNewDevices(res.data.data);
         } else {
           // throw new Error("Failed to fetch data from one of the APIs");
@@ -326,19 +329,17 @@ const AppContextProvider = ({ children }) => {
       const response = await axios.get(`${url}/traccar/all/devices`);
 
       if (response.status === 200) {
-        console.log(response.data.message);
+        // console.log(response.data.message);
         setTraccarDevices(response.data.message);
       }
     } catch (error) {}
   };
 
   const extractIMEIs = async (uniqueIds) => {
-    console.log(uniqueIds);
-
+    // console.log(uniqueIds);
     // try {
     //   const response = await axios.post(`${url}/devices-by-imeis`, uniqueIds);
     //   // console.log('API Response devices-by-imeis :', response);
-
     //   if (response.status === 200) {
     //     const result = response.data.devices;
     //     setDeviceIdsArray(result);

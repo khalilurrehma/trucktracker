@@ -21,19 +21,25 @@ import {
 import {
   addNewDevice,
   addNewServiceType,
+  addNewSubService,
   allDeviceServiceTypes,
   allNewDevices,
+  allSubServices,
   deleteNewDevice,
   deleteServiceType,
+  deleteSubService,
   devicesNotifications,
   extractDeviceIMEIS,
   getDeviceServiceType,
   newDeviceById,
   newDeviceByUserId,
+  subServiceById,
   updateNewDevice,
   updateServiceTypeById,
+  updateSubService,
 } from "../controllers/devices.js";
 import { checkDeviceLimit } from "../middlewares/limit.middleware.js";
+import { upload } from "../middlewares/multer.middleware.js";
 
 const router = express.Router();
 
@@ -90,10 +96,16 @@ router.get("/devices/notifications", devicesNotifications);
 
 //  ------------------------------------------------------------------------------------------ DEVICE SERVICE TYPE CRUD
 
-router.post("/device/service-type", addNewServiceType);
+router.post("/device/service-type", upload.any(), addNewServiceType);
 router.get("/all/device/service-types", allDeviceServiceTypes);
 router.get("/device/service-type/:id", getDeviceServiceType);
-router.put("/device/service-type/:id", updateServiceTypeById);
+router.put("/device/service-type/:id", upload.any(), updateServiceTypeById);
 router.delete("/device/service-type/:id", deleteServiceType);
+
+router.post("/service-type/subservice", addNewSubService);
+router.get("/service-type/subservices", allSubServices);
+router.get("/service-type/subservice/:id", subServiceById);
+router.put("/service-type/subservice/:id", updateSubService);
+router.delete("/service-type/subservice/:id", deleteSubService);
 
 export default router;

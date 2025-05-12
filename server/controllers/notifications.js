@@ -1,4 +1,3 @@
-import AWS from "aws-sdk";
 import {
   allConfiguredNotifications,
   allSubscribedNotifications,
@@ -14,13 +13,7 @@ import {
   updateNotification,
   allSubscribedProtocolNotifications,
 } from "../model/notifications.js";
-
-const s3 = new AWS.S3({
-  accessKeyId: process.env.CONTABO_ACCESS_KEY_ID,
-  secretAccessKey: process.env.CONTABO_SECRET_ACCESS_KEY,
-  endpoint: process.env.CONTABO_ENDPOINT,
-  s3ForcePathStyle: true,
-});
+import { s3 } from "../services/azure.s3.js";
 
 export const allNotificationsType = async (req, res) => {
   try {

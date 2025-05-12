@@ -32,7 +32,7 @@ import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import OperationsMenu from "./components/OperationsMenu";
 import { useAppContext } from "../AppContext";
-import { graceTimeConverter } from "./common/New.Helper";
+import { formatTime, graceTimeConverter } from "./common/New.Helper";
 import axios from "axios";
 import { useTranslation } from "../common/components/LocalizationProvider";
 import dayjs from "dayjs";
@@ -41,15 +41,6 @@ import timezone from "dayjs/plugin/timezone";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
-
-const formatTime = (date) => {
-  return date.toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-};
 
 const ControlUsage = () => {
   let apiUrl = import.meta.env.DEV

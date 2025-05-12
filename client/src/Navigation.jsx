@@ -120,6 +120,8 @@ import GeofenceType from "./settings/GeofenceType";
 import AssistanceControlReports from "./reports/AssistanceControlReports";
 import DeviceServiceTypes from "./settings/DeviceServiceTypes";
 import DeviceServiceType from "./settings/DeviceServiceType";
+import ServiceTypesSubServices from "./settings/ServiceTypesSubServices";
+import ServiceTypesSubService from "./settings/ServiceTypesSubService";
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -263,6 +265,18 @@ const Navigation = () => {
           <Route
             path="devices/service-types/edit/:id"
             element={<DeviceServiceType />}
+          />
+          <Route
+            path="services-types/subservices"
+            element={<ServiceTypesSubServices />}
+          />
+          <Route
+            path="services-types/subservices/add"
+            element={<ServiceTypesSubService />}
+          />
+          <Route
+            path="services-types/subservices/edit/:id"
+            element={<ServiceTypesSubService />}
           />
           <Route path="new-device/:id" element={<NewDevicePage />} />
           <Route path="new-devices" element={<NewDevicesPage />} />

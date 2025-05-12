@@ -12,6 +12,12 @@ import { useSelector } from "react-redux";
 import PageLayout from "../common/components/PageLayout";
 import OperationsMenu from "../settings/components/OperationsMenu";
 import axios from "axios";
+import { useAppContext } from "../AppContext";
+import {
+  formatTime,
+  getAuthenticatedAudioUrl,
+} from "../settings/common/New.Helper";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
 
 const mapContainerStyle = {
   width: "100%",
@@ -51,14 +57,19 @@ const DispatchResult = () => {
     ? import.meta.env.VITE_DEV_BACKEND_URL
     : import.meta.env.VITE_PROD_BACKEND_URL;
 
+  const { newAllDevices } = useAppContext();
+  const [peruTime, setPeruTime] = useState(new Date());
   const [serviceTypes, setServiceTypes] = useState([]);
   const [selectedServiceType, setSelectedServiceType] = useState("");
+  const [selectedServiceTypeIcon, setSelectedServiceTypeIcon] = useState("");
+  const [filteredDeviceIds, setFilteredDeviceIds] = useState([]);
   const [caseNumber, setCaseNumber] = useState("");
   const [address, setAddress] = useState("");
   const [mapCenter, setMapCenter] = useState(centerDefault);
   const [markerPosition, setMarkerPosition] = useState(null);
   const [radius] = useState(2000);
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
+  const [searchValue, setSearchValue] = useState("");
 
   const positionsObj = useSelector((state) => state.session.positions) || {};
   const positions = Array.isArray(positionsObj)
@@ -101,8 +112,46 @@ const DispatchResult = () => {
     fetchServiceTypes();
   }, []);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date();
+      const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+      const peruDate = new Date(utc - 5 * 60 * 60000);
+      setPeruTime(peruDate);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (!newAllDevices || !selectedServiceType) {
+      setFilteredDeviceIds(newAllDevices.map((device) => device.id));
+      return;
+    }
+
+    const selectedType = serviceTypes.find(
+      (type) => type.id === selectedServiceType
+    );
+    if (!selectedType) return;
+
+    const authIconUrl = getAuthenticatedAudioUrl(selectedType.icon_url);
+    const lowerCaseServiceName = selectedType.name.toLowerCase();
+
+    const filteredDevices = newAllDevices.filter((device) => {
+      const newDeviceServiceType =
+        device.attributes?.serviceType?.toLowerCase();
+      return newDeviceServiceType?.includes(lowerCaseServiceName);
+    });
+
+    setSelectedServiceTypeIcon(authIconUrl);
+    setFilteredDeviceIds(filteredDevices.map((device) => device.id));
+  }, [selectedServiceType, newAllDevices, serviceTypes]);
+
   const devicesInRadius = positions.filter((pos) => {
+    if (!filteredDeviceIds.includes(pos.deviceId)) return false;
+
     if (!markerPosition) return true;
+
     const distance = getDistanceFromLatLonInMeters(
       pos.latitude,
       pos.longitude,
@@ -117,6 +166,11 @@ const DispatchResult = () => {
   );
 
   console.log("Devices under radius:", devicesInRadius);
+
+  const handleAssignClick = () => {
+    // handle assign logic here
+    console.log("Assign clicked");
+  };
 
   return (
     <PageLayout
@@ -133,6 +187,7 @@ const DispatchResult = () => {
               value={selectedServiceType}
               onChange={(e) => setSelectedServiceType(e.target.value)}
             >
+              <MenuItem value="">All Services</MenuItem>
               {serviceTypes.map((option) => (
                 <MenuItem key={option.id} value={option.id}>
                   {option.name}
@@ -204,7 +259,7 @@ const DispatchResult = () => {
                   key={pos.deviceId}
                   position={{ lat: pos.latitude, lng: pos.longitude }}
                   icon={{
-                    url: carPng,
+                    url: selectedServiceTypeIcon || carPng,
                     scaledSize: new window.google.maps.Size(30, 30),
                   }}
                   onClick={() => setSelectedDeviceId(pos.deviceId)}
@@ -250,6 +305,58 @@ const DispatchResult = () => {
             </GoogleMap>
           </Box>
         )}
+
+        <Box sx={{ mt: 3 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              px: 2,
+              py: 1,
+              borderRadius: "10px",
+              // backgroundColor: "#E3F2FD",
+              color: "#0D47A1",
+              fontWeight: 600,
+              fontFamily: "monospace",
+            }}
+          >
+            {/* Left: Clock */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <AccessTimeIcon fontSize="small" />
+              <span>Peru Time: {formatTime(peruTime)}</span>
+            </Box>
+
+            {/* Center: Search */}
+            <Box sx={{ flexGrow: 1, mx: 2 }}>
+              <TextField
+                fullWidth
+                placeholder="Search..."
+                size="small"
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                sx={{
+                  width: "70%",
+                  mx: "auto",
+                  display: "block",
+                  backgroundColor: "white",
+                  borderRadius: "4px",
+                }}
+              />
+            </Box>
+
+            {/* Right: Assign Button */}
+            <Button
+              variant="contained"
+              color="primary"
+              sx={{ minWidth: "100px", ml: 2 }}
+              disabled={!selectedDevice}
+              onClick={handleAssignClick}
+            >
+              Assign Case
+            </Button>
+          </Box>
+        </Box>
       </Box>
     </PageLayout>
   );

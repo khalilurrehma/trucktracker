@@ -4,6 +4,7 @@ import { useAppContext } from "./AppContext";
 import { Snackbar, Alert, Slide } from "@mui/material";
 import alertSound from "./resources/new-alert.mp3";
 import { useSelector } from "react-redux";
+import { getAuthenticatedAudioUrl } from "./settings/common/New.Helper";
 
 const TempNotification = ({ notifications, setNotifications }) => {
   const handleCloseNotification = (id) => {
@@ -151,14 +152,6 @@ const SubSocket = () => {
       console.log("🔌 WebSocket connection closed");
     };
   }, [finalWsURL]);
-
-  function getAuthenticatedAudioUrl(originalUrl) {
-    const authKey = "e3ea2b21c1414932b7696559a9f1db58:notificationsaudio";
-
-    if (!originalUrl) return null;
-
-    return originalUrl.replace("/notificationsaudio", `/${authKey}`);
-  }
 
   const addNotification = (message, audioUrl) => {
     setNotifications((prev) => [

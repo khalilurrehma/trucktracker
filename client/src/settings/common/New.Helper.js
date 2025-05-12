@@ -32,6 +32,15 @@ export const convertISODate = (isoDate) => {
   });
 };
 
+export const formatTime = (date) => {
+  return date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+};
+
 export const StartEndFormatTime = (date, isGraceTme = false) => {
   if (!date) return null;
 
@@ -316,3 +325,11 @@ export const formatDateTime = (date, time) => {
   if (!date || !time) return null;
   return `${dayjs(date).format("YYYY-MM-DD")} ${time}`;
 };
+
+export function getAuthenticatedAudioUrl(originalUrl) {
+  const authKey = import.meta.env.authKey;
+
+  if (!originalUrl) return null;
+
+  return originalUrl.replace("/notificationsaudio", `/${authKey}`);
+}

@@ -449,11 +449,11 @@ export const deviceShiftAssigned = async (deviceId, assign = false) => {
 };
 
 export const saveNewServiceType = async (body) => {
-  const { name, userId } = body;
+  const { name, userId, icon_url } = body;
 
-  const sql = `INSERT INTO device_service_type (name, user_id) VALUE (?, ?)`;
+  const sql = `INSERT INTO device_service_type (name, user_id, icon_url) VALUE (?, ?, ?)`;
 
-  const values = [name, userId];
+  const values = [name, userId, icon_url];
 
   try {
     const result = await dbQuery(sql, values);
@@ -491,11 +491,18 @@ export const serviceById = async (id) => {
 };
 
 export const modifyServiceType = async (id, body) => {
-  const { name } = body;
+  const { name, icon_url } = body;
 
-  const sql = `UPDATE device_service_type SET name = ? WHERE id = ?`;
+  let sql = `UPDATE device_service_type SET name = ?`;
+  const values = [name];
 
-  const values = [name, id];
+  if (icon_url) {
+    sql += `, icon_url = ?`;
+    values.push(icon_url);
+  }
+
+  sql += ` WHERE id = ?`;
+  values.push(id);
 
   try {
     const result = await dbQuery(sql, values);
@@ -514,5 +521,71 @@ export const removeServiceType = async (id) => {
     return result;
   } catch (error) {
     throw new Error(`removeServiceType failed: ${error.message}`);
+  }
+};
+
+export const saveNewSubService = async (body) => {
+  const { name, user_id, service_type } = body;
+  const sql = `INSERT INTO service_type_subservices (name, user_id, service_type) VALUES (?, ?, ?)`;
+  const values = [name, user_id, service_type];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result;
+  } catch (error) {
+    throw new Error(`saveNewSubService failed: ${error.message}`);
+  }
+};
+
+export const fetchAllSubServices = async () => {
+  const sql = `
+        SELECT s.*, d.name AS service_type_name
+        FROM service_type_subservices s
+        JOIN device_service_type d ON s.service_type = d.id
+    `;
+
+  return new Promise((resolve, reject) => {
+    dbQuery(sql, (err, results) => {
+      if (err) reject(err);
+      resolve(results);
+    });
+  });
+};
+
+export const getSubServiceById = async (id) => {
+  const sql = `SELECT * FROM service_type_subservices WHERE id = ?`;
+  const values = [id];
+
+  return new Promise((resolve, reject) => {
+    dbQuery(sql, values, (err, results) => {
+      if (err) reject(err);
+      resolve(results[0]);
+    });
+  });
+};
+
+export const modifySubService = async (id, body) => {
+  const { name, service_type } = body;
+
+  const sql = `UPDATE service_type_subservices SET name = ?, service_type = ? WHERE id = ?`;
+  const values = [name, service_type, id];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result;
+  } catch (error) {
+    throw new Error(`modifySubService failed: ${error.message}`);
+  }
+};
+
+export const removeSubService = async (id) => {
+  const sql = `DELETE FROM service_type_subservices WHERE id = ?`;
+  const values = [id];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result;
+  } catch (error) {
+    throw new Error(`removeSubService failed: ${error.message}`);
   }
 };
