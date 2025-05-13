@@ -28,12 +28,15 @@ import {
   deleteNewDevice,
   deleteServiceType,
   deleteSubService,
+  deviceAssignedServices,
+  deviceBulkServices,
   devicesNotifications,
   extractDeviceIMEIS,
   getDeviceServiceType,
   newDeviceById,
   newDeviceByUserId,
   subServiceById,
+  unassignDeviceServices,
   updateNewDevice,
   updateServiceTypeById,
   updateSubService,
@@ -96,7 +99,9 @@ router.get("/devices/notifications", devicesNotifications);
 
 //  ------------------------------------------------------------------------------------------ DEVICE SERVICE TYPE CRUD
 
-router.post("/services/bulk/assign");
+router.post("/services/bulk/assign", deviceBulkServices);
+router.get("/device/:deviceId/services", deviceAssignedServices);
+router.post("/services/unassign", unassignDeviceServices)
 
 router.post("/device/service-type", upload.any(), addNewServiceType);
 router.get("/all/device/service-types", allDeviceServiceTypes);

@@ -142,6 +142,7 @@ const AppContextProvider = ({ children }) => {
               model: device.model,
               status: device.traccar_status,
               attributes: device.attributes,
+              services: device.services,
             };
           });
           setNewAllDevices(formattedDevice);

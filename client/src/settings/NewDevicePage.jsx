@@ -272,7 +272,7 @@ const NewDevicePage = () => {
                   <TextField {...params} label={t("groupParent")} />
                 )}
               />
-              <Autocomplete
+              {/* <Autocomplete
                 options={servicesTypes}
                 getOptionLabel={(option) => option.name}
                 value={
@@ -292,7 +292,7 @@ const NewDevicePage = () => {
                     label={t("settingsVehicleServiceType")}
                   />
                 )}
-              />
+              /> */}
 
               <TextField
                 value={item.cost_by_km || ""}

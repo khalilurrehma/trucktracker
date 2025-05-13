@@ -2,12 +2,15 @@ import axios from "axios";
 import {
   bulkServiceUpdate,
   createDevice,
+  existingCombination,
   fetchAllServiceTypes,
   fetchAllSubServices,
   getAllDevices,
+  getAssignedServicesByDeviceId,
   getDeviceById,
   getDevicesByIMEI,
   getDevicesByUserId,
+  getDeviceServices,
   getSubServiceById,
   modifyServiceType,
   modifySubService,
@@ -17,6 +20,7 @@ import {
   saveNewSubService,
   serviceById,
   softDeleteDeviceById,
+  unassignServicesForDevice,
   updateDeviceById,
 } from "../model/devices.js";
 import { getAllGroups } from "../model/groups.js";
@@ -401,11 +405,24 @@ export const allNewDevices = async (req, res) => {
       return;
     }
 
+    const deviceIds = await devices.map((device) => device.id);
+
+    const services = await getDeviceServices(deviceIds);
+
     const enrichedDevices = devices.map((device) => {
       const group = groups.find((group) => group.traccarId === device.groupId);
+      const deviceServices = services.filter(
+        (service) => service.device_id === device.id
+      );
+
+      const serviceDetails = deviceServices.map((service) => ({
+        serviceId: service.service_type_id,
+        serviceName: service.service_name,
+      }));
       return {
         ...device,
         groupName: group ? group.name : `Unknown (${device.groupId})`,
+        services: serviceDetails,
       };
     });
 
@@ -499,8 +516,6 @@ export const extractDeviceIMEIS = async (req, res) => {
 export const updateNewDevice = async (req, res) => {
   const deviceId = req.params.id;
   const requestData = req.body;
-
-  console.log(requestData);
 
   try {
     const device = await getDeviceById(deviceId);
@@ -651,7 +666,7 @@ export const updateNewDevice = async (req, res) => {
         messages_ttl:
           req.body.messages_ttl !== undefined ? req.body.messages_ttl : 3,
       },
-      service_type: serviceType.id,
+      // service_type: serviceType.id,
       costByKm: requestData.cost_by_km,
     };
 
@@ -833,17 +848,116 @@ export const deviceBulkServices = async (req, res) => {
   }
 
   try {
+    let skippedAssignments = [];
+    let newAssignments = [];
+
+    const existingCombinations = await existingCombination(
+      deviceIds,
+      serviceIds
+    );
+
+    const existingCombinationsSet = new Set(
+      existingCombinations.map(
+        (row) => `${row.device_id}-${row.service_type_id}`
+      )
+    );
+
     for (const deviceId of deviceIds) {
       for (const serviceId of serviceIds) {
-        await bulkServiceUpdate(deviceId, serviceId);
+        const combinationKey = `${deviceId}-${serviceId}`;
+
+        if (existingCombinationsSet.has(combinationKey)) {
+          skippedAssignments.push({ deviceId, serviceId });
+        } else {
+          newAssignments.push({ deviceId, serviceId });
+        }
       }
+    }
+
+    if (newAssignments.length > 0) {
+      await bulkServiceUpdate(newAssignments);
+    }
+
+    const message =
+      newAssignments.length > 0
+        ? `${newAssignments.length} new device-service assignments created.`
+        : "No new device-service assignments created.";
+
+    const skippedMessage =
+      skippedAssignments.length > 0
+        ? `${skippedAssignments.length} existing assignments skipped.`
+        : "";
+
+    res.status(200).json({
+      status: true,
+      message: `${message} ${skippedMessage}`,
+      skippedAssignments,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
+export const deviceAssignedServices = async (req, res) => {
+  const { deviceId } = req.params;
+  try {
+    const services = await getAssignedServicesByDeviceId(deviceId);
+
+    if (services.length === 0) {
+      return res.status(404).json({
+        status: false,
+        message: "No services found for this device.",
+      });
     }
 
     res.status(200).json({
       status: true,
-      message: `Device services assigned successfully for ${deviceIds.length} devices.`,
+      services: services.map((service) => ({
+        id: service.service_type_id,
+        name: service.service_name,
+      })),
     });
-  } catch (error) {}
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: "Error fetching assigned services.",
+    });
+  }
+};
+
+export const unassignDeviceServices = async (req, res) => {
+  const { deviceId, serviceIds } = req.body;
+
+  if (!deviceId || !Array.isArray(serviceIds) || serviceIds.length === 0) {
+    return res.status(400).json({
+      status: false,
+      message: "Please provide deviceId and an array of serviceIds.",
+    });
+  }
+
+  try {
+    const result = await unassignServicesForDevice(deviceId, serviceIds);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        status: false,
+        message: "No matching service assignments found to unassign.",
+      });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: `${result.affectedRows} service(s) unassigned successfully.`,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: "Error unassigning services.",
+    });
+  }
 };
 
 export const addNewServiceType = async (req, res) => {

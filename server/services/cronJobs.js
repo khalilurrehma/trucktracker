@@ -39,10 +39,10 @@ dayjs.extend(duration);
  * @returns {string} - Adjusted time in "HH:mm:ss" format.
  */
 
-const TIMEZONE = "Asia/Karachi"; // Karachi timezone
-// const TIMEZONE = "America/Lima"; // Peru timezone
+// const TIMEZONE = "Asia/Karachi"; // Karachi timezone
+const TIMEZONE = "America/Lima"; // Peru timezone
 
-const expandDates = (dates) => {
+function expandDates(dates) {
   const [startDate, endDate] = dates;
   const allDates = [];
   let current = dayjs(startDate);
@@ -54,7 +54,7 @@ const expandDates = (dates) => {
   }
 
   return allDates;
-};
+}
 
 const applyGraceTime = (timeString, graceMinutes, operation) => {
   const time = dayjs(timeString, ["hh:mm:ss A", "HH:mm:ss"]);
@@ -182,8 +182,11 @@ const scheduleResend = async ({
             loaded: true,
           });
           resendCompletedMap.set(resendKey, true);
-          clearTimeout(retryTimeoutMap.get(resendKey));
-          retryTimeoutMap.delete(resendKey);
+          const existingTimeout = retryTimeoutMap.get(resendKey);
+          if (existingTimeout) {
+            clearTimeout(existingTimeout);
+            retryTimeoutMap.delete(resendKey);
+          }
 
           await nullifyExtendTime(shiftId);
         }

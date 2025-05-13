@@ -122,6 +122,7 @@ import DeviceServiceTypes from "./settings/DeviceServiceTypes";
 import DeviceServiceType from "./settings/DeviceServiceType";
 import ServiceTypesSubServices from "./settings/ServiceTypesSubServices";
 import ServiceTypesSubService from "./settings/ServiceTypesSubService";
+import DevicesServices from "./settings/DevicesServices";
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -278,6 +279,7 @@ const Navigation = () => {
             path="services-types/subservices/edit/:id"
             element={<ServiceTypesSubService />}
           />
+          <Route path="devices/assign/services" element={<DevicesServices />} />
           <Route path="new-device/:id" element={<NewDevicePage />} />
           <Route path="new-devices" element={<NewDevicesPage />} />
           <Route path="new-device" element={<NewDevicePage />} />

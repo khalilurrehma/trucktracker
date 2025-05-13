@@ -279,6 +279,7 @@
   "settingsVehicleServiceType": "Device Service Type",
   "settingsVehicleServiceTypeImage": "Service Type Image",
   "settingsServiceTypeSubServices": "Services Type Subservices",
+  "settingsAssignService": "Assign Service",
   "selectServiceType": "Select Service Type",
   "devicePrimaryInfo": "Device Title",
   "deviceSecondaryInfo": "Device Detail",

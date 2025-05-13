@@ -338,7 +338,6 @@ export async function updateDeviceById(id, data) {
       messages_ttl = ?,
       flespi_metadata = ?,
       cost_by_km = ?,
-      service_type = ?
     WHERE id = ?;
   `;
 
@@ -365,7 +364,7 @@ export async function updateDeviceById(id, data) {
     data.flespi.messages_ttl,
     JSON.stringify(data.flespi.metadata),
     parseInt(data.costByKm),
-    data.service_type,
+    // data.service_type,
     id,
   ];
 
@@ -590,16 +589,89 @@ export const removeSubService = async (id) => {
   }
 };
 
-export const bulkServiceUpdate = async (device_id, service_id) => {
-  const sql =
-    "INSERT IGNORE INTO device_service_relations (device_id, service_type_id) VALUES (?, ?)";
+export const existingCombination = async (deviceIds, serviceIds) => {
+  const sql = `
+    SELECT device_id, service_type_id
+    FROM device_service_relations
+    WHERE device_id IN (?) AND service_type_id IN (?);
+  `;
 
-  const values = [device_id, service_id];
+  const values = [deviceIds, serviceIds];
 
   try {
     const result = await dbQuery(sql, values);
     return result;
   } catch (error) {
+    throw new Error(`existingCombination failed: ${error.message}`);
+  }
+};
+
+export const bulkServiceUpdate = async (newAssignments) => {
+  const values = newAssignments.map((assign) => [
+    assign.deviceId,
+    assign.serviceId,
+  ]);
+
+  const sql = `
+    INSERT IGNORE INTO device_service_relations (device_id, service_type_id)
+    VALUES ?
+  `;
+
+  try {
+    const result = await dbQuery(sql, [values]);
+    return result;
+  } catch (error) {
     throw new Error(`bulkServiceUpdate failed: ${error.message}`);
+  }
+};
+
+export const getAssignedServicesByDeviceId = async (deviceId) => {
+  const sql = `
+      SELECT ds.device_id, ds.service_type_id, st.name AS service_name
+      FROM device_service_relations ds
+      LEFT JOIN device_service_type st ON ds.service_type_id = st.id
+      WHERE ds.device_id = ?
+    `;
+
+  const values = [deviceId];
+  try {
+    const result = await dbQuery(sql, values);
+    return result;
+  } catch (error) {
+    throw new Error(`getAssignedServicesByDeviceId failed: ${error.message}`);
+  }
+};
+
+export const unassignServicesForDevice = async (deviceId, serviceIds) => {
+  const sql = `
+      DELETE FROM device_service_relations
+      WHERE device_id = ? AND service_type_id IN (?)
+    `;
+
+  const values = [deviceId, serviceIds];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result;
+  } catch (error) {
+    throw new Error(`unassignServicesForDevice failed: ${error.message}`);
+  }
+};
+
+export const getDeviceServices = async (deviceIds) => {
+  const sql = `
+    SELECT ds.device_id, ds.service_type_id, st.name AS service_name
+    FROM device_service_relations ds
+    LEFT JOIN device_service_type st ON ds.service_type_id = st.id
+    WHERE ds.device_id IN (?)
+  `;
+
+  const values = [deviceIds];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result;
+  } catch (error) {
+    throw new Error(`getDeviceServices failed: ${error.message}`);
   }
 };

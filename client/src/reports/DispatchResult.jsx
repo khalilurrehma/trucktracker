@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { Box, Button, Grid, MenuItem, TextField } from "@mui/material";
+import {
+  Box,
+  Button,
+  Grid,
+  MenuItem,
+  Autocomplete,
+  TextField,
+  Chip,
+} from "@mui/material";
 import {
   GoogleMap,
   Marker,
@@ -28,11 +36,10 @@ const DispatchResult = () => {
     : import.meta.env.VITE_PROD_BACKEND_URL;
 
   const centerDefault = { lat: -12.0464, lng: -77.0428 };
-  const { newAllDevices } = useAppContext();
   const [peruTime, setPeruTime] = useState(new Date());
   const [serviceTypes, setServiceTypes] = useState([]);
-  const [selectedServiceType, setSelectedServiceType] = useState("");
-  const [selectedServiceTypeIcon, setSelectedServiceTypeIcon] = useState("");
+  const [newAllDevices, setNewAllDevices] = useState([]);
+  const [selectedServiceType, setSelectedServiceType] = useState([]);
   const [filteredDeviceIds, setFilteredDeviceIds] = useState([]);
   const [caseNumber, setCaseNumber] = useState("");
   const [address, setAddress] = useState("");
@@ -70,6 +77,39 @@ const DispatchResult = () => {
     }
   };
 
+  const fetchNewAllDevices = async () => {
+    try {
+      const apiUrl = `${url}/new-devices`;
+      const res = await axios.get(apiUrl);
+
+      if (res.status === 200) {
+        const formattedDevice = res.data.data.map((device) => {
+          return {
+            id: device.traccarId,
+            name: device.name,
+            uniqueId: device.uniqueId,
+            category: device.category,
+            contact: device.contact,
+            disabled: device.disabled,
+            phone: device.phone,
+            expirationTime: device.expirationTime,
+            groupId: device.groupId,
+            lastUpdate: device.lastUpdate,
+            model: device.model,
+            status: device.traccar_status,
+            attributes: device.attributes,
+            services: device.services,
+          };
+        });
+        setNewAllDevices(formattedDevice);
+      } else {
+        throw new Error("Failed to fetch data from one of the APIs");
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   const fetchServiceTypes = async () => {
     try {
       const { data } = await axios.get(`${url}/all/device/service-types`);
@@ -80,6 +120,7 @@ const DispatchResult = () => {
   };
 
   useEffect(() => {
+    fetchNewAllDevices();
     fetchServiceTypes();
   }, []);
 
@@ -94,23 +135,29 @@ const DispatchResult = () => {
   }, []);
 
   useEffect(() => {
-    if (!newAllDevices || !selectedServiceType) {
+    if (!newAllDevices || selectedServiceType.length === 0) {
+      // If no service is selected, show all devices
       setFilteredDeviceIds(newAllDevices.map((device) => device.id));
       return;
     }
-    const selectedType = serviceTypes.find(
-      (type) => type.id === selectedServiceType
-    );
-    if (!selectedType) return;
 
-    const lowerCaseServiceName = selectedType.name.toLowerCase();
     const filteredDevices = newAllDevices.filter((device) => {
-      const deviceServiceType = device.attributes?.serviceType?.toLowerCase();
-      return deviceServiceType?.includes(lowerCaseServiceName);
+      // Ensure device.services is always an array
+      const deviceServiceIds = (device.services || []).map(
+        (service) => service.serviceId
+      );
+
+      // Return true if any selected service matches a service in the device's list of services
+      return selectedServiceType.some(
+        (selectedService) => deviceServiceIds.includes(selectedService.id) // Check if the service ID is present in the device's services
+      );
     });
-    setSelectedServiceTypeIcon(selectedType.icon_url);
+
+    // Set the filtered device IDs
+    console.log(filteredDevices.map((device) => device.id));
+
     setFilteredDeviceIds(filteredDevices.map((device) => device.id));
-  }, [selectedServiceType, newAllDevices, serviceTypes]);
+  }, [selectedServiceType, newAllDevices]); // Re-run the effect when selectedServiceTypes or newAllDevices changes
 
   const devicesInRadius = positions.filter((pos) => {
     if (!filteredDeviceIds.includes(pos.deviceId)) return false;
@@ -140,20 +187,31 @@ const DispatchResult = () => {
       <Box sx={{ p: 3 }}>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={4}>
-            <TextField
-              select
-              label="Service Type"
-              fullWidth
+            <Autocomplete
+              multiple
+              id="service-type-selector"
+              options={serviceTypes}
+              getOptionLabel={(option) => option.name || ""}
               value={selectedServiceType}
-              onChange={(e) => setSelectedServiceType(e.target.value)}
-            >
-              <MenuItem value="">All Services</MenuItem>
-              {serviceTypes.map((option) => (
-                <MenuItem key={option.id} value={option.id}>
-                  {option.name}
-                </MenuItem>
-              ))}
-            </TextField>
+              onChange={(e, newValue) => setSelectedServiceType(newValue)}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Service Types"
+                  variant="outlined"
+                />
+              )}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => (
+                  <Chip
+                    key={index}
+                    label={option.name}
+                    {...getTagProps({ index })}
+                  />
+                ))
+              }
+            />
           </Grid>
           <Grid item xs={12} sm={4}>
             <TextField
@@ -219,7 +277,7 @@ const DispatchResult = () => {
                   key={pos.deviceId}
                   position={{ lat: pos.latitude, lng: pos.longitude }}
                   icon={{
-                    url: selectedServiceTypeIcon || "/car.png",
+                    url: carPng,
                     scaledSize: new window.google.maps.Size(30, 30),
                   }}
                   onClick={() => setSelectedDeviceId(pos.deviceId)}
