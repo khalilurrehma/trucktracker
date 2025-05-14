@@ -84,6 +84,7 @@ const DispatchResult = () => {
 
       if (res.status === 200) {
         const formattedDevice = res.data.data.map((device) => {
+          // console.log(device);
           return {
             id: device.traccarId,
             name: device.name,
@@ -99,6 +100,7 @@ const DispatchResult = () => {
             status: device.traccar_status,
             attributes: device.attributes,
             services: device.services,
+            costByKm: device.cost_by_km,
           };
         });
         setNewAllDevices(formattedDevice);
@@ -136,28 +138,22 @@ const DispatchResult = () => {
 
   useEffect(() => {
     if (!newAllDevices || selectedServiceType.length === 0) {
-      // If no service is selected, show all devices
-      setFilteredDeviceIds(newAllDevices.map((device) => device.id));
+      // setFilteredDeviceIds(newAllDevices.map((device) => device.id));
       return;
     }
 
     const filteredDevices = newAllDevices.filter((device) => {
-      // Ensure device.services is always an array
       const deviceServiceIds = (device.services || []).map(
         (service) => service.serviceId
       );
 
-      // Return true if any selected service matches a service in the device's list of services
-      return selectedServiceType.some(
-        (selectedService) => deviceServiceIds.includes(selectedService.id) // Check if the service ID is present in the device's services
+      return selectedServiceType.some((selectedService) =>
+        deviceServiceIds.includes(selectedService.id)
       );
     });
 
-    // Set the filtered device IDs
-    console.log(filteredDevices.map((device) => device.id));
-
     setFilteredDeviceIds(filteredDevices.map((device) => device.id));
-  }, [selectedServiceType, newAllDevices]); // Re-run the effect when selectedServiceTypes or newAllDevices changes
+  }, [selectedServiceType, newAllDevices]);
 
   const devicesInRadius = positions.filter((pos) => {
     if (!filteredDeviceIds.includes(pos.deviceId)) return false;
@@ -341,42 +337,48 @@ const DispatchResult = () => {
               <AccessTimeIcon fontSize="small" />
               <span>Peru Time: {peruTime.toLocaleTimeString()}</span>
             </Box>
-            <Box sx={{ flexGrow: 1, mx: 2 }}>
-              <TextField
-                fullWidth
-                placeholder="Search..."
-                size="small"
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                sx={{
-                  width: "70%",
-                  mx: "auto",
-                  display: "block",
-                  backgroundColor: "white",
-                  borderRadius: "4px",
-                }}
-              />
-            </Box>
-            <Button
-              variant="contained"
-              color="primary"
-              sx={{ minWidth: "100px", ml: 2 }}
-              disabled={!selectedDeviceId}
-              onClick={handleAssignClick}
-            >
-              Assign Case
-            </Button>
+            {devicesInRadius.length > 0 && (
+              <>
+                <Box sx={{ flexGrow: 1, mx: 2 }}>
+                  <TextField
+                    fullWidth
+                    placeholder="Search..."
+                    size="small"
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                    sx={{
+                      width: "70%",
+                      mx: "auto",
+                      display: "block",
+                      backgroundColor: "white",
+                      borderRadius: "4px",
+                    }}
+                  />
+                </Box>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  sx={{ minWidth: "100px", ml: 2 }}
+                  disabled={!selectedDeviceId}
+                  onClick={handleAssignClick}
+                >
+                  Assign Case
+                </Button>
+              </>
+            )}
           </Box>
         </Box>
 
-        <DispatchResultTable
-          devicesInRadius={devicesInRadius}
-          markerPosition={markerPosition}
-          searchValue={searchValue}
-          newAllDevices={newAllDevices}
-          setMapCenter={setMapCenter}
-          setSelectedDeviceId={setSelectedDeviceId}
-        />
+        {devicesInRadius.length > 0 && (
+          <DispatchResultTable
+            devicesInRadius={devicesInRadius}
+            markerPosition={markerPosition}
+            searchValue={searchValue}
+            newAllDevices={newAllDevices}
+            setMapCenter={setMapCenter}
+            setSelectedDeviceId={setSelectedDeviceId}
+          />
+        )}
       </Box>
     </PageLayout>
   );

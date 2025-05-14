@@ -269,6 +269,18 @@ export async function getDevicesByUserId(userId) {
   }
 }
 
+export const getDevicesByIds = async (deviceIds) => {
+  const sql = `SELECT id, name from new_settings_devices WHERE id IN (?)`;
+  const values = [deviceIds];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result;
+  } catch (error) {
+    throw new Error(`getDevicesByIds failed: ${error.message}`);
+  }
+};
+
 export async function getDeviceNameByFlespId(flespiId) {
   const sql = "SELECT name FROM new_settings_devices WHERE flespiId = ?";
   const values = [flespiId];
@@ -674,4 +686,36 @@ export const getDeviceServices = async (deviceIds) => {
   } catch (error) {
     throw new Error(`getDeviceServices failed: ${error.message}`);
   }
+};
+
+export const allDevicesIdName = async () => {
+  const sql = "SELECT id, name FROM new_settings_devices WHERE disabled = 0";
+
+  return new Promise((resolve, reject) => {
+    dbQuery(sql, (err, results) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+export const devicesWithServices = async (deviceId) => {
+  const servicesQuery = `
+          SELECT st.id AS service_id, st.name AS service_name
+          FROM device_service_relations ds
+          JOIN device_service_type st ON ds.service_type_id = st.id
+          WHERE ds.device_id = ?
+        `;
+  const values = [deviceId];
+
+  return new Promise((resolve, reject) => {
+    dbQuery(servicesQuery, values, (err, results) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(results);
+    });
+  });
 };

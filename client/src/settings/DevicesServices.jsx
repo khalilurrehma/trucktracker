@@ -6,6 +6,7 @@ import {
   TextField,
   Chip,
   CircularProgress,
+  Typography,
 } from "@mui/material";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
@@ -60,7 +61,6 @@ const DevicesServices = () => {
   const fetchAssignedServices = async (deviceId) => {
     try {
       const { data } = await axios.get(`${url}/device/${deviceId}/services`);
-      console.log(data.services);
 
       setAssignedServices(data.services);
     } catch (error) {
@@ -87,14 +87,30 @@ const DevicesServices = () => {
       });
 
       if (response.data.status) {
-        const { skippedAssignments } = response.data;
+        const { skippedAssignments, newAssignments } = response.data;
         const skippedCount = skippedAssignments.length;
+        const newCount = newAssignments.length;
+
         const skippedMessage =
           skippedCount > 0
-            ? `${skippedCount} assignments were skipped because they already exist.`
+            ? `${skippedCount} assignments were skipped because they already exist: ${skippedAssignments
+                .map((assignment) => assignment.deviceName)
+                .join(", ")}`
             : "";
 
-        toast.success(`${response.data.message} ${skippedMessage}`);
+        const newMessage =
+          newCount > 0
+            ? `${newCount} new device-service assignments created: ${newAssignments
+                .map((assignment) => assignment.deviceName)
+                .join(", ")}`
+            : "";
+
+        const message =
+          skippedCount > 0 || newCount > 0
+            ? skippedMessage + " " + newMessage
+            : "All services assigned successfully.";
+
+        toast.success(message);
         setSelectedDevices([]);
         setSelectedServices([]);
         setLoader(false);

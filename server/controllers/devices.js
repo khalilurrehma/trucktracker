@@ -1,13 +1,16 @@
 import axios from "axios";
 import {
+  allDevicesIdName,
   bulkServiceUpdate,
   createDevice,
+  devicesWithServices,
   existingCombination,
   fetchAllServiceTypes,
   fetchAllSubServices,
   getAllDevices,
   getAssignedServicesByDeviceId,
   getDeviceById,
+  getDevicesByIds,
   getDevicesByIMEI,
   getDevicesByUserId,
   getDeviceServices,
@@ -851,6 +854,8 @@ export const deviceBulkServices = async (req, res) => {
     let skippedAssignments = [];
     let newAssignments = [];
 
+    const devices = await getDevicesByIds(deviceIds);
+
     const existingCombinations = await existingCombination(
       deviceIds,
       serviceIds
@@ -862,14 +867,26 @@ export const deviceBulkServices = async (req, res) => {
       )
     );
 
+    const deviceMap = new Map(
+      devices.map((device) => [device.id, device.name])
+    );
+
     for (const deviceId of deviceIds) {
       for (const serviceId of serviceIds) {
         const combinationKey = `${deviceId}-${serviceId}`;
 
         if (existingCombinationsSet.has(combinationKey)) {
-          skippedAssignments.push({ deviceId, serviceId });
+          skippedAssignments.push({
+            deviceId,
+            deviceName: deviceMap.get(deviceId),
+            serviceId,
+          });
         } else {
-          newAssignments.push({ deviceId, serviceId });
+          newAssignments.push({
+            deviceId,
+            deviceName: deviceMap.get(deviceId),
+            serviceId,
+          });
         }
       }
     }
@@ -892,11 +909,51 @@ export const deviceBulkServices = async (req, res) => {
       status: true,
       message: `${message} ${skippedMessage}`,
       skippedAssignments,
+      newAssignments,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
+export const getAllDevicesWithServices = async (req, res) => {
+  try {
+    const devices = await allDevicesIdName();
+
+    if (devices.length === 0) {
+      return res.status(404).json({
+        status: false,
+        message: "No devices found.",
+      });
+    }
+
+    const devicesWithServicesPromises = devices.map(async (device) => {
+      const services = await devicesWithServices(device.id);
+      return {
+        ...device,
+        services: services.map((service) => ({
+          id: service.service_id,
+          name: service.service_name,
+        })),
+      };
+    });
+
+    const deviceServicesResponse = await Promise.all(
+      devicesWithServicesPromises
+    );
+
+    res.status(200).json({
+      status: true,
+      message: deviceServicesResponse,
     });
   } catch (error) {
     res.status(500).json({
       status: false,
-      message: error.message,
+      message: "Error fetching devices.",
     });
   }
 };

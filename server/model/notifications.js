@@ -153,7 +153,7 @@ export const subcribedEventPNByDeviceTypeId = async (
       if (err) {
         reject(err);
       }
-      resolve(results.length > 0 ? results[0] : null);
+      resolve(results?.length > 0 ? results[0] : null);
     });
   });
 };

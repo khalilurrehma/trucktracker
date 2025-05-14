@@ -529,10 +529,10 @@ const SettingsMenu = () => {
                   />
                   <MenuItem
                     title={t("settingsAssignService")}
-                    link="/settings/devices/assign/services"
+                    link="/settings/all/devices-services"
                     icon={<SmartphoneIcon sx={{ ml: 2 }} />}
                     selected={location.pathname.startsWith(
-                      "/settings/devices/assign/services"
+                      "/settings/all/devices-services"
                     )}
                   />
                 </AccordionDetails>
