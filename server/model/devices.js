@@ -720,7 +720,7 @@ export const devicesWithServices = async (deviceId) => {
   });
 };
 
-export const  getDeviceInitialGeofence = async (
+export const getDeviceInitialGeofence = async (
   flespi_device_id,
   entry_date
 ) => {
@@ -753,4 +753,42 @@ export const saveDeviceInitialGeofence = async (
       resolve(results);
     });
   });
+};
+
+export const devicesListWithSearchByCompanyId = async (search, userId) => {
+  let sql = `
+    SELECT d.id, d.name, d.traccarId, d.flespiId, d.device_type_id, d.uniqueId, d.groupId,
+           d.phone, d.model, d.contact, d.category, d.expirationTime, d.disabled,
+           d.attributes, d.userId, d.traccar_status, d.traccar_lastUpdate,
+           d.flespi_protocol_name, d.flespi_protocol_id, d.flespi_device_type_name,
+           d.media_ttl, d.messages_ttl, d.created_by, d.shift_assigned,
+           d.service_type, d.cost_by_km,
+           st.name AS service_type_name
+    FROM new_settings_devices d
+    LEFT JOIN device_service_type st ON d.service_type = st.id
+    WHERE d.userId = ?
+      AND d.shift_assigned = 0
+  `;
+
+  const values = [userId];
+
+  if (search && search.trim() !== "") {
+    sql += ` AND d.name LIKE ?`;
+    values.push(`%${search.trim()}%`);
+  }
+
+  try {
+    const result = await dbQuery(sql, values);
+
+    if (result.length > 0) {
+      return result.map((device) => ({
+        ...device,
+        attributes: JSON.parse(device.attributes),
+      }));
+    } else {
+      return [];
+    }
+  } catch (error) {
+    throw error;
+  }
 };

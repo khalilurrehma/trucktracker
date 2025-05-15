@@ -46,6 +46,7 @@ const DispatchResultTable = ({
     eta: "",
     cost: "",
     district: "",
+    initialBase: "",
   });
 
   const [filteredItems, setFilteredItems] = useState([]);
@@ -196,11 +197,18 @@ const DispatchResultTable = ({
         ? district.includes(columnFilters.district.toLowerCase())
         : true;
 
+      const initialBaseMatch = columnFilters.initialBase
+        ? device.initialBase
+            ?.toLowerCase()
+            .includes(columnFilters.initialBase.toLowerCase())
+        : true;
+
       return (
         globalMatch &&
         deviceIdMatch &&
         licensePlateMatch &&
         typeMatch &&
+        initialBaseMatch &&
         advisorMatch &&
         lastConnectionMatch &&
         movementMatch &&
@@ -342,7 +350,7 @@ const DispatchResultTable = ({
               <TextField
                 size="small"
                 variant="standard"
-                placeholder="Filter Device ID"
+                placeholder="Search"
                 value={columnFilters.deviceId}
                 onChange={(e) =>
                   setColumnFilters((prev) => ({
@@ -357,7 +365,7 @@ const DispatchResultTable = ({
               <TextField
                 size="small"
                 variant="standard"
-                placeholder="Filter Last Connection"
+                placeholder="Search"
                 value={columnFilters.lastConnection}
                 onChange={(e) =>
                   setColumnFilters((prev) => ({
@@ -371,7 +379,7 @@ const DispatchResultTable = ({
               <TextField
                 size="small"
                 variant="standard"
-                placeholder="Filter Movement (Moving/Stop)"
+                placeholder="Search"
                 value={columnFilters.movement}
                 onChange={(e) =>
                   setColumnFilters((prev) => ({
@@ -387,7 +395,7 @@ const DispatchResultTable = ({
               <TextField
                 size="small"
                 variant="standard"
-                placeholder="Filter License Plate"
+                placeholder="Search"
                 value={columnFilters.licensePlate}
                 onChange={(e) =>
                   setColumnFilters((prev) => ({
@@ -401,7 +409,7 @@ const DispatchResultTable = ({
               <TextField
                 size="small"
                 variant="standard"
-                placeholder="Filter Type"
+                placeholder="Search"
                 value={columnFilters.type}
                 onChange={(e) =>
                   setColumnFilters((prev) => ({
@@ -415,7 +423,7 @@ const DispatchResultTable = ({
               <TextField
                 size="small"
                 variant="standard"
-                placeholder="Filter Advisor"
+                placeholder="Search"
                 value={columnFilters.advisor}
                 onChange={(e) =>
                   setColumnFilters((prev) => ({
@@ -429,7 +437,7 @@ const DispatchResultTable = ({
               <TextField
                 size="small"
                 variant="standard"
-                placeholder="Filter Distance (km)"
+                placeholder="Search"
                 value={columnFilters.distance}
                 onChange={(e) =>
                   setColumnFilters((prev) => ({
@@ -443,7 +451,7 @@ const DispatchResultTable = ({
               <TextField
                 size="small"
                 variant="standard"
-                placeholder="Filter ETA (min)"
+                placeholder="Search"
                 value={columnFilters.eta}
                 onChange={(e) =>
                   setColumnFilters((prev) => ({ ...prev, eta: e.target.value }))
@@ -454,7 +462,7 @@ const DispatchResultTable = ({
               <TextField
                 size="small"
                 variant="standard"
-                placeholder="Filter Cost"
+                placeholder="Search"
                 value={columnFilters.cost}
                 onChange={(e) =>
                   setColumnFilters((prev) => ({
@@ -469,7 +477,7 @@ const DispatchResultTable = ({
               <TextField
                 size="small"
                 variant="standard"
-                placeholder="Filter District"
+                placeholder="Search"
                 value={columnFilters.district}
                 onChange={(e) =>
                   setColumnFilters((prev) => ({
@@ -479,7 +487,20 @@ const DispatchResultTable = ({
                 }
               />
             </TableCell>
-            <TableCell />
+            <TableCell>
+              <TextField
+                size="small"
+                variant="standard"
+                placeholder="Search"
+                value={columnFilters.initialBase}
+                onChange={(e) =>
+                  setColumnFilters((prev) => ({
+                    ...prev,
+                    initialBase: e.target.value,
+                  }))
+                }
+              />
+            </TableCell>
             <TableCell />
           </TableRow>
         </TableHead>
@@ -489,6 +510,8 @@ const DispatchResultTable = ({
             .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
             .map((pos) => {
               const device = newAllDevices.find((d) => d.id === pos.deviceId);
+              console.log(device, "device");
+
               const distance = markerPosition
                 ? calculateDistance(
                     markerPosition.lat,

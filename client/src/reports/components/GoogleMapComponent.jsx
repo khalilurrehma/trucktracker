@@ -11,7 +11,6 @@ const GoogleMapComponent = ({
   onAddressChange,
   center,
   radius,
-  devicePosition,
 }) => {
   const containerStyle = {
     width: styles?.width || "100%",
@@ -29,12 +28,6 @@ const GoogleMapComponent = ({
   });
 
   const [zoom, setZoom] = React.useState(16);
-  const [deviceMove, setDeviceMove] = React.useState({
-    lat: devicePosition?.latitude,
-    lng: devicePosition?.longitude,
-  });
-  const [isDeviceWithinRadius, setIsDeviceWithinRadius] = React.useState(null);
-
   const classes = useReportStyles();
   const formattedAddress = encodeURIComponent(initialAddress);
 
@@ -60,48 +53,6 @@ const GoogleMapComponent = ({
     if (initialAddress) geocodeAddress();
   }, [initialAddress]);
 
-  // const simulateDeviceMovement = () => {
-  //   setInterval(() => {
-  //     setDeviceMove((prevState) => ({
-  //       lat: prevState.lat + (Math.random() > 0.5 ? 0.0001 : -0.0001),
-  //       lng: prevState.lng + (Math.random() > 0.5 ? 0.0001 : -0.0001),
-  //     }));
-  //   }, 5000);
-  // };
-
-  // React.useEffect(() => {
-  //   simulateDeviceMovement();
-  // }, []);
-
-  const checkDeviceLocation = async (deviceLocation, authLocation) => {
-    try {
-      const body = {
-        deviceLocation: deviceLocation,
-        authLocation: authLocation,
-      };
-      const response = await checkDeviceRadius(body);
-      if (response && response.success) {
-        setIsDeviceWithinRadius(true);
-        // toast.success(response.message);
-      } else {
-        setIsDeviceWithinRadius(false);
-        // toast.error(response.message);
-      }
-    } catch (error) {
-      // console.error("Error in checking device location", error);
-      // toast.error("Error in checking device location");
-    }
-  };
-
-  // React.useEffect(() => {
-  //   if (deviceMove && markerPosition) {
-  //     const intervalId = setInterval(() => {
-  //       checkDeviceLocation(deviceMove, markerPosition);
-  //     }, 5000);
-  //     return () => clearInterval(intervalId);
-  //   }
-  // }, [deviceMove, markerPosition]);
-
   return (
     <div className={classes.containerMapBorderRadius}>
       <ToastContainer />
@@ -122,20 +73,6 @@ const GoogleMapComponent = ({
             fillOpacity: 0.35,
           }}
         />
-        {deviceMove && (
-          <Marker
-            position={{
-              lat: deviceMove.lat,
-              lng: deviceMove.lng,
-            }}
-            icon={{
-              url: carPng,
-              scaledSize: new google.maps.Size(30, 30),
-            }}
-            animation={google.maps.Animation.DROP}
-            title="Device Position"
-          />
-        )}
       </GoogleMap>
     </div>
   );

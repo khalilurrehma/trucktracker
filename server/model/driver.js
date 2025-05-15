@@ -1,12 +1,13 @@
 import pool from "../config/dbConfig.js";
 
 export const addDriver = async (body) => {
-  const { userId, traccarId, name, uniqueId, attributes, location } = body;
+  const { userId, traccarId, name, uniqueId, attributes, location, password } =
+    body;
 
   const sql = `
       INSERT INTO drivers
-        (user_id, traccar_id, name, unique_id, attributes, location, assigned, deleted_at, created_at, updated_at) 
-      VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NOW(), NOW())
+        (user_id, traccar_id, name, unique_id, attributes, location, password, assigned, deleted_at, created_at, updated_at) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NOW(), NOW())
     `;
 
   const values = [
@@ -16,6 +17,7 @@ export const addDriver = async (body) => {
     uniqueId,
     JSON.stringify(attributes),
     JSON.stringify(location),
+    password,
   ];
 
   return new Promise((resolve, reject) => {
@@ -124,6 +126,19 @@ export const fetchDriver = async (id) => {
   });
 };
 
+export const driverByEmail = async (email) => {
+  const sql =
+    "SELECT * FROM drivers WHERE JSON_EXTRACT(attributes, '$.email') = ?";
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [email], (err, results) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(results[0]);
+    });
+  });
+};
+
 export const confirmDriverShift = async (driverId) => {
   const getDriverQuery =
     "SELECT availability_details FROM drivers WHERE id = ?";
@@ -170,25 +185,36 @@ export const confirmDriverShift = async (driverId) => {
   });
 };
 
-export const updateDriver = async (id, body) => {
-  const { name, uniqueId, attributes, location } = body;
-
-  const sql =
-    "UPDATE drivers SET name = ?, uniqueId = ?, attributes = ?, location = ? WHERE id = ?";
-
-  const values = [
-    name,
-    uniqueId,
-    JSON.stringify(attributes),
-    JSON.stringify(location),
-    id,
-  ];
-
+export const getDriverCompany = async (driverId) => {
+  const sql = "SELECT user_id FROM drivers WHERE id = ?";
   return new Promise((resolve, reject) => {
-    pool.query(sql, values, (err, results) => {
+    pool.query(sql, [driverId], (err, results) => {
       if (err) {
         reject(err);
       }
+      resolve(results[0]?.user_id);
+    });
+  });
+};
+
+export const updateDriver = async (id, body) => {
+  const { name, uniqueId, attributes, location, password } = body;
+
+  let fields = ["name = ?", "attributes = ?", "location = ?"];
+  let values = [name, JSON.stringify(attributes), JSON.stringify(location)];
+
+  if (password) {
+    fields.push("password = ?");
+    values.push(password);
+  }
+
+  values.push(parseInt(id));
+
+  const sql = `UPDATE drivers SET ${fields.join(", ")} WHERE id = ?`;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, values, (err, results) => {
+      if (err) return reject(err);
       resolve(results);
     });
   });

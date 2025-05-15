@@ -53,6 +53,7 @@ const NewDriverPage = () => {
       uniqueId: item.uniqueId,
       attributes: item.attributes,
       location: item.location,
+      password: item.password,
     };
 
     try {
@@ -242,6 +243,17 @@ const NewDriverPage = () => {
               label="Email"
             />
             <TextField
+              value={item.password || ""}
+              onChange={(event) =>
+                setItem({
+                  ...item,
+                  password: event.target.value,
+                })
+              }
+              label="Password"
+              type="password"
+            />
+            <TextField
               value={item.attributes?.station || ""}
               onChange={(event) =>
                 setItem({
@@ -277,8 +289,8 @@ const NewDriverPage = () => {
             />
             <GoogleMapComponent
               initialAddress={initialAddress}
-              onAddressChange={bringDriverLocation}
               styles={{ width: "100%", height: "200px" }}
+              onAddressChange={bringDriverLocation}
             />
           </AccordionDetails>
         </Accordion>

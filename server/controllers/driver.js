@@ -1,10 +1,12 @@
 import {
   addDriver,
+  driverByEmail,
   driversShiftDetails,
   fetchDriver,
   fetchDriverAvailability,
   fetchDrivers,
   fetchDriversByUserId,
+  getDriverCompany,
   removeDriver,
   updateDriver,
   updateDriverAvailability,
@@ -15,6 +17,10 @@ import {
 } from "../model/notifications.js";
 import axios from "axios";
 import { refreshShiftJobs } from "../services/cronJobs.js";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import "dotenv/config.js";
+import { devicesListWithSearchByCompanyId } from "../model/devices.js";
 
 export const postDriver = async (req, res) => {
   const { userId, isSuperAdmin, traccarUserToken, ...restFields } = req.body;
@@ -46,7 +52,9 @@ export const postDriver = async (req, res) => {
   }
 
   try {
-    const { name, uniqueId, attributes } = restFields;
+    const { name, uniqueId, attributes, password } = restFields;
+
+    const hashedPW = await bcrypt.hash(password, 10);
 
     const traccarResponse = await axios.post(
       `http://${process.env.TraccarPort}/api/drivers`,
@@ -67,10 +75,33 @@ export const postDriver = async (req, res) => {
     let dbBody = {
       ...req.body,
       traccarId: traccarResponse.data.id,
+      password: hashedPW,
     };
     const newDriver = await addDriver(dbBody);
 
     res.status(201).json({ status: true, data: newDriver });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: false, message: "Internal Server Error" });
+  }
+};
+
+export const assignDriverToVehicle = async (req, res) => {
+  const userId = req.userId;
+  // const { deviceId: vehicleId, driverId } = req.body;
+
+  console.log(req.body);
+};
+
+export const getCompanyVehicles = async (req, res) => {
+  const { companyId } = req.params;
+  const userId = req.userId;
+  const search = req.query.search || "";
+
+  try {
+    const devices = await devicesListWithSearchByCompanyId(search, companyId);
+
+    res.status(200).json({ status: true, message: devices });
   } catch (error) {
     console.error(error);
     res.status(500).json({ status: false, message: "Internal Server Error" });
@@ -134,13 +165,23 @@ export const putDriver = async (req, res) => {
   const body = req.body;
 
   try {
-    const updatedDriver = await updateDriver(id, body);
-    res
-      .status(200)
-      .json({ status: true, message: "Driver Updated Successfully" });
+    if (body.password) {
+      const hashedPW = await bcrypt.hash(body.password, 10);
+      body.password = hashedPW;
+    }
+
+    await updateDriver(id, body);
+
+    res.status(200).json({
+      status: true,
+      message: "Driver Updated Successfully",
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ status: false, message: "Internal Server Error" });
+    res.status(500).json({
+      status: false,
+      message: "Internal Server Error",
+    });
   }
 };
 
@@ -239,5 +280,76 @@ export const getDriverAvailability = async (req, res) => {
       status: false,
       message: err.message,
     });
+  }
+};
+
+export const driverLogin = async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const driver = await driverByEmail(email);
+
+    if (!driver) {
+      return res.status(404).json({
+        status: false,
+        message: "Driver not found",
+      });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, driver.password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        status: false,
+        message: "Invalid password",
+      });
+    }
+
+    const parsedAttributes = JSON.parse(driver.attributes);
+
+    const token = jwt.sign(
+      { id: driver.id, email: parsedAttributes.email },
+      process.env.ACCESS_TOKEN_SECRET,
+      {
+        expiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN,
+      }
+    );
+
+    const driverData = {
+      id: driver.id,
+      name: driver.name,
+      email: driver.email,
+      uniqueId: driver.uniqueId,
+      companyId: driver.user_id,
+      // attributes: JSON.parse(driver.attributes),
+      // location: JSON.parse(driver.location),
+      token,
+    };
+
+    res.status(200).json({
+      status: true,
+      message: driverData,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: false, message: "Internal Server Error" });
+  }
+};
+
+export const driverLogout = async (req, res) => {
+  const { token } = req.body;
+
+  try {
+    if (!token) {
+      return res.status(400).json({
+        status: false,
+        message: "Token is required",
+      });
+    }
+
+    res.status(200).json({ status: true, message: "Logged out successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: false, message: "Internal Server Error" });
   }
 };

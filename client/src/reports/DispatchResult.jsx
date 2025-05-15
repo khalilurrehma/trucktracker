@@ -108,7 +108,7 @@ const DispatchResult = () => {
             attributes: device.attributes,
             services: device.services,
             costByKm: device.cost_by_km,
-            intialBase: device.initialBase,
+            initialBase: device.initialBase,
           };
         });
         setNewAllDevices(formattedDevice);
