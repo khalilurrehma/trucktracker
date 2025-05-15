@@ -1,6 +1,8 @@
 import {
+  getDeviceInitialGeofence,
   getDeviceNameByFlespId,
   getDeviceUserIdByFlespiId,
+  saveDeviceInitialGeofence,
 } from "../model/devices.js";
 import {
   getLatestOperationAlarms,
@@ -427,6 +429,16 @@ export const geofenceEntryAndExit = async (topic, payload) => {
       `Device ${deviceId} entered geofence at ${payload.enter_geofence}`
     );
     console.log(`Simulated event date: ${currentDate}, time: ${currentTime}`);
+
+    const initialBase = await getDeviceInitialGeofence(deviceId, currentDate);
+
+    if (!initialBase) {
+      await saveDeviceInitialGeofence(
+        deviceId,
+        payload.enter_geofence,
+        currentDate
+      );
+    }
 
     const attendanceReport = await fetchAttendanceByDateAndDeviceId(
       deviceId,

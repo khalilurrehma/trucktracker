@@ -40,6 +40,7 @@
     "react-day-picker": "^9.6.5",
     "react-dom": "^18.3.1",
     "react-draggable": "^4.4.6",
+    "react-dropzone": "^14.3.8",
     "react-infinite-scroll-component": "^6.1.0",
     "react-leaflet": "^5.0.0",
     "react-loader-spinner": "^6.1.6",

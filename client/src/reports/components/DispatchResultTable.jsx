@@ -30,6 +30,10 @@ const DispatchResultTable = ({
   newAllDevices,
   setMapCenter,
   setSelectedDeviceId,
+  selectedDeviceIds,
+  setSelectedDeviceIds,
+  mapRef,
+  setMapZoom,
 }) => {
   const [columnFilters, setColumnFilters] = useState({
     deviceId: "",
@@ -49,6 +53,7 @@ const DispatchResultTable = ({
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [sortOrder, setSortOrder] = useState("desc");
   const [districts, setDistricts] = useState({});
+  const [etaMap, setEtaMap] = useState({});
 
   const parseNumberFilter = (value) => {
     if (!value) return null;
@@ -68,7 +73,6 @@ const DispatchResultTable = ({
       const device = newAllDevices.find((d) => d.id === pos.deviceId);
       if (!device) return false;
 
-      // Convert deviceId explicitly to string before calling toLowerCase
       const deviceId = String(pos.deviceId || "").toLowerCase();
       const licensePlate = (device.name || "").toLowerCase();
       const type = (device.attributes?.["device.type"] || "").toLowerCase();
@@ -84,7 +88,6 @@ const DispatchResultTable = ({
         ? dayjs(pos.fixTime).format("YYYY-MM-DD HH:mm:ss")
         : "";
 
-      // Calculate distance, eta, cost for filtering
       const distance = markerPosition
         ? parseFloat(
             (
@@ -100,7 +103,7 @@ const DispatchResultTable = ({
 
       const eta =
         distance !== null && !isNaN(distance)
-          ? Math.ceil((distance / AVERAGE_SPEED_KMH) * 60) // minutes as number
+          ? Math.ceil((distance / AVERAGE_SPEED_KMH) * 60)
           : null;
 
       const cost =
@@ -112,14 +115,12 @@ const DispatchResultTable = ({
 
       const movementStatus = (pos.speed ?? 0) > 5 ? "moving" : "stop";
 
-      // Global search across multiple fields
       const globalMatch =
         deviceId.includes(globalSearch) ||
         licensePlate.includes(globalSearch) ||
         advisor.includes(globalSearch) ||
         serviceNames.includes(globalSearch);
 
-      // Column filters checks:
       const deviceIdMatch = columnFilters.deviceId
         ? deviceId.includes(columnFilters.deviceId.toLowerCase())
         : true;
@@ -136,17 +137,13 @@ const DispatchResultTable = ({
         ? advisor.includes(columnFilters.advisor.toLowerCase())
         : true;
 
-      // Last Connection filter (string includes)
       const lastConnectionMatch = columnFilters.lastConnection
         ? lastConnectionStr.includes(columnFilters.lastConnection)
         : true;
-
-      // Movement filter ("moving" or "stop")
       const movementMatch = columnFilters.movement
         ? movementStatus === columnFilters.movement.toLowerCase()
         : true;
 
-      // Distance filter (numeric, allow filtering with ">10", "<5", ">=8" etc)
       let distanceMatch = true;
       if (columnFilters.distance) {
         const filterStr = columnFilters.distance.trim();
@@ -165,7 +162,6 @@ const DispatchResultTable = ({
         }
       }
 
-      // ETA filter - numeric exact or range same logic as distance
       let etaMatch = true;
       if (columnFilters.eta) {
         const filterStr = columnFilters.eta.trim();
@@ -181,7 +177,6 @@ const DispatchResultTable = ({
         }
       }
 
-      // Cost filter - numeric exact or range
       let costMatch = true;
       if (columnFilters.cost) {
         const filterStr = columnFilters.cost.trim();
@@ -197,7 +192,6 @@ const DispatchResultTable = ({
         }
       }
 
-      // District filter (string includes)
       const districtMatch = columnFilters.district
         ? district.includes(columnFilters.district.toLowerCase())
         : true;
@@ -237,6 +231,57 @@ const DispatchResultTable = ({
     setSortOrder(sortOrder === "asc" ? "desc" : "asc");
   };
 
+  const handleRowClick = (e, deviceId) => {
+    if (e.ctrlKey || e.metaKey) {
+      setSelectedDeviceIds((prev) =>
+        prev?.includes(deviceId)
+          ? prev.filter((id) => id !== deviceId)
+          : [...prev, deviceId]
+      );
+    } else {
+      setSelectedDeviceIds((prev) =>
+        prev?.length === 1 && prev[0] === deviceId ? [] : [deviceId]
+      );
+    }
+  };
+
+  const calculateETAForDevice = (pos) => {
+    if (!markerPosition) return null;
+    const origin = { lat: pos.latitude, lng: pos.longitude };
+    const destination = markerPosition;
+
+    const directionsService = new window.google.maps.DirectionsService();
+
+    directionsService.route(
+      {
+        origin,
+        destination,
+        travelMode: window.google.maps.TravelMode.DRIVING,
+      },
+      (result, status) => {
+        if (status === window.google.maps.DirectionsStatus.OK) {
+          const durationSeconds = result.routes[0].legs[0].duration.value;
+          setEtaMap((prev) => ({
+            ...prev,
+            [pos.deviceId]: Math.ceil(durationSeconds / 60),
+          }));
+        } else {
+          setEtaMap((prev) => ({ ...prev, [pos.deviceId]: null }));
+        }
+      }
+    );
+  };
+
+  const handleZoomToDevice = (device) => {
+    setMapCenter({ lat: device.latitude, lng: device.longitude });
+    setMapZoom(18);
+    setSelectedDeviceId(device.deviceId);
+
+    if (mapRef?.current) {
+      mapRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     if (!lat1 || !lon1 || !lat2 || !lon2) return "N/A";
     return (
@@ -257,10 +302,13 @@ const DispatchResultTable = ({
     });
   }, [filteredItems]);
 
-  const handleTargetClick = (lat, lng, deviceId) => {
-    setMapCenter({ lat, lng });
-    setSelectedDeviceId(deviceId);
-  };
+  useEffect(() => {
+    filteredItems.forEach((pos) => {
+      if (!etaMap[pos.deviceId]) {
+        calculateETAForDevice(pos);
+      }
+    });
+  }, [filteredItems, markerPosition]);
 
   return (
     <Box sx={{ mt: 4 }}>
@@ -304,7 +352,7 @@ const DispatchResultTable = ({
                 }
               />
             </TableCell>
-            <TableCell /> {/* No filter for Location */}
+            <TableCell />
             <TableCell>
               <TextField
                 size="small"
@@ -333,8 +381,8 @@ const DispatchResultTable = ({
                 }
               />
             </TableCell>
-            <TableCell /> {/* No filter for App Status */}
-            <TableCell /> {/* No filter for Subprocess */}
+            <TableCell />
+            <TableCell />
             <TableCell>
               <TextField
                 size="small"
@@ -416,7 +464,7 @@ const DispatchResultTable = ({
                 }
               />
             </TableCell>
-            <TableCell /> {/* No filter for Zone Rate */}
+            <TableCell />
             <TableCell>
               <TextField
                 size="small"
@@ -431,8 +479,8 @@ const DispatchResultTable = ({
                 }
               />
             </TableCell>
-            <TableCell /> {/* No filter for Initial Base */}
-            <TableCell /> {/* No filter for Rimac ETA */}
+            <TableCell />
+            <TableCell />
           </TableRow>
         </TableHead>
 
@@ -450,10 +498,6 @@ const DispatchResultTable = ({
                   )
                 : "N/A";
 
-              const eta =
-                distance !== "N/A"
-                  ? `${Math.ceil((distance / AVERAGE_SPEED_KMH) * 60)} min`
-                  : "N/A";
               const rimacEta = dayjs().add(30, "minute").format("HH:mm");
               let calculatedCost =
                 distance !== "N/A" ? distance * device?.costByKm : 0;
@@ -462,20 +506,20 @@ const DispatchResultTable = ({
                 <TableRow
                   key={pos.deviceId}
                   hover
-                  onClick={() => setSelectedDeviceId(pos.deviceId)}
-                  sx={{ cursor: "pointer" }}
+                  onClick={(e) => handleRowClick(e, pos.deviceId)}
+                  sx={{
+                    cursor: "pointer",
+                    backgroundColor: selectedDeviceIds?.includes(pos.deviceId)
+                      ? "rgba(25, 118, 210, 0.1)"
+                      : "inherit",
+                  }}
                 >
                   <TableCell>{pos.deviceId}</TableCell>
                   <TableCell>
                     <IconButton
-                      size="small"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleTargetClick(
-                          pos.latitude,
-                          pos.longitude,
-                          pos.deviceId
-                        );
+                        handleZoomToDevice(pos);
                       }}
                     >
                       <RoomIcon fontSize="small" />
@@ -485,7 +529,7 @@ const DispatchResultTable = ({
                     {dayjs(pos.fixTime).format("YYYY-MM-DD HH:mm:ss")}
                   </TableCell>
                   <TableCell
-                    sx={{ color: (pos.speed ?? 0) > 5 ? "green" : "yellow" }}
+                    sx={{ color: (pos.speed ?? 0) > 5 ? "green" : "red" }}
                   >
                     {(pos.speed ?? 0) > 5 ? "Moving" : "Stop"}
                   </TableCell>
@@ -503,13 +547,23 @@ const DispatchResultTable = ({
                   </TableCell>
                   <TableCell>Pending</TableCell>
                   <TableCell>{distance}</TableCell>
-                  <TableCell>{eta}</TableCell>
-                  <TableCell>{calculatedCost}</TableCell>
+                  <TableCell>
+                    {etaMap[pos.deviceId] !== undefined
+                      ? etaMap[pos.deviceId] !== null
+                        ? `${etaMap[pos.deviceId]} min`
+                        : "N/A"
+                      : "Loading..."}
+                  </TableCell>
+                  <TableCell>
+                    {calculatedCost === 0 ? "Not Set" : `${calculatedCost} $`}
+                  </TableCell>
                   <TableCell>Pending</TableCell>
                   <TableCell>
                     {districts[pos.deviceId] ?? <CircularProgress size={15} />}
                   </TableCell>
-                  <TableCell>Pending</TableCell>
+                  <TableCell>
+                    {device.initialBase ? device.initialBase : "N/A"}
+                  </TableCell>
                   <TableCell>{rimacEta}</TableCell>
                 </TableRow>
               );

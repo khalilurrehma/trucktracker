@@ -349,7 +349,7 @@ export async function updateDeviceById(id, data) {
       media_ttl = ?,
       messages_ttl = ?,
       flespi_metadata = ?,
-      cost_by_km = ?,
+      cost_by_km = ?
     WHERE id = ?;
   `;
 
@@ -712,6 +712,41 @@ export const devicesWithServices = async (deviceId) => {
 
   return new Promise((resolve, reject) => {
     dbQuery(servicesQuery, values, (err, results) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+export const  getDeviceInitialGeofence = async (
+  flespi_device_id,
+  entry_date
+) => {
+  const sql = `SELECT * FROM devices_enter_geofence_record WHERE flespi_device_id = ? AND entry_date = ?`;
+  const values = [flespi_device_id, entry_date];
+
+  return new Promise((resolve, reject) => {
+    dbQuery(sql, values, (err, results) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(results[0]);
+    });
+  });
+};
+
+export const saveDeviceInitialGeofence = async (
+  flespi_device_id,
+  geofence_name,
+  entry_date
+) => {
+  const sql = `INSERT INTO devices_enter_geofence_record (flespi_device_id, geofence_name, entry_date) VALUES (?, ?, ?)`;
+  const values = [flespi_device_id, geofence_name, entry_date];
+
+  return new Promise((resolve, reject) => {
+    dbQuery(sql, values, (err, results) => {
       if (err) {
         reject(err);
       }

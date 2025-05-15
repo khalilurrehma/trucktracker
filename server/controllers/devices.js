@@ -10,6 +10,7 @@ import {
   getAllDevices,
   getAssignedServicesByDeviceId,
   getDeviceById,
+  getDeviceInitialGeofence,
   getDevicesByIds,
   getDevicesByIMEI,
   getDevicesByUserId,
@@ -396,6 +397,8 @@ export const addNewDevice = async (req, res) => {
 };
 
 export const allNewDevices = async (req, res) => {
+  const query = req.query;
+  let currentDate;
   try {
     const devices = await getAllDevices();
     const groups = await getAllGroups();
@@ -412,22 +415,36 @@ export const allNewDevices = async (req, res) => {
 
     const services = await getDeviceServices(deviceIds);
 
-    const enrichedDevices = devices.map((device) => {
-      const group = groups.find((group) => group.traccarId === device.groupId);
-      const deviceServices = services.filter(
-        (service) => service.device_id === device.id
-      );
+    if (query?.date) {
+      currentDate = query?.date;
+    }
 
-      const serviceDetails = deviceServices.map((service) => ({
-        serviceId: service.service_type_id,
-        serviceName: service.service_name,
-      }));
-      return {
-        ...device,
-        groupName: group ? group.name : `Unknown (${device.groupId})`,
-        services: serviceDetails,
-      };
-    });
+    const enrichedDevices = await Promise.all(
+      devices.map(async (device) => {
+        const initialBase = await getDeviceInitialGeofence(
+          device.flespiId,
+          currentDate
+        );
+
+        const group = groups.find(
+          (group) => group.traccarId === device.groupId
+        );
+        const deviceServices = services.filter(
+          (service) => service.device_id === device.id
+        );
+
+        const serviceDetails = deviceServices.map((service) => ({
+          serviceId: service.service_type_id,
+          serviceName: service.service_name,
+        }));
+        return {
+          ...device,
+          groupName: group ? group.name : `Unknown (${device.groupId})`,
+          services: serviceDetails,
+          initialBase: initialBase ? initialBase.geofence_name : null,
+        };
+      })
+    );
 
     res.status(200).json({
       status: true,

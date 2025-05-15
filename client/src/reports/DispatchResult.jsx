@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -29,6 +29,8 @@ import {
 } from "../settings/common/New.Helper";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import DispatchResultTable from "./components/DispatchResultTable";
+import DispatchDialog from "./components/DispatchDialog";
+import dayjs from "dayjs";
 
 const DispatchResult = () => {
   let url = import.meta.env.DEV
@@ -36,11 +38,14 @@ const DispatchResult = () => {
     : import.meta.env.VITE_PROD_BACKEND_URL;
 
   const centerDefault = { lat: -12.0464, lng: -77.0428 };
+  const mapRef = useRef(null);
+  const [mapZoom, setMapZoom] = useState(15);
   const [peruTime, setPeruTime] = useState(new Date());
   const [serviceTypes, setServiceTypes] = useState([]);
   const [newAllDevices, setNewAllDevices] = useState([]);
   const [selectedServiceType, setSelectedServiceType] = useState([]);
   const [filteredDeviceIds, setFilteredDeviceIds] = useState([]);
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState(null);
   const [caseNumber, setCaseNumber] = useState("");
   const [address, setAddress] = useState("");
   const [mapCenter, setMapCenter] = useState(centerDefault);
@@ -48,6 +53,8 @@ const DispatchResult = () => {
   const [radius] = useState(2000);
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   const [searchValue, setSearchValue] = useState("");
+  const [openAssignModal, setOpenAssignModal] = useState(false);
+  const [assignedDevices, setAssignedDevices] = useState([]);
 
   const positionsObj = useSelector((state) => state.session.positions) || {};
   const positions = Array.isArray(positionsObj)
@@ -78,13 +85,13 @@ const DispatchResult = () => {
   };
 
   const fetchNewAllDevices = async () => {
+    const currentDate = dayjs().format("YYYY-MM-DD");
     try {
-      const apiUrl = `${url}/new-devices`;
+      const apiUrl = `${url}/new-devices?date=${currentDate}`;
       const res = await axios.get(apiUrl);
 
       if (res.status === 200) {
         const formattedDevice = res.data.data.map((device) => {
-          // console.log(device);
           return {
             id: device.traccarId,
             name: device.name,
@@ -101,6 +108,7 @@ const DispatchResult = () => {
             attributes: device.attributes,
             services: device.services,
             costByKm: device.cost_by_km,
+            intialBase: device.initialBase,
           };
         });
         setNewAllDevices(formattedDevice);
@@ -172,7 +180,14 @@ const DispatchResult = () => {
   );
 
   const handleAssignClick = () => {
-    console.log("Assign case to device:", selectedDeviceId);
+    const processDevices = devicesInRadius.filter((device) =>
+      selectedDeviceIds.includes(device.deviceId)
+    );
+
+    if (processDevices.length > 0) {
+      setAssignedDevices(processDevices);
+      setOpenAssignModal(true);
+    }
   };
 
   return (
@@ -248,11 +263,11 @@ const DispatchResult = () => {
         </Grid>
 
         {isLoaded && (
-          <Box sx={{ mt: 3 }}>
+          <Box ref={mapRef} sx={{ mt: 3 }}>
             <GoogleMap
               mapContainerStyle={{ width: "100%", height: "500px" }}
               center={mapCenter}
-              zoom={15}
+              zoom={mapZoom}
             >
               {markerPosition && (
                 <>
@@ -359,7 +374,9 @@ const DispatchResult = () => {
                   variant="contained"
                   color="primary"
                   sx={{ minWidth: "100px", ml: 2 }}
-                  disabled={!selectedDeviceId}
+                  disabled={
+                    !selectedDeviceIds || selectedDeviceIds.length === 0
+                  }
                   onClick={handleAssignClick}
                 >
                   Assign Case
@@ -377,6 +394,23 @@ const DispatchResult = () => {
             newAllDevices={newAllDevices}
             setMapCenter={setMapCenter}
             setSelectedDeviceId={setSelectedDeviceId}
+            selectedDeviceIds={selectedDeviceIds}
+            setSelectedDeviceIds={setSelectedDeviceIds}
+            mapRef={mapRef}
+            setMapZoom={setMapZoom}
+          />
+        )}
+
+        {openAssignModal && (
+          <DispatchDialog
+            value={{ description: address }}
+            openAssignModal={openAssignModal}
+            setOpenAssignModal={setOpenAssignModal}
+            assignedDevices={assignedDevices}
+            selectedRows={selectedDeviceIds}
+            setSelectedRows={setSelectedDeviceIds}
+            lat={markerPosition?.lat}
+            lng={markerPosition?.lng}
           />
         )}
       </Box>
