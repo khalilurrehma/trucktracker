@@ -7,9 +7,9 @@ import {
   fetchDriverAvailability,
   fetchDrivers,
   fetchDriversByUserId,
-  getDriverCompany,
   removeDriver,
   saveAssociationRelation,
+  saveDriverResetToken,
   updateDriver,
   updateDriverAvailability,
 } from "../model/driver.js";
@@ -22,8 +22,22 @@ import { refreshShiftJobs } from "../services/cronJobs.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import "dotenv/config.js";
-import { devicesListWithSearchByCompanyId } from "../model/devices.js";
+import {
+  devicesListWithSearchByCompanyId,
+  getDeviceFlespiIdById,
+} from "../model/devices.js";
 import { getAuthenticatedS3String, s3 } from "../services/azure.s3.js";
+import { getDeviceOdometer } from "../services/flespiApis.js";
+import nodemailer from "nodemailer";
+import crypto from "crypto";
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.MAIL_USERNAME,
+    pass: process.env.MAIL_PASSWORD,
+  },
+});
 
 export const postDriver = async (req, res) => {
   const { userId, isSuperAdmin, traccarUserToken, ...restFields } = req.body;
@@ -106,6 +120,20 @@ export const assignDriverToVehicle = async (req, res) => {
     });
   }
 
+  if (!["bad", "good"].includes(device_status.toLowerCase())) {
+    return res.status(400).json({
+      status: false,
+      message: "Vehicle Status must be 'bad' or 'good'",
+    });
+  }
+
+  if (typeof odometer !== "string" || !/^\d+(\.\d+)?$/.test(odometer)) {
+    return res.status(400).json({
+      status: false,
+      message: "Odometer must be a valid number string (e.g., '12345.67')",
+    });
+  }
+
   try {
     const existingDevice = await checkAlreadyAssociatedVehicle(
       driver_id,
@@ -119,11 +147,38 @@ export const assignDriverToVehicle = async (req, res) => {
       });
     }
 
+    const deviceFlespiId = await getDeviceFlespiIdById(device_id);
+
+    const flespiResponse = await getDeviceOdometer(deviceFlespiId);
+
+    let verifyOdometerReading =
+      flespiResponse[0].telemetry["vehicle.mileage"]?.value;
+
+    if (verifyOdometerReading === undefined) {
+      return res.status(500).json({
+        status: false,
+        message: "Failed to retrieve odometer reading from Flespi",
+      });
+    }
+
+    const parsedOdometer = parseFloat(odometer);
+    const normalizedOdometer = parseFloat(parsedOdometer.toFixed(2));
+    const normalizedFlespi = parseFloat(
+      parseFloat(verifyOdometerReading).toFixed(2)
+    );
+
+    // if (normalizedOdometer !== normalizedFlespi) {
+    //   return res.status(400).json({
+    //     status: false,
+    //     message: `Odometer reading (${normalizedOdometer}) does not match Flespi's reading (${normalizedFlespi})`,
+    //   });
+    // }
+
     let dbBody = {
       device_id,
       driver_id,
-      odometer,
-      device_status,
+      odometer: normalizedOdometer,
+      device_status: device_status.toLowerCase(),
     };
 
     if (device_status.toLowerCase() === "bad") {
@@ -438,5 +493,51 @@ export const driverLogout = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ status: false, message: "Internal Server Error" });
+  }
+};
+
+export const driverForgotPassword = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({
+      status: false,
+      message: "A valid email address is required",
+    });
+  }
+
+  try {
+    const driver = await driverByEmail(email);
+
+    if (!driver) {
+      return res.status(404).json({
+        status: false,
+        message: "No driver found with this email address",
+      });
+    }
+
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const expires_at = new Date(Date.now() + 10 * 60 * 1000);
+
+    // await saveDriverResetToken(driver?.id, otp, expires_at);
+
+    console.log(process.env.MAIL_USERNAME, process.env.MAIL_PASSWORD);
+
+    const mailOptions = {
+      from: `"Your App Name" <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: "Password Reset OTP",
+      text: `Your OTP for password reset is: ${otp}. It is valid for 10 minutes.`,
+      html: `<p>Your OTP for password reset is: <strong>${otp}</strong>. It is valid for 10 minutes.</p>`,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    return res.status(200).json({
+      status: true,
+      message: "OTP sent to your email address",
+    });
+  } catch (error) {
+    res.status(500).json({ status: false, message: error.message });
   }
 };

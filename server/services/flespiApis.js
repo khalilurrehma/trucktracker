@@ -63,6 +63,20 @@ export const devicesByTypeId = async (id) => {
   }
 };
 
+export const getDeviceOdometer = async (device_id) => {
+  const apiUrl = `https://flespi.io/gw/devices/${device_id}/telemetry/vehicle.mileage`;
+  const headers = {
+    Authorization: `FlespiToken ${FlespiToken}`,
+  };
+  try {
+    const response = await axios.get(apiUrl, { headers });
+
+    return response.data.result;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const sendCommandToFlespiDevice = async (deviceId, body) => {
   const flespiStatusUrl = `https://flespi.io/gw/devices/${deviceId}/commands-queue`;
   const headers = {

@@ -360,3 +360,15 @@ export const checkAlreadyAssociatedVehicle = async (driver_id, device_id) => {
     });
   });
 };
+
+export const saveDriverResetToken = async (driver_id, otp, expires_at) => {
+  const sql = `INSERT INTO password_reset_tokens (driver_id, otp, expires_at) VALUES (?, ?, ?)`;
+  const values = [driver_id, otp, expires_at];
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, values, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};

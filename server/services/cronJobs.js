@@ -86,6 +86,7 @@ const scheduleResend = async ({
   commandOff,
   resendTime,
   date,
+  executeCommand,
 }) => {
   const resendKey = `${shiftId}-${deviceId}-${date}`;
 
@@ -110,10 +111,14 @@ const scheduleResend = async ({
       const isConnected = connectionStatus.result[0]?.connected;
 
       if ([0, 1, 4, 5].includes(ignitionValue) && isConnected) {
+        let response;
         const body = [{ name: "custom", properties: { text: commandOff } }];
-        const response = await instantExecutionCommand(deviceId, body);
 
-        const success = response?.result?.[0];
+        if (executeCommand) {
+          response = await instantExecutionCommand(deviceId, body);
+        }
+
+        const success = executeCommand ? response?.result?.[0] : true;
         const note = success
           ? `[${dayjs().format()}] Resend Success for Device: ${deviceName}`
           : `[${dayjs().format()}] Resend Failed for Device: ${deviceName}`;
@@ -378,6 +383,7 @@ const scheduleShiftJobs = async () => {
         clearExistingJobsForDeviceShift(parsedDevice.flespiId, date);
 
         const startJob = new CronJob(cronStart, async () => {
+          let response;
           try {
             const body = [
               {
@@ -387,11 +393,14 @@ const scheduleShiftJobs = async () => {
               },
             ];
 
-            const response = await sendCommandToFlespiDevice(
-              parsedDevice.flespiId,
-              body
-            );
-            const success = response?.result?.[0];
+            if (executeCommand) {
+              response = await sendCommandToFlespiDevice(
+                parsedDevice.flespiId,
+                body
+              );
+            }
+
+            const success = executeCommand ? response?.result?.[0] : true;
 
             let bodyForReport = {
               device: { id: parsedDevice.flespiId, name: parsedDevice.name },
@@ -427,15 +436,15 @@ const scheduleShiftJobs = async () => {
               loaded: true,
             });
 
-            console.log(
-              success
-                ? `[${dayjs().format()}] Shift Started for Device: ${
-                    parsedDevice.name
-                  } Driver: ${parsedDriver.name}`
-                : `[${dayjs().format()}] Start Command Failed: ${
-                    parsedDevice.name
-                  }`
-            );
+            // console.log(
+            //   success
+            //     ? `[${dayjs().format()}] Shift Started for Device: ${
+            //         parsedDevice.name
+            //       } Driver: ${parsedDriver.name}`
+            //     : `[${dayjs().format()}] Start Command Failed: ${
+            //         parsedDevice.name
+            //       }`
+            // );
           } catch (error) {
             console.error("Start Job Error:", error.message);
           } finally {
@@ -461,15 +470,19 @@ const scheduleShiftJobs = async () => {
             const isConnected = deviceStatus?.result[0]?.connected;
 
             if ([0, 1, 4, 5].includes(ignitionValue) && isConnected) {
+              let response;
               const body = [
                 { name: "custom", properties: { text: commandOff } },
               ];
-              const response = await instantExecutionCommand(
-                parsedDevice.flespiId,
-                body
-              );
 
-              const success = response?.result?.[0];
+              if (executeCommand) {
+                response = await instantExecutionCommand(
+                  parsedDevice.flespiId,
+                  body
+                );
+              }
+
+              const success = executeCommand ? response?.result?.[0] : true;
 
               const lockTimestamp = dayjs();
               const lastIgnitionOn = await getLastIgnitionEventBefore(
@@ -549,16 +562,6 @@ const scheduleShiftJobs = async () => {
                   loaded: true,
                 });
               }
-
-              console.log(
-                success
-                  ? `[${dayjs().format()}] Shift Ended for Device: ${
-                      parsedDevice.name
-                    } Driver: ${parsedDriver.name}`
-                  : `[${dayjs().format()}] End Command Failed: ${
-                      parsedDevice.name
-                    }`
-              );
             } else if ([2, 3, 6, 7].includes(ignitionValue) && isConnected) {
               console.log(
                 `[${dayjs().format()}] Ignition ON, Rescheduling End for Device: ${
@@ -573,6 +576,7 @@ const scheduleShiftJobs = async () => {
                 commandOff,
                 resendTime: parsedResendTime,
                 date,
+                executeCommand: executeCommand,
               });
             } else if (!isConnected) {
               console.log(
@@ -588,6 +592,7 @@ const scheduleShiftJobs = async () => {
                 commandOff,
                 resendTime: parsedResendTime,
                 date,
+                executeCommand: executeCommand,
               });
             } else {
               console.log(

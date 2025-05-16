@@ -2,6 +2,7 @@ import express from "express";
 import {
   assignDriverToVehicle,
   deleteDriver,
+  driverForgotPassword,
   driverLogin,
   driverLogout,
   getCompanyVehicles,
@@ -55,6 +56,9 @@ router.get("/driver/behaivor/status/:userId", getDriverBehaivor);
 
 // AUTH for DRIVERs
 router.post("/driver/login", driverLogin);
+
 router.post("/driver/logout", driverLogout);
+
+router.post("/driver/forgot-password", driverForgotPassword);
 
 export default router;

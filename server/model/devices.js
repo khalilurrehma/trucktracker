@@ -174,6 +174,18 @@ export async function getDeviceById(deviceId) {
     throw error;
   }
 }
+export const getDeviceFlespiIdById = async (deviceId) => {
+  const sql = `SELECT flespiId from new_settings_devices WHERE id = ?`;
+
+  const values = [deviceId];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result[0]?.flespiId;
+  } catch (error) {
+    throw error;
+  }
+};
 
 export async function getDeviceUserIdByFlespiId(flespId) {
   const sql = `
