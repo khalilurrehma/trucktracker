@@ -16,12 +16,18 @@ import {
   saveDriverAvailability,
 } from "../controllers/driver.js";
 import { authDriver } from "../middlewares/auth.middleware.js";
+import { upload } from "../middlewares/multer.middleware.js";
 
 const router = express.Router();
 
 router.post("/driver", postDriver);
 
-router.post("/driver/vehicle/association", authDriver, assignDriverToVehicle);
+router.post(
+  "/driver/vehicle/association",
+  upload.any(),
+  authDriver,
+  assignDriverToVehicle
+);
 
 router.get("/drivers", getDrivers);
 

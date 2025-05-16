@@ -324,6 +324,7 @@ const scheduleShiftJobs = async () => {
     resend_time,
     commandOn,
     commandOff,
+    command_option,
     is_extended,
     extend_time,
   } of shifts) {
@@ -332,6 +333,7 @@ const scheduleShiftJobs = async () => {
       typeof driver === "string" ? JSON.parse(driver) : driver;
     const parsedResendTime = JSON.parse(resend_time);
     const shiftDetailsArray = parsedDriver.shift_details;
+    let executeCommand = command_option === "force" ? true : false;
 
     if (!shiftDetailsArray || shiftDetailsArray.length === 0) {
       console.log("No shift details found for device:", parsedDevice.flespiId);
@@ -353,6 +355,7 @@ const scheduleShiftJobs = async () => {
         let baseShiftEnd = applyGraceTime(shift?.end_time, graceMinutes, "add");
 
         let shiftEnd = baseShiftEnd;
+
         if (is_extended && extend_time) {
           shiftEnd = applyExtendTime(baseShiftEnd, extend_time);
         }
@@ -366,8 +369,8 @@ const scheduleShiftJobs = async () => {
         const cronStart = getCronFromDateTime(date, shiftStart);
         const cronEnd = getCronFromDateTime(date, shiftEndStr);
 
-        console.log(cronStart);
-        console.log(cronEnd);
+        // console.log(cronStart);
+        // console.log(cronEnd);
 
         const startKey = getJobKey(parsedDevice.flespiId, "start", date);
         const endKey = getJobKey(parsedDevice.flespiId, "end", date);

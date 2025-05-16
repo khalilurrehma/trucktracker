@@ -176,13 +176,13 @@ export const addDeviceShift = async (body) => {
     resend_time,
     commandOn,
     commandOff,
-    // shiftId,
+    selectedCommand,
     userId,
   } = body;
 
   const sql = `
-      INSERT INTO device_shifts (device, driver_id, queue, queue_time, resend_time, commandOn, commandOff, shiftId, userId)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO device_shifts (device, driver_id, queue, queue_time, resend_time, commandOn, commandOff, command_option, shiftId, userId)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
   const values = [
@@ -193,6 +193,7 @@ export const addDeviceShift = async (body) => {
     JSON.stringify(resend_time),
     commandOn,
     commandOff,
+    selectedCommand,
     null, // shiftId,
     userId,
   ];

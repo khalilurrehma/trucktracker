@@ -1,5 +1,6 @@
 import {
   addDriver,
+  checkAlreadyAssociatedVehicle,
   driverByEmail,
   driversShiftDetails,
   fetchDriver,
@@ -8,6 +9,7 @@ import {
   fetchDriversByUserId,
   getDriverCompany,
   removeDriver,
+  saveAssociationRelation,
   updateDriver,
   updateDriverAvailability,
 } from "../model/driver.js";
@@ -21,6 +23,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import "dotenv/config.js";
 import { devicesListWithSearchByCompanyId } from "../model/devices.js";
+import { getAuthenticatedS3String, s3 } from "../services/azure.s3.js";
 
 export const postDriver = async (req, res) => {
   const { userId, isSuperAdmin, traccarUserToken, ...restFields } = req.body;
@@ -87,10 +90,94 @@ export const postDriver = async (req, res) => {
 };
 
 export const assignDriverToVehicle = async (req, res) => {
-  const userId = req.userId;
-  // const { deviceId: vehicleId, driverId } = req.body;
+  const driver_id = req.userId;
+  let files;
+  const {
+    vehicleId: device_id,
+    odometer,
+    vehicle_status: device_status,
+    description,
+  } = req.body;
 
-  console.log(req.body);
+  if (!device_id || !odometer || !device_status) {
+    return res.status(400).json({
+      status: false,
+      message: "Device ID, Odometer, and Vehicle Status are required",
+    });
+  }
+
+  try {
+    const existingDevice = await checkAlreadyAssociatedVehicle(
+      driver_id,
+      device_id
+    );
+
+    if (existingDevice) {
+      return res.status(400).json({
+        status: false,
+        message: "Driver is already associated with this vehicle",
+      });
+    }
+
+    let dbBody = {
+      device_id,
+      driver_id,
+      odometer,
+      device_status,
+    };
+
+    if (device_status.toLowerCase() === "bad") {
+      files = req.files[0];
+
+      if (!files || !description) {
+        return res.status(400).json({
+          status: false,
+          message: "Image and description are required",
+        });
+      }
+
+      const uploadedFile = await s3
+        .upload({
+          Bucket: process.env.CONTABO_BUCKET_NAME,
+          Key: `vehicle-report-image/${Date.now()}-${files.originalname}`,
+          Body: files.buffer,
+          ContentType: files.mimetype,
+          ACL: "public-read",
+        })
+        .promise();
+
+      if (!uploadedFile) {
+        return res.status(500).json({
+          status: false,
+          message: "Failed to upload image",
+        });
+      }
+
+      const imageUrl = getAuthenticatedS3String(uploadedFile.Location);
+
+      dbBody = {
+        ...dbBody,
+        description,
+        image_url: imageUrl,
+      };
+    }
+
+    const save = await saveAssociationRelation(dbBody);
+
+    if (!save) {
+      return res.status(500).json({
+        status: false,
+        message: "Failed to save association",
+      });
+    }
+
+    res.status(201).json({
+      status: true,
+      message: "Driver assigned to vehicle successfully",
+    });
+  } catch (error) {
+    res.status(500).json({ status: false, message: error.message });
+  }
 };
 
 export const getCompanyVehicles = async (req, res) => {

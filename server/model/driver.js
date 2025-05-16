@@ -328,3 +328,35 @@ export const driversShiftDetails = async (userId) => {
 
   return enrichedDrivers;
 };
+
+export const saveAssociationRelation = async (body) => {
+  // vehicle is always device for backend.
+  const sql = `INSERT INTO vehicle_driver_association (device_id, driver_id, odometer_reading, device_status, description, image_url)
+    VALUES (?, ?, ?, ?, ?, ?)`;
+
+  const values = [
+    parseInt(body.device_id),
+    body.driver_id,
+    body.odometer,
+    body.device_status,
+    body.description,
+    body.image_url,
+  ];
+  return new Promise((resolve, reject) => {
+    pool.query(sql, values, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+export const checkAlreadyAssociatedVehicle = async (driver_id, device_id) => {
+  const sql = `SELECT * FROM vehicle_driver_association WHERE driver_id = ? AND device_id = ?`;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [driver_id, device_id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0]);
+    });
+  });
+};

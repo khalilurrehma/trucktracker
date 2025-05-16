@@ -64,6 +64,7 @@ const NewConfigShift = () => {
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [selectedShift, setSelectedShift] = useState(null);
   const [presetShifts, setPresetShifts] = useState([]);
+  const [selectedCommand, setSelectedCommand] = useState("");
   const [presetShiftsFullArray, setPresetShiftsFullArray] = useState([]);
   const [customShift, setCustomShift] = useState(false);
   const [customShiftName, setCustomShiftName] = useState("");
@@ -130,6 +131,7 @@ const NewConfigShift = () => {
         device: selectedDevice,
         deviceId: selectedDevice.id,
         driver_id: selectedDriver?.id,
+        selectedCommand,
         resend_time: formattedReSend,
         commandOn,
         commandOff,
@@ -248,34 +250,6 @@ const NewConfigShift = () => {
         (device) => device.shift_assigned === 0
       );
 
-      // const devicesWithDoutStatus = await Promise.all(
-      //   filterAssignedDevices.map(async (device) => {
-      //     try {
-      //       let doutStatusResponse;
-      //       if (device.flespiId) {
-      //         doutStatusResponse = await fetchDeviceDin(device?.flespiId);
-      //       }
-
-      //       const devicesIgnitionStatus =
-      //         doutStatusResponse[0]?.telemetry?.din?.value ?? 0;
-
-      //       return {
-      //         ...device,
-      //         devicesIgnitionStatus,
-      //       };
-      //     } catch (error) {
-      //       return {
-      //         ...device,
-      //         devicesIgnitionStatus: 0,
-      //       };
-      //     }
-      //   })
-      // );
-
-      // const finalFilteredDevices = devicesWithDoutStatus.filter((device) =>
-      //   [0, 1, 4, 5].includes(device.devicesIgnitionStatus)
-      // );
-
       setDevices(filterAssignedDevices);
     } catch (error) {
       console.error("Error fetching devices:", error);
@@ -361,20 +335,6 @@ const NewConfigShift = () => {
             isOptionEqualToValue={(option, value) => option.id === value.id}
             renderOption={(props, option) => (
               <li {...props} key={option.id || Math.random()}>
-                {/* <span
-                  style={{
-                    width: "15px",
-                    height: "15px",
-                    borderRadius: "50%",
-                    marginRight: "15px",
-                    backgroundColor: [0, 1, 4, 5].includes(
-                      option.devicesIgnitionStatus
-                    )
-                      ? "red"
-                      : "green",
-                    display: "inline-block",
-                  }}
-                /> */}
                 {option.name || "Unnamed Device"}
               </li>
             )}
@@ -413,6 +373,20 @@ const NewConfigShift = () => {
             )}
             disableClearable
           />
+        </FormControl>
+
+        <FormControl fullWidth>
+          <InputLabel>
+            Command<span>*</span>
+          </InputLabel>
+          <Select
+            value={selectedCommand}
+            onChange={(e) => setSelectedCommand(e.target.value)}
+            displayEmpty
+          >
+            <MenuItem value="force">Force Command</MenuItem>
+            <MenuItem value="unforce">Unforce Command</MenuItem>
+          </Select>
         </FormControl>
 
         <LocalizationProvider dateAdapter={AdapterDateFns}>

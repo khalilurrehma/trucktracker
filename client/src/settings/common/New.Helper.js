@@ -356,26 +356,3 @@ export function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
-
-export const getDistrictFromCoordinates = async (lat, lng) => {
-  const apiKey = import.meta.env.VITE_GOOGLE_MAP_API;
-
-  try {
-    const response = await axios.get(
-      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&result_type=administrative_area_level_2&key=${apiKey}`
-    );
-
-    if (response.data.status === "OK" && response.data.results.length > 0) {
-      const components = response.data.results[0].address_components;
-      const district = components.find((comp) =>
-        comp.types.includes("administrative_area_level_2")
-      );
-      return district ? district.long_name : "Unknown";
-    } else {
-      return "Unknown";
-    }
-  } catch (error) {
-    console.error("Error fetching district:", error.message);
-    return "Unknown";
-  }
-};

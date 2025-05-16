@@ -16,10 +16,8 @@ import {
 } from "@mui/material";
 import RoomIcon from "@mui/icons-material/Room";
 import dayjs from "dayjs";
-import {
-  getDistanceFromLatLonInMeters,
-  getDistrictFromCoordinates,
-} from "../../settings/common/New.Helper";
+import { getDistanceFromLatLonInMeters } from "../../settings/common/New.Helper";
+import useDistrictFetcher from "../../settings/hooks/useDistrictFetcher";
 
 const AVERAGE_SPEED_KMH = 40;
 
@@ -49,11 +47,11 @@ const DispatchResultTable = ({
     initialBase: "",
   });
 
+  const { districts, fetchDistrict } = useDistrictFetcher();
   const [filteredItems, setFilteredItems] = useState([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [sortOrder, setSortOrder] = useState("desc");
-  const [districts, setDistricts] = useState({});
   const [etaMap, setEtaMap] = useState({});
 
   const parseNumberFilter = (value) => {
@@ -297,15 +295,14 @@ const DispatchResultTable = ({
     ).toFixed(2);
   };
 
-  const fetchDistrict = async (lat, lng, deviceId) => {
-    const districtName = await getDistrictFromCoordinates(lat, lng);
-    setDistricts((prev) => ({ ...prev, [deviceId]: districtName }));
+  const handleFetchDistrict = async (lat, lng, deviceId) => {
+    await fetchDistrict(lat, lng, deviceId);
   };
 
   useEffect(() => {
     filteredItems.forEach((pos) => {
       if (!districts[pos.deviceId]) {
-        fetchDistrict(pos.latitude, pos.longitude, pos.deviceId);
+        handleFetchDistrict(pos.latitude, pos.longitude, pos.deviceId);
       }
     });
   }, [filteredItems]);
@@ -510,7 +507,6 @@ const DispatchResultTable = ({
             .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
             .map((pos) => {
               const device = newAllDevices.find((d) => d.id === pos.deviceId);
-              console.log(device, "device");
 
               const distance = markerPosition
                 ? calculateDistance(

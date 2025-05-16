@@ -31,14 +31,29 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import DispatchResultTable from "./components/DispatchResultTable";
 import DispatchDialog from "./components/DispatchDialog";
 import dayjs from "dayjs";
+import { useTranslation } from "../common/components/LocalizationProvider";
+
+const GOOGLE_MAPS_LIBRARIES = ["places", "maps"];
+const radiusOptions = [
+  { label: "500m", value: 500 },
+  { label: "1km", value: 1000 },
+  { label: "2km", value: 2000 },
+  { label: "3km", value: 3000 },
+  { label: "5km", value: 5000 },
+  { label: "10km", value: 10000 },
+  { label: "20km", value: 20000 },
+  { label: "50km", value: 50000 },
+];
 
 const DispatchResult = () => {
   let url = import.meta.env.DEV
     ? import.meta.env.VITE_DEV_BACKEND_URL
     : import.meta.env.VITE_PROD_BACKEND_URL;
 
+  const t = useTranslation();
   const centerDefault = { lat: -12.0464, lng: -77.0428 };
   const mapRef = useRef(null);
+  const [map, setMap] = useState(null);
   const [mapZoom, setMapZoom] = useState(15);
   const [peruTime, setPeruTime] = useState(new Date());
   const [serviceTypes, setServiceTypes] = useState([]);
@@ -50,11 +65,12 @@ const DispatchResult = () => {
   const [address, setAddress] = useState("");
   const [mapCenter, setMapCenter] = useState(centerDefault);
   const [markerPosition, setMarkerPosition] = useState(null);
-  const [radius] = useState(2000);
+  const [radius, setRadius] = useState("");
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   const [searchValue, setSearchValue] = useState("");
   const [openAssignModal, setOpenAssignModal] = useState(false);
   const [assignedDevices, setAssignedDevices] = useState([]);
+  const [placeOptions, setPlaceOptions] = useState([]);
 
   const positionsObj = useSelector((state) => state.session.positions) || {};
   const positions = Array.isArray(positionsObj)
@@ -63,6 +79,7 @@ const DispatchResult = () => {
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAP_API,
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   const handleShowClick = async () => {
@@ -79,6 +96,9 @@ const DispatchResult = () => {
       const { lat, lng } = data.results[0].geometry.location;
       setMapCenter({ lat, lng });
       setMarkerPosition({ lat, lng });
+      if (map) {
+        map.panTo({ lat, lng });
+      }
     } else {
       alert("Address not found");
     }
@@ -146,7 +166,6 @@ const DispatchResult = () => {
 
   useEffect(() => {
     if (!newAllDevices || selectedServiceType.length === 0) {
-      // setFilteredDeviceIds(newAllDevices.map((device) => device.id));
       return;
     }
 
@@ -188,6 +207,81 @@ const DispatchResult = () => {
       setAssignedDevices(processDevices);
       setOpenAssignModal(true);
     }
+  };
+
+  useEffect(() => {
+    if (!isLoaded || !window.google) return;
+
+    const autocompleteService =
+      new window.google.maps.places.AutocompleteService();
+
+    const fetchPlacePredictions = async (input) => {
+      if (!input) {
+        setPlaceOptions([]);
+        return;
+      }
+
+      try {
+        const response = await autocompleteService.getPlacePredictions({
+          input,
+          componentRestrictions: { country: "PE" },
+          types: ["address"],
+        });
+
+        setPlaceOptions(
+          response.predictions.map((prediction) => ({
+            label: prediction.description,
+            placeId: prediction.place_id,
+          }))
+        );
+      } catch (error) {
+        console.error("Error fetching place predictions:", error);
+        setPlaceOptions([]);
+      }
+    };
+
+    if (address) {
+      fetchPlacePredictions(address);
+    }
+  }, [address, isLoaded]);
+
+  const handlePlaceSelect = async (newValue) => {
+    if (!newValue) {
+      setAddress("");
+      setMarkerPosition(null);
+      setMapCenter(centerDefault);
+      if (map) {
+        map.panTo(centerDefault);
+      }
+      return;
+    }
+
+    setAddress(newValue.label);
+
+    const tempDiv = document.createElement("div");
+    const placesService = new window.google.maps.places.PlacesService(tempDiv);
+
+    placesService.getDetails(
+      { placeId: newValue.placeId, fields: ["geometry"] },
+      (place, status) => {
+        if (
+          status === window.google.maps.places.PlacesServiceStatus.OK &&
+          place.geometry
+        ) {
+          const { lat, lng } = place.geometry.location;
+          const newPosition = { lat: lat(), lng: lng() };
+          setMapCenter(newPosition);
+          setMarkerPosition(newPosition);
+          if (map) {
+            map.panTo(newPosition);
+          }
+        } else {
+          console.error("PlacesService failed:", status);
+          alert("Unable to retrieve location details");
+        }
+        tempDiv.remove();
+      }
+    );
   };
 
   return (
@@ -242,12 +336,52 @@ const DispatchResult = () => {
             </Button>
           </Grid>
 
-          <Grid item xs={12} sm={10}>
-            <TextField
-              label="Incident Address"
+          <Grid item xs={12} sm={7}>
+            <Autocomplete
+              id="address-autocomplete"
+              options={placeOptions}
+              getOptionLabel={(option) => option.label || ""}
+              value={
+                placeOptions.find((option) => option.label === address) || null
+              }
+              onChange={(event, newValue) => handlePlaceSelect(newValue)}
+              onInputChange={(event, newInputValue) =>
+                setAddress(newInputValue)
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Incident Address"
+                  fullWidth
+                  variant="outlined"
+                />
+              )}
+              isOptionEqualToValue={(option, value) =>
+                option.placeId === value.placeId
+              }
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={3}>
+            <Autocomplete
+              id="radius-autocomplete"
               fullWidth
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              options={radiusOptions}
+              getOptionLabel={(option) => option.label}
+              value={
+                radiusOptions.find((option) => option.value === radius) || null
+              }
+              onChange={(event, newValue) => {
+                setRadius(newValue ? newValue.value : "");
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label={t("commandRadius")}
+                  variant="outlined"
+                  sx={{ width: "100%" }}
+                />
+              )}
             />
           </Grid>
           <Grid item xs={12} sm={2}>
@@ -268,6 +402,7 @@ const DispatchResult = () => {
               mapContainerStyle={{ width: "100%", height: "500px" }}
               center={mapCenter}
               zoom={mapZoom}
+              onLoad={(mapInstance) => setMap(mapInstance)}
             >
               {markerPosition && (
                 <>

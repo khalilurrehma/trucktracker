@@ -6,3 +6,11 @@ export const s3 = new AWS.S3({
   endpoint: process.env.CONTABO_ENDPOINT,
   s3ForcePathStyle: true,
 });
+
+export function getAuthenticatedS3String(originalUrl) {
+  const authKey = process.env.authKey;
+
+  if (!originalUrl) return null;
+
+  return originalUrl.replace("/notificationsaudio", `/${authKey}`);
+}

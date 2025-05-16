@@ -150,7 +150,7 @@ export const postDeviceShift = async (req, res) => {
     const newDeviceShift = await addDeviceShift(body);
 
     if (!newDeviceShift.insertId) {
-      return res 
+      return res
         .status(400)
         .json({ status: false, message: "Failed to add device shift" });
     }
