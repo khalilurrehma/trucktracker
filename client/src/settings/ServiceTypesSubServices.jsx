@@ -17,6 +17,7 @@ import {
   Tooltip,
   IconButton,
   CircularProgress,
+  Box,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -53,7 +54,11 @@ const ServiceTypesSubServices = () => {
   const fetchFromApi = async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get(`${url}/service-type/subservices`);
+      const { data } =
+        userId === 1
+          ? await axios.get(`${url}/service-type/subservices`)
+          : await axios.get(`${url}/service-type/subservices/user/${userId}`);
+
       if (data.status) {
         setSubServices(data.message);
       }
@@ -107,10 +112,7 @@ const ServiceTypesSubServices = () => {
   };
 
   return (
-    <PageLayout
-      menu={<SettingsMenu />}
-      breadcrumbs2={["settingsTitle", "Sub Services"]}
-    >
+    <Box>
       <ToastContainer />
       <div style={{ padding: "20px" }}>
         <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
@@ -209,7 +211,7 @@ const ServiceTypesSubServices = () => {
       </div>
 
       <CollectionFab editPath={"/settings/services-types/subservices/add"} />
-    </PageLayout>
+    </Box>
   );
 };
 

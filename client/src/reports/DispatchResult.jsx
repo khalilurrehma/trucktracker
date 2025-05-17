@@ -50,6 +50,7 @@ const DispatchResult = () => {
     ? import.meta.env.VITE_DEV_BACKEND_URL
     : import.meta.env.VITE_PROD_BACKEND_URL;
 
+  const userId = useSelector((state) => state.session.user.id);
   const t = useTranslation();
   const centerDefault = { lat: -12.0464, lng: -77.0428 };
   const mapRef = useRef(null);
@@ -142,7 +143,10 @@ const DispatchResult = () => {
 
   const fetchServiceTypes = async () => {
     try {
-      const { data } = await axios.get(`${url}/all/device/service-types`);
+      const { data } =
+        userId === 1
+          ? await axios.get(`${url}/all/device/service-types`)
+          : await axios.get(`${url}/all/device/service-types/user/${userId}`);
       if (data.status) setServiceTypes(data.message);
     } catch (error) {
       console.error("Error fetching service types:", error);
@@ -152,7 +156,7 @@ const DispatchResult = () => {
   useEffect(() => {
     fetchNewAllDevices();
     fetchServiceTypes();
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     const interval = setInterval(() => {

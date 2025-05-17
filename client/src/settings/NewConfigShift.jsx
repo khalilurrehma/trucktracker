@@ -375,20 +375,6 @@ const NewConfigShift = () => {
           />
         </FormControl>
 
-        <FormControl fullWidth>
-          <InputLabel>
-            Command<span>*</span>
-          </InputLabel>
-          <Select
-            value={selectedCommand}
-            onChange={(e) => setSelectedCommand(e.target.value)}
-            displayEmpty
-          >
-            <MenuItem value="force">Force Command</MenuItem>
-            <MenuItem value="unforce">Unforce Command</MenuItem>
-          </Select>
-        </FormControl>
-
         <LocalizationProvider dateAdapter={AdapterDateFns}>
           <TimePicker
             label="Re-Send time"
@@ -404,227 +390,19 @@ const NewConfigShift = () => {
           />
         </LocalizationProvider>
 
-        {/* <FormControl fullWidth>
+        <FormControl fullWidth>
           <InputLabel>
-            Preset Shifts<span className="text-red-600">*</span>
+            Command<span>*</span>
           </InputLabel>
           <Select
-            value={selectedShift?.id || (customShift ? "custom" : "preset")}
-            onChange={handleShiftSelector}
+            value={selectedCommand}
+            onChange={(e) => setSelectedCommand(e.target.value)}
+            displayEmpty
           >
-            <MenuItem value="preset" disabled>
-              Select Shifts
-            </MenuItem>
-
-            <MenuItem key="custom" value="custom">
-              Custom
-            </MenuItem>
-            {presetShifts.map((shift) => (
-              <MenuItem key={shift.id} value={shift.id}>
-                {shift.shift_name} {shift.start_time} - {shift.end_time}
-              </MenuItem>
-            ))}
+            <MenuItem value="force">Force Command</MenuItem>
+            <MenuItem value="unforce">Unforce Command</MenuItem>
           </Select>
-        </FormControl> */}
-
-        {/* {customShift ? (
-          <>
-            <TextField
-              label="Shift Name"
-              placeholder="Name"
-              value={customShiftName}
-              onChange={(e) => setCustomShiftName(e.target.value)}
-            />
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <TimePicker
-                label="Start Time"
-                value={startTime}
-                onChange={(newValue) => setStartTime(newValue)}
-                renderInput={(params) => <TextField {...params} fullWidth />}
-                ampm={true}
-              />
-            </LocalizationProvider>
-
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <TimePicker
-                label="End Time"
-                value={endTime}
-                onChange={(newValue) => setEndTime(newValue)}
-                renderInput={(params) => <TextField {...params} fullWidth />}
-                ampm={true}
-              />
-            </LocalizationProvider>
-
-            <Autocomplete
-              options={days}
-              getOptionLabel={(option) => option.name}
-              value={startDay}
-              onChange={(e, newValue) => handleDayChange(newValue, "start")}
-              renderInput={(params) => (
-                <TextField {...params} label="Start Day" variant="outlined" />
-              )}
-            />
-
-            <Autocomplete
-              options={days}
-              getOptionLabel={(option) => option.name}
-              value={endDay}
-              onChange={(e, newValue) => handleDayChange(newValue, "end")}
-              renderInput={(params) => (
-                <TextField {...params} label="End Day" variant="outlined" />
-              )}
-            />
-
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <TimePicker
-                label="Grace Time"
-                value={graceTime}
-                onChange={(newValue) => setGraceTime(newValue)}
-                renderInput={(params) => <TextField {...params} fullWidth />}
-                ampm={false}
-              />
-            </LocalizationProvider>
-
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <TimePicker
-                label="Re-Send time"
-                value={reSendTime}
-                onChange={(newValue) => {
-                  if (newValue) {
-                    newValue.setHours(0);
-                    setResendTime(newValue);
-                  }
-                }}
-                renderInput={(params) => <TextField {...params} />}
-                ampm={false}
-              />
-            </LocalizationProvider>
-
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-around",
-                alignItems: "center",
-                // marginBottom: "10px",
-              }}
-            >
-              <FormControl sx={{ width: "45%" }}>
-                <InputLabel>
-                  Queue<span className="text-red-600">*</span>
-                </InputLabel>
-                <Select
-                  value={selectedQueue || "no"}
-                  onChange={(e) => setSelectedQueue(e.target.value)}
-                >
-                  {queues.map((queue) => (
-                    <MenuItem key={queue.id} value={queue.name}>
-                      {queue.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <TextField
-                sx={{ width: "45%" }}
-                label="Queue Time"
-                placeholder="ttl"
-                type="number"
-                disabled={selectedQueue === "yes" ? false : true}
-                value={queuettl}
-                onChange={(e) => setQueueTTL(e.target.value)}
-              />
-            </Box>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: "bold" }}>Action</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Command</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  <TableRow>
-                    <TableCell>Ignition On - Queue</TableCell>
-                    <TableCell>
-                      <TextField
-                        sx={{ width: "100%" }}
-                        label="Enter command"
-                        value={commandOn}
-                        variant="outlined"
-                        onChange={(e) => setCommandOn(e.target.value)}
-                        disabled={true}
-                      />
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </>
-        ) : selectedShift ? (
-          <>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Start Time</TableCell>
-                    <TableCell>End Time</TableCell>
-                    <TableCell>Grace Time</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  <TableRow>
-                    <TableCell>{selectedShift.start_time}</TableCell>
-                    <TableCell>{selectedShift.end_time}</TableCell>
-                    <TableCell>
-                      {selectedShift.grace_time
-                        ? graceTimeConverter(selectedShift.grace_time)
-                        : "N/A"}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <TimePicker
-                label="Re-Send time"
-                value={reSendTime}
-                onChange={(newValue) => setResendTime(newValue)}
-                renderInput={(params) => <TextField {...params} />}
-                ampm={false}
-                views={["minutes", "seconds"]}
-              />
-            </LocalizationProvider>
-
-            <TableContainer sx={{ marginTop: "16px" }}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: "bold" }}>Action</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Command</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  <TableRow>
-                    <TableCell>Ignition On - Queue</TableCell>
-                    <TableCell>
-                      <TextField
-                        sx={{ width: "100%" }}
-                        label="Enter command"
-                        value={commandOn}
-                        variant="outlined"
-                        onChange={(e) => setCommandOn(e.target.value)}
-                        disabled={true}
-                      />
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </>
-        ) : (
-          ""
-        )} */}
+        </FormControl>
       </div>
 
       <div className="flex justify-center mt-6 gap-6 mb-8">

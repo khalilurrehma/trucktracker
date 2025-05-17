@@ -12,6 +12,7 @@ import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import PageLayout from "../common/components/PageLayout";
 import SettingsMenu from "./components/SettingsMenu";
+import { useSelector } from "react-redux";
 
 const DevicesServices = () => {
   let url;
@@ -32,10 +33,15 @@ const DevicesServices = () => {
   const [loader, setLoader] = useState(false);
   const [mode, setMode] = useState("assign");
 
+  const userId = useSelector((state) => state.session.user.id);
+
   const fetchDevices = async () => {
     try {
       setDevicesLoader(true);
-      const { data } = await axios.get(`${url}/new-devices`);
+      const { data } =
+        userId === 1
+          ? await axios.get(`${url}/new-devices`)
+          : await axios.get(`${url}/new-devices/user/${userId}`);
       setDevices(data.data);
     } catch (error) {
       console.error("Error fetching devices:", error);
@@ -47,7 +53,10 @@ const DevicesServices = () => {
   const fetchServices = async () => {
     setServiceLoader(true);
     try {
-      const { data } = await axios.get(`${url}/all/device/service-types`);
+      const { data } =
+        userId === 1
+          ? await axios.get(`${url}/all/device/service-types`)
+          : await axios.get(`${url}/all/device/service-types/user/${userId}`);
       if (data.status) {
         setServices(data.message);
       }

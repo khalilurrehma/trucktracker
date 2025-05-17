@@ -17,6 +17,7 @@ import {
   Tooltip,
   IconButton,
   CircularProgress,
+  Box,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -54,9 +55,9 @@ const DeviceServiceTypes = () => {
     setLoading(true);
     try {
       const { data } =
-        !userId === 1
+        userId === 1
           ? await axios.get(`${url}/all/device/service-types`)
-          : await axios.get(`${url}/all/device/service-types/user/${180}`);
+          : await axios.get(`${url}/all/device/service-types/user/${userId}`);
 
       if (data.status) {
         setServicesTypes(data.message);
@@ -109,10 +110,7 @@ const DeviceServiceTypes = () => {
   };
 
   return (
-    <PageLayout
-      menu={<SettingsMenu />}
-      breadcrumbs2={["settingsTitle", "Service Type"]}
-    >
+    <Box>
       <ToastContainer />
       <div style={{ padding: "20px" }}>
         <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
@@ -208,7 +206,7 @@ const DeviceServiceTypes = () => {
         />
       </div>
       <CollectionFab editPath={"/settings/devices/service-types/add"} />
-    </PageLayout>
+    </Box>
   );
 };
 

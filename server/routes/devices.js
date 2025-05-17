@@ -26,6 +26,7 @@ import {
   allDeviceServiceTypesByUserId,
   allNewDevices,
   allSubServices,
+  allSubServicesByUserId,
   deleteNewDevice,
   deleteServiceType,
   deleteSubService,
@@ -119,6 +120,7 @@ router.delete("/device/service-type/:id", deleteServiceType);
 router.post("/service-type/subservice", addNewSubService);
 router.get("/service-type/subservices", allSubServices);
 router.get("/service-type/subservice/:id", subServiceById);
+router.get("/service-type/subservices/user/:userId", allSubServicesByUserId);
 router.put("/service-type/subservice/:id", updateSubService);
 router.delete("/service-type/subservice/:id", deleteSubService);
 

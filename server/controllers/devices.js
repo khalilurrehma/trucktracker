@@ -8,6 +8,7 @@ import {
   fetchAllServiceTypes,
   fetchAllServiceTypesByUserId,
   fetchAllSubServices,
+  fetchAllSubServicesByUserId,
   getAllDevices,
   getAssignedServicesByDeviceId,
   getDeviceById,
@@ -939,8 +940,10 @@ export const deviceBulkServices = async (req, res) => {
 };
 
 export const getAllDevicesWithServices = async (req, res) => {
+  const { userId } = req.query;
+
   try {
-    const devices = await allDevicesIdName();
+    const devices = await allDevicesIdName(userId);
 
     if (devices.length === 0) {
       return res.status(404).json({
@@ -1117,7 +1120,7 @@ export const allDeviceServiceTypesByUserId = async (req, res) => {
     }
 
     res.status(200).json({
-      status: true, 
+      status: true,
       message: services,
     });
   } catch (error) {
@@ -1194,6 +1197,29 @@ export const addNewSubService = async (req, res) => {
 export const allSubServices = async (req, res) => {
   try {
     const services = await fetchAllSubServices();
+    if (!services || services.length === 0) {
+      return res.status(404).json({
+        status: false,
+        message: "No sub services found",
+      });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: services,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
+export const allSubServicesByUserId = async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const services = await fetchAllSubServicesByUserId(userId);
     if (!services || services.length === 0) {
       return res.status(404).json({
         status: false,

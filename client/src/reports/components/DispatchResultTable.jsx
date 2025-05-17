@@ -8,7 +8,6 @@ import {
   TablePagination,
   TableSortLabel,
   Box,
-  Typography,
   IconButton,
   CircularProgress,
   Chip,
@@ -46,11 +45,11 @@ const DispatchResultTable = ({
     district: "",
     initialBase: "",
   });
-
   const { districts, fetchDistrict } = useDistrictFetcher();
   const [filteredItems, setFilteredItems] = useState([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [sortColumn, setSortColumn] = useState("lastConnection");
   const [sortOrder, setSortOrder] = useState("desc");
   const [etaMap, setEtaMap] = useState({});
 
@@ -60,195 +59,15 @@ const DispatchResultTable = ({
     return isNaN(num) ? null : num;
   };
 
-  useEffect(() => {
-    if (!devicesInRadius || !newAllDevices) {
-      setFilteredItems([]);
-      return;
-    }
-
-    const globalSearch = (searchValue || "").toLowerCase();
-
-    const filtered = devicesInRadius.filter((pos) => {
-      const device = newAllDevices.find((d) => d.id === pos.deviceId);
-      if (!device) return false;
-
-      const deviceId = String(pos.deviceId || "").toLowerCase();
-      const licensePlate = (device.name || "").toLowerCase();
-      const type = (device.attributes?.["device.type"] || "").toLowerCase();
-      const advisor = (device.attributes?.advisor || "").toLowerCase();
-
-      const serviceNames = (device.services || [])
-        .map((service) =>
-          (service.serviceName || service.name || "").toLowerCase()
-        )
-        .join(" ");
-
-      const lastConnectionStr = pos.fixTime
-        ? dayjs(pos.fixTime).format("YYYY-MM-DD HH:mm:ss")
-        : "";
-
-      const distance = markerPosition
-        ? parseFloat(
-            (
-              getDistanceFromLatLonInMeters(
-                markerPosition.lat,
-                markerPosition.lng,
-                pos.latitude,
-                pos.longitude
-              ) / 1000
-            ).toFixed(2)
-          )
-        : null;
-
-      const eta =
-        distance !== null && !isNaN(distance)
-          ? Math.ceil((distance / AVERAGE_SPEED_KMH) * 60)
-          : null;
-
-      const cost =
-        distance !== null && device?.costByKm
-          ? distance * device.costByKm
-          : null;
-
-      const district = (districts[pos.deviceId] || "").toLowerCase();
-
-      const movementStatus = (pos.speed ?? 0) > 5 ? "moving" : "stop";
-
-      const globalMatch =
-        deviceId.includes(globalSearch) ||
-        licensePlate.includes(globalSearch) ||
-        advisor.includes(globalSearch) ||
-        serviceNames.includes(globalSearch);
-
-      const deviceIdMatch = columnFilters.deviceId
-        ? deviceId.includes(columnFilters.deviceId.toLowerCase())
-        : true;
-
-      const licensePlateMatch = columnFilters.licensePlate
-        ? licensePlate.includes(columnFilters.licensePlate.toLowerCase())
-        : true;
-
-      const typeMatch = columnFilters.type
-        ? type.includes(columnFilters.type.toLowerCase())
-        : true;
-
-      const advisorMatch = columnFilters.advisor
-        ? advisor.includes(columnFilters.advisor.toLowerCase())
-        : true;
-
-      const lastConnectionMatch = columnFilters.lastConnection
-        ? lastConnectionStr.includes(columnFilters.lastConnection)
-        : true;
-      const movementMatch = columnFilters.movement
-        ? movementStatus === columnFilters.movement.toLowerCase()
-        : true;
-
-      let distanceMatch = true;
-      if (columnFilters.distance) {
-        const filterStr = columnFilters.distance.trim();
-        const numFilter = parseNumberFilter(
-          filterStr.replace(/[^0-9.><=]/g, "")
-        );
-        if (numFilter !== null) {
-          if (filterStr.startsWith(">=")) distanceMatch = distance >= numFilter;
-          else if (filterStr.startsWith("<="))
-            distanceMatch = distance <= numFilter;
-          else if (filterStr.startsWith(">"))
-            distanceMatch = distance > numFilter;
-          else if (filterStr.startsWith("<"))
-            distanceMatch = distance < numFilter;
-          else distanceMatch = distance === numFilter;
-        }
-      }
-
-      let etaMatch = true;
-      if (columnFilters.eta) {
-        const filterStr = columnFilters.eta.trim();
-        const numFilter = parseNumberFilter(
-          filterStr.replace(/[^0-9.><=]/g, "")
-        );
-        if (numFilter !== null) {
-          if (filterStr.startsWith(">=")) etaMatch = eta >= numFilter;
-          else if (filterStr.startsWith("<=")) etaMatch = eta <= numFilter;
-          else if (filterStr.startsWith(">")) etaMatch = eta > numFilter;
-          else if (filterStr.startsWith("<")) etaMatch = eta < numFilter;
-          else etaMatch = eta === numFilter;
-        }
-      }
-
-      let costMatch = true;
-      if (columnFilters.cost) {
-        const filterStr = columnFilters.cost.trim();
-        const numFilter = parseNumberFilter(
-          filterStr.replace(/[^0-9.><=]/g, "")
-        );
-        if (numFilter !== null) {
-          if (filterStr.startsWith(">=")) costMatch = cost >= numFilter;
-          else if (filterStr.startsWith("<=")) costMatch = cost <= numFilter;
-          else if (filterStr.startsWith(">")) costMatch = cost > numFilter;
-          else if (filterStr.startsWith("<")) costMatch = cost < numFilter;
-          else costMatch = cost === numFilter;
-        }
-      }
-
-      const districtMatch = columnFilters.district
-        ? district.includes(columnFilters.district.toLowerCase())
-        : true;
-
-      const initialBaseMatch = columnFilters.initialBase
-        ? device.initialBase
-            ?.toLowerCase()
-            .includes(columnFilters.initialBase.toLowerCase())
-        : true;
-
-      return (
-        globalMatch &&
-        deviceIdMatch &&
-        licensePlateMatch &&
-        typeMatch &&
-        initialBaseMatch &&
-        advisorMatch &&
-        lastConnectionMatch &&
-        movementMatch &&
-        distanceMatch &&
-        etaMatch &&
-        costMatch &&
-        districtMatch
-      );
-    });
-
-    setFilteredItems(filtered);
-  }, [
-    searchValue,
-    devicesInRadius,
-    newAllDevices,
-    columnFilters,
-    districts,
-    markerPosition,
-  ]);
-
-  const handleSort = () => {
-    const sorted = [...filteredItems].sort((a, b) => {
-      return sortOrder === "asc"
-        ? new Date(a.fixTime) - new Date(b.fixTime)
-        : new Date(b.fixTime) - new Date(a.fixTime);
-    });
-    setFilteredItems(sorted);
-    setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    if (!lat1 || !lon1 || !lat2 || !lon2) return "N/A";
+    return (
+      getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) / 1000
+    ).toFixed(2);
   };
 
-  const handleRowClick = (e, deviceId) => {
-    if (e.ctrlKey || e.metaKey) {
-      setSelectedDeviceIds((prev) =>
-        prev?.includes(deviceId)
-          ? prev.filter((id) => id !== deviceId)
-          : [...prev, deviceId]
-      );
-    } else {
-      setSelectedDeviceIds((prev) =>
-        prev?.length === 1 && prev[0] === deviceId ? [] : [deviceId]
-      );
-    }
+  const handleFetchDistrict = async (lat, lng, deviceId) => {
+    await fetchDistrict(lat, lng, deviceId);
   };
 
   const calculateETAForDevice = (pos) => {
@@ -288,15 +107,18 @@ const DispatchResultTable = ({
     }
   };
 
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    if (!lat1 || !lon1 || !lat2 || !lon2) return "N/A";
-    return (
-      getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) / 1000
-    ).toFixed(2);
-  };
-
-  const handleFetchDistrict = async (lat, lng, deviceId) => {
-    await fetchDistrict(lat, lng, deviceId);
+  const handleRowClick = (e, deviceId) => {
+    if (e.ctrlKey || e.metaKey) {
+      setSelectedDeviceIds((prev) =>
+        prev?.includes(deviceId)
+          ? prev.filter((id) => id !== deviceId)
+          : [...prev, deviceId]
+      );
+    } else {
+      setSelectedDeviceIds((prev) =>
+        prev?.length === 1 && prev[0] === deviceId ? [] : [deviceId]
+      );
+    }
   };
 
   useEffect(() => {
@@ -305,7 +127,7 @@ const DispatchResultTable = ({
         handleFetchDistrict(pos.latitude, pos.longitude, pos.deviceId);
       }
     });
-  }, [filteredItems]);
+  }, [filteredItems, districts, fetchDistrict]);
 
   useEffect(() => {
     filteredItems.forEach((pos) => {
@@ -315,33 +137,425 @@ const DispatchResultTable = ({
     });
   }, [filteredItems, markerPosition]);
 
+  useEffect(() => {
+    if (!devicesInRadius || !newAllDevices) {
+      setFilteredItems([]);
+      return;
+    }
+
+    const globalSearch = (searchValue || "").toLowerCase();
+
+    let filtered = devicesInRadius.filter((pos) => {
+      const device = newAllDevices.find((d) => d.id === pos.deviceId);
+      if (!device) return false;
+
+      const deviceId = String(pos.deviceId || "").toLowerCase();
+      const licensePlate = (device.name || "").toLowerCase();
+      const type = (device.attributes?.["device.type"] || "").toLowerCase();
+      const advisor = (device.attributes?.advisor || "").toLowerCase();
+      const serviceNames = (device.services || [])
+        .map((service) =>
+          (service.serviceName || service.name || "").toLowerCase()
+        )
+        .join(" ");
+      const lastConnectionStr = pos.fixTime
+        ? dayjs(pos.fixTime).format("YYYY-MM-DD HH:mm:ss")
+        : "";
+      const distance = markerPosition
+        ? parseFloat(
+            (
+              getDistanceFromLatLonInMeters(
+                markerPosition.lat,
+                markerPosition.lng,
+                pos.latitude,
+                pos.longitude
+              ) / 1000
+            ).toFixed(2)
+          )
+        : null;
+      const eta =
+        distance !== null && !isNaN(distance)
+          ? Math.ceil((distance / AVERAGE_SPEED_KMH) * 60)
+          : null;
+      const cost =
+        distance !== null && device?.costByKm
+          ? distance * device.costByKm
+          : null;
+      const district = (districts[pos.deviceId] || "").toLowerCase();
+      const movementStatus = (pos.speed ?? 0) > 5 ? "moving" : "stop";
+
+      const globalMatch =
+        deviceId.includes(globalSearch) ||
+        licensePlate.includes(globalSearch) ||
+        advisor.includes(globalSearch) ||
+        serviceNames.includes(globalSearch);
+
+      const deviceIdMatch = columnFilters.deviceId
+        ? deviceId.includes(columnFilters.deviceId.toLowerCase())
+        : true;
+      const licensePlateMatch = columnFilters.licensePlate
+        ? licensePlate.includes(columnFilters.licensePlate.toLowerCase())
+        : true;
+      const typeMatch = columnFilters.type
+        ? serviceNames.includes(columnFilters.type.toLowerCase())
+        : true;
+      const advisorMatch = columnFilters.advisor
+        ? advisor.includes(columnFilters.advisor.toLowerCase())
+        : true;
+      const lastConnectionMatch = columnFilters.lastConnection
+        ? lastConnectionStr.includes(columnFilters.lastConnection)
+        : true;
+      const movementMatch = columnFilters.movement
+        ? movementStatus === columnFilters.movement.toLowerCase()
+        : true;
+      let distanceMatch = true;
+      if (columnFilters.distance) {
+        const filterStr = columnFilters.distance.trim();
+        const numFilter = parseNumberFilter(
+          filterStr.replace(/[^0-9.><=]/g, "")
+        );
+        if (numFilter !== null) {
+          if (filterStr.startsWith(">=")) distanceMatch = distance >= numFilter;
+          else if (filterStr.startsWith("<="))
+            distanceMatch = distance <= numFilter;
+          else if (filterStr.startsWith(">"))
+            distanceMatch = distance > numFilter;
+          else if (filterStr.startsWith("<"))
+            distanceMatch = distance < numFilter;
+          else distanceMatch = distance === numFilter;
+        }
+      }
+      let etaMatch = true;
+      if (columnFilters.eta) {
+        const filterStr = columnFilters.eta.trim();
+        const numFilter = parseNumberFilter(
+          filterStr.replace(/[^0-9.><=]/g, "")
+        );
+        if (numFilter !== null) {
+          if (filterStr.startsWith(">=")) etaMatch = eta >= numFilter;
+          else if (filterStr.startsWith("<=")) etaMatch = eta <= numFilter;
+          else if (filterStr.startsWith(">")) etaMatch = eta > numFilter;
+          else if (filterStr.startsWith("<")) etaMatch = eta < numFilter;
+          else etaMatch = eta === numFilter;
+        }
+      }
+      let costMatch = true;
+      if (columnFilters.cost) {
+        const filterStr = columnFilters.cost.trim();
+        const numFilter = parseNumberFilter(
+          filterStr.replace(/[^0-9.><=]/g, "")
+        );
+        if (numFilter !== null) {
+          if (filterStr.startsWith(">=")) costMatch = cost >= numFilter;
+          else if (filterStr.startsWith("<=")) costMatch = cost <= numFilter;
+          else if (filterStr.startsWith(">")) costMatch = cost > numFilter;
+          else if (filterStr.startsWith("<")) costMatch = cost < numFilter;
+          else costMatch = cost === numFilter;
+        }
+      }
+      const districtMatch = columnFilters.district
+        ? district.includes(columnFilters.district.toLowerCase())
+        : true;
+      const initialBaseMatch = columnFilters.initialBase
+        ? device.initialBase
+            ?.toLowerCase()
+            .includes(columnFilters.initialBase.toLowerCase())
+        : true;
+
+      return (
+        globalMatch &&
+        deviceIdMatch &&
+        licensePlateMatch &&
+        typeMatch &&
+        initialBaseMatch &&
+        advisorMatch &&
+        lastConnectionMatch &&
+        movementMatch &&
+        distanceMatch &&
+        etaMatch &&
+        costMatch &&
+        districtMatch
+      );
+    });
+
+    filtered = filtered.sort((a, b) => {
+      const deviceA = newAllDevices.find((d) => d.id === a.deviceId);
+      const deviceB = newAllDevices.find((d) => d.id === b.deviceId);
+      let valueA, valueB;
+
+      switch (sortColumn) {
+        case "deviceId":
+          valueA = a.deviceId || "";
+          valueB = b.deviceId || "";
+          break;
+        case "lastConnection":
+          valueA = a.fixTime ? new Date(a.fixTime).getTime() : 0;
+          valueB = b.fixTime ? new Date(b.fixTime).getTime() : 0;
+          break;
+        case "movement":
+          valueA = (a.speed ?? 0) > 5 ? "moving" : "stop";
+          valueB = (b.speed ?? 0) > 5 ? "moving" : "stop";
+          break;
+        case "licensePlate":
+          valueA = deviceA?.name || "";
+          valueB = deviceB?.name || "";
+          break;
+        case "type":
+          valueA = deviceA?.attributes?.["device.type"] || "";
+          valueB = deviceB?.attributes?.["device.type"] || "";
+          break;
+        case "advisor":
+          valueA = deviceA?.attributes?.advisor || "";
+          valueB = deviceB?.attributes?.advisor || "";
+          break;
+        case "distance":
+          valueA =
+            markerPosition && a.latitude && a.longitude
+              ? parseFloat(
+                  (
+                    getDistanceFromLatLonInMeters(
+                      markerPosition.lat,
+                      markerPosition.lng,
+                      a.latitude,
+                      a.longitude
+                    ) / 1000
+                  ).toFixed(2)
+                )
+              : 0;
+          valueB =
+            markerPosition && b.latitude && b.longitude
+              ? parseFloat(
+                  (
+                    getDistanceFromLatLonInMeters(
+                      markerPosition.lat,
+                      markerPosition.lng,
+                      b.latitude,
+                      b.longitude
+                    ) / 1000
+                  ).toFixed(2)
+                )
+              : 0;
+          break;
+        case "eta":
+          valueA =
+            markerPosition && a.latitude && a.longitude
+              ? Math.ceil(
+                  (parseFloat(
+                    (
+                      getDistanceFromLatLonInMeters(
+                        markerPosition.lat,
+                        markerPosition.lng,
+                        a.latitude,
+                        a.longitude
+                      ) / 1000
+                    ).toFixed(2)
+                  ) /
+                    AVERAGE_SPEED_KMH) *
+                    60
+                )
+              : 0;
+          valueB =
+            markerPosition && b.latitude && b.longitude
+              ? Math.ceil(
+                  (parseFloat(
+                    (
+                      getDistanceFromLatLonInMeters(
+                        markerPosition.lat,
+                        markerPosition.lng,
+                        b.latitude,
+                        b.longitude
+                      ) / 1000
+                    ).toFixed(2)
+                  ) /
+                    AVERAGE_SPEED_KMH) *
+                    60
+                )
+              : 0;
+          break;
+        case "cost":
+          valueA =
+            markerPosition && a.latitude && a.longitude && deviceA?.costByKm
+              ? parseFloat(
+                  (
+                    getDistanceFromLatLonInMeters(
+                      markerPosition.lat,
+                      markerPosition.lng,
+                      a.latitude,
+                      a.longitude
+                    ) / 1000
+                  ).toFixed(2)
+                ) * deviceA.costByKm
+              : 0;
+          valueB =
+            markerPosition && b.latitude && b.longitude && deviceB?.costByKm
+              ? parseFloat(
+                  (
+                    getDistanceFromLatLonInMeters(
+                      markerPosition.lat,
+                      markerPosition.lng,
+                      b.latitude,
+                      b.longitude
+                    ) / 1000
+                  ).toFixed(2)
+                ) * deviceB.costByKm
+              : 0;
+          break;
+        case "district":
+          valueA = districts[a.deviceId] || "";
+          valueB = districts[b.deviceId] || "";
+          break;
+        case "initialBase":
+          valueA = deviceA?.initialBase || "";
+          valueB = deviceB?.initialBase || "";
+          break;
+        default:
+          return 0;
+      }
+
+      if (valueA === valueB) return 0;
+      if (!valueA) return 1;
+      if (!valueB) return -1;
+
+      return sortOrder === "asc"
+        ? valueA > valueB
+          ? 1
+          : -1
+        : valueA < valueB
+        ? 1
+        : -1;
+    });
+
+    setFilteredItems(filtered);
+  }, [
+    searchValue,
+    devicesInRadius,
+    newAllDevices,
+    columnFilters,
+    districts,
+    markerPosition,
+    sortColumn,
+    sortOrder,
+  ]);
+
+  const handleSort = (column) => {
+    if (sortColumn === column) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortOrder("asc");
+    }
+  };
+
   return (
     <Box sx={{ mt: 4 }}>
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell>Device ID</TableCell>
+            <TableCell>
+              <TableSortLabel
+                active={sortColumn === "deviceId"}
+                direction={sortColumn === "deviceId" ? sortOrder : "asc"}
+                onClick={() => handleSort("deviceId")}
+              >
+                Device ID
+              </TableSortLabel>
+            </TableCell>
             <TableCell>Location</TableCell>
             <TableCell>
-              <TableSortLabel active direction={sortOrder} onClick={handleSort}>
+              <TableSortLabel
+                active={sortColumn === "lastConnection"}
+                direction={sortColumn === "lastConnection" ? sortOrder : "asc"}
+                onClick={() => handleSort("lastConnection")}
+              >
                 Last Connection
               </TableSortLabel>
             </TableCell>
-            <TableCell>Movement</TableCell>
+            <TableCell>
+              <TableSortLabel
+                active={sortColumn === "movement"}
+                direction={sortColumn === "movement" ? sortOrder : "asc"}
+                onClick={() => handleSort("movement")}
+              >
+                Movement
+              </TableSortLabel>
+            </TableCell>
             <TableCell>App Status</TableCell>
             <TableCell>Subprocess</TableCell>
-            <TableCell>License Plate</TableCell>
-            <TableCell>Type</TableCell>
-            <TableCell>Advisor</TableCell>
-            <TableCell>Distance (km)</TableCell>
-            <TableCell>ETA</TableCell>
-            <TableCell>Cost</TableCell>
+            <TableCell>
+              <TableSortLabel
+                active={sortColumn === "licensePlate"}
+                direction={sortColumn === "licensePlate" ? sortOrder : "asc"}
+                onClick={() => handleSort("licensePlate")}
+              >
+                License Plate
+              </TableSortLabel>
+            </TableCell>
+            <TableCell>
+              <TableSortLabel
+                active={sortColumn === "type"}
+                direction={sortColumn === "type" ? sortOrder : "asc"}
+                onClick={() => handleSort("type")}
+              >
+                Type
+              </TableSortLabel>
+            </TableCell>
+            <TableCell>
+              <TableSortLabel
+                active={sortColumn === "advisor"}
+                direction={sortColumn === "advisor" ? sortOrder : "asc"}
+                onClick={() => handleSort("advisor")}
+              >
+                Advisor
+              </TableSortLabel>
+            </TableCell>
+            <TableCell>
+              <TableSortLabel
+                active={sortColumn === "distance"}
+                direction={sortColumn === "distance" ? sortOrder : "asc"}
+                onClick={() => handleSort("distance")}
+              >
+                Distance (km)
+              </TableSortLabel>
+            </TableCell>
+            <TableCell>
+              <TableSortLabel
+                active={sortColumn === "eta"}
+                direction={sortColumn === "eta" ? sortOrder : "asc"}
+                onClick={() => handleSort("eta")}
+              >
+                ETA
+              </TableSortLabel>
+            </TableCell>
+            <TableCell>
+              <TableSortLabel
+                active={sortColumn === "cost"}
+                direction={sortColumn === "cost" ? sortOrder : "asc"}
+                onClick={() => handleSort("cost")}
+              >
+                Cost
+              </TableSortLabel>
+            </TableCell>
             <TableCell>Zone Rate</TableCell>
-            <TableCell>District</TableCell>
-            <TableCell>Initial Base</TableCell>
+            <TableCell>
+              <TableSortLabel
+                active={sortColumn === "district"}
+                direction={sortColumn === "district" ? sortOrder : "asc"}
+                onClick={() => handleSort("district")}
+              >
+                District
+              </TableSortLabel>
+            </TableCell>
+            <TableCell>
+              <TableSortLabel
+                active={sortColumn === "initialBase"}
+                direction={sortColumn === "initialBase" ? sortOrder : "asc"}
+                onClick={() => handleSort("initialBase")}
+              >
+                Initial Base
+              </TableSortLabel>
+            </TableCell>
             <TableCell>Rimac ETA</TableCell>
           </TableRow>
-
           <TableRow>
             <TableCell>
               <TextField
@@ -501,13 +715,11 @@ const DispatchResultTable = ({
             <TableCell />
           </TableRow>
         </TableHead>
-
         <TableBody>
           {filteredItems
             .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
             .map((pos) => {
               const device = newAllDevices.find((d) => d.id === pos.deviceId);
-
               const distance = markerPosition
                 ? calculateDistance(
                     markerPosition.lat,
@@ -516,7 +728,6 @@ const DispatchResultTable = ({
                     pos.longitude
                   )
                 : "N/A";
-
               const rimacEta = dayjs().add(30, "minute").format("HH:mm");
               let calculatedCost =
                 distance !== "N/A" ? distance * device?.costByKm : 0;
@@ -589,7 +800,6 @@ const DispatchResultTable = ({
             })}
         </TableBody>
       </Table>
-
       <TablePagination
         component="div"
         count={filteredItems.length}

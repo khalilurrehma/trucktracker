@@ -124,6 +124,7 @@ import ServiceTypesSubServices from "./settings/ServiceTypesSubServices";
 import ServiceTypesSubService from "./settings/ServiceTypesSubService";
 import DevicesServices from "./settings/DevicesServices";
 import AssignedDevicesServices from "./settings/AssignedDevicesServices";
+import ServiceSettings from "./settings/ServiceSettings";
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -256,6 +257,7 @@ const Navigation = () => {
           <Route path="device/:id/share" element={<SharePage />} />
           <Route path="device/:id" element={<DevicePage />} />
           <Route path="device" element={<DevicePage />} />
+          <Route path="services" element={<ServiceSettings />} />
           <Route
             path="devices/service-types"
             element={<DeviceServiceTypes />}

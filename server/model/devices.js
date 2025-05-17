@@ -580,6 +580,21 @@ export const fetchAllSubServices = async () => {
   });
 };
 
+export const fetchAllSubServicesByUserId = async (user_id) => {
+  const sql = `
+        SELECT s.*, d.name AS service_type_name
+        FROM service_type_subservices s
+        JOIN device_service_type d ON s.service_type = d.id WHERE s.user_id = ?
+    `;
+
+  return new Promise((resolve, reject) => {
+    dbQuery(sql, [user_id], (err, results) => {
+      if (err) reject(err);
+      resolve(results);
+    });
+  });
+};
+
 export const getSubServiceById = async (id) => {
   const sql = `SELECT * FROM service_type_subservices WHERE id = ?`;
   const values = [id];
@@ -705,11 +720,17 @@ export const getDeviceServices = async (deviceIds) => {
   }
 };
 
-export const allDevicesIdName = async () => {
-  const sql = "SELECT id, name FROM new_settings_devices WHERE disabled = 0";
+export const allDevicesIdName = async (user_id) => {
+  let sql = "SELECT id, name FROM new_settings_devices WHERE disabled = 0";
+  const params = [];
+
+  if (user_id) {
+    sql += " AND userid = ?";
+    params.push(user_id);
+  }
 
   return new Promise((resolve, reject) => {
-    dbQuery(sql, (err, results) => {
+    dbQuery(sql, params, (err, results) => {
       if (err) {
         reject(err);
       }

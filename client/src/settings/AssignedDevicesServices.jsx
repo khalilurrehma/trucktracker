@@ -11,12 +11,14 @@ import {
   TextField,
   Button,
   Chip,
+  Box,
 } from "@mui/material";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import { useTranslation } from "../common/components/LocalizationProvider";
 import CollectionFab from "./components/CollectionFab";
 import TableShimmer from "../common/components/TableShimmer";
+import { useSelector } from "react-redux";
 
 const AssignedDevicesServices = () => {
   let url;
@@ -32,11 +34,15 @@ const AssignedDevicesServices = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const t = useTranslation();
+  const userId = useSelector((state) => state.session.user.id);
 
   const fetchDevicesWithServices = async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get(`${url}/devices/with-services`);
+      const { data } =
+        userId === 1
+          ? await axios.get(`${url}/devices/with-services`)
+          : await axios.get(`${url}/devices/with-services?userId=${userId}`);
       if (data.status) {
         setDevicesWithServices(data.message);
       }
@@ -72,10 +78,7 @@ const AssignedDevicesServices = () => {
   };
 
   return (
-    <PageLayout
-      menu={<SettingsMenu />}
-      breadcrumbs2={["settingsTitle", "Assigned Services"]}
-    >
+    <Box>
       <ToastContainer />
       <div style={{ padding: "20px" }}>
         <TextField
@@ -129,7 +132,7 @@ const AssignedDevicesServices = () => {
       </div>
 
       <CollectionFab editPath={"/settings/devices/assign/services"} />
-    </PageLayout>
+    </Box>
   );
 };
 
