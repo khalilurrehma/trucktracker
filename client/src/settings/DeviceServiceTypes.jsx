@@ -53,7 +53,10 @@ const DeviceServiceTypes = () => {
   const fetchFromApi = async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get(`${url}/all/device/service-types`);
+      const { data } =
+        !userId === 1
+          ? await axios.get(`${url}/all/device/service-types`)
+          : await axios.get(`${url}/all/device/service-types/user/${180}`);
 
       if (data.status) {
         setServicesTypes(data.message);
@@ -85,9 +88,7 @@ const DeviceServiceTypes = () => {
   const handleDelete = async (id) => {
     try {
       setRowLoading((prev) => ({ ...prev, [id]: true }));
-      const response = await axios.delete(
-        `${url}/device/service-type/${id}`
-      );
+      const response = await axios.delete(`${url}/device/service-type/${id}`);
       if (response.status === 200) {
         toast.success(response.data.message);
         fetchFromApi();

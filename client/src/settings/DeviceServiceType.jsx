@@ -60,43 +60,17 @@ const DeviceServiceType = () => {
   const navigate = useNavigate();
 
   const [name, setName] = useState();
-  const [file, setFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [existingImageUrl, setExistingImageUrl] = useState(null);
-
+  
   const fetchById = async (id) => {
     try {
       const { data } = await axios.get(`${url}/device/service-type/${id}`);
       if (data.status) {
-        let authUrl = getAuthenticatedAudioUrl(data.message.icon_url);
-
         setName(data.message.name);
-        setExistingImageUrl(authUrl);
       }
     } catch (error) {
       toast.error(error.response.data.message);
     }
   };
-
-  const handleFileChange = (event) => {
-    const selectedFile = event.target.files[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      const previewUrl = URL.createObjectURL(selectedFile);
-      setImagePreview(previewUrl);
-    } else {
-      setFile(null);
-      setImagePreview(null);
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (imagePreview) {
-        URL.revokeObjectURL(imagePreview);
-      }
-    };
-  }, [imagePreview]);
 
   useEffect(() => {
     if (id) {
@@ -109,28 +83,16 @@ const DeviceServiceType = () => {
       toast.error(t("Name is required"));
       return;
     }
-    if (file && !["image/png", "image/jpeg"].includes(file.type)) {
-      toast.error(t("Only PNG or JPEG images are allowed"));
-      return;
-    }
-    if (file && file.size > 2 * 1024 * 1024) {
-      toast.error(t("Image size must be less than 2MB"));
-      return;
-    }
 
-    const formData = new FormData();
-    formData.append("name", name);
-    formData.append("userId", userId);
-    if (file) formData.append("image", file);
+    let body = {
+      name,
+      userId,
+    };
 
     try {
       const { data } = id
-        ? await axios.put(`${url}/device/service-type/${id}`, formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          })
-        : await axios.post(`${url}/device/service-type`, formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
+        ? await axios.put(`${url}/device/service-type/${id}`, body)
+        : await axios.post(`${url}/device/service-type`, body);
 
       if (data.status) {
         toast.success(data.message);
@@ -164,30 +126,6 @@ const DeviceServiceType = () => {
               onChange={(event) => setName(event.target.value)}
               label={t("sharedName")}
             />
-            <Tooltip title={t("sharedUploadTitle")}>
-              <Box>
-                <Typography variant="body2" gutterBottom>
-                  {t("settingsVehicleServiceTypeImage")}
-                </Typography>
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg"
-                  onChange={handleFileChange}
-                  style={{ marginTop: "8px" }}
-                />
-              </Box>
-            </Tooltip>
-            {(imagePreview || existingImageUrl) && (
-              <Box
-                sx={{ display: "flex", justifyContent: "center", marginTop: 2 }}
-              >
-                <img
-                  src={imagePreview || existingImageUrl}
-                  alt="Service type preview"
-                  className={classes.imagePreview}
-                />
-              </Box>
-            )}
           </AccordionDetails>
         </Accordion>
       </Box>

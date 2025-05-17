@@ -472,11 +472,11 @@ export const deviceShiftAssigned = async (deviceId, assign = false) => {
 };
 
 export const saveNewServiceType = async (body) => {
-  const { name, userId, icon_url } = body;
+  const { name, userId } = body;
 
-  const sql = `INSERT INTO device_service_type (name, user_id, icon_url) VALUE (?, ?, ?)`;
+  const sql = `INSERT INTO device_service_type (name, user_id) VALUE (?, ?)`;
 
-  const values = [name, userId, icon_url];
+  const values = [name, userId];
 
   try {
     const result = await dbQuery(sql, values);
@@ -491,6 +491,19 @@ export const fetchAllServiceTypes = async () => {
 
   return new Promise((resolve, reject) => {
     dbQuery(sql, (err, results) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+export const fetchAllServiceTypesByUserId = async (user_id) => {
+  const sql = "SELECT * FROM device_service_type WHERE user_id = ?";
+
+  return new Promise((resolve, reject) => {
+    dbQuery(sql, [parseInt(user_id)], (err, results) => {
       if (err) {
         reject(err);
       }
@@ -514,18 +527,10 @@ export const serviceById = async (id) => {
 };
 
 export const modifyServiceType = async (id, body) => {
-  const { name, icon_url } = body;
+  const { name } = body;
 
-  let sql = `UPDATE device_service_type SET name = ?`;
-  const values = [name];
-
-  if (icon_url) {
-    sql += `, icon_url = ?`;
-    values.push(icon_url);
-  }
-
-  sql += ` WHERE id = ?`;
-  values.push(id);
+  let sql = `UPDATE device_service_type SET name = ? WHERE id = ?`;
+  const values = [name, id];
 
   try {
     const result = await dbQuery(sql, values);

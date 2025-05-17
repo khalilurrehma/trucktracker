@@ -23,6 +23,7 @@ import {
   addNewServiceType,
   addNewSubService,
   allDeviceServiceTypes,
+  allDeviceServiceTypesByUserId,
   allNewDevices,
   allSubServices,
   deleteNewDevice,
@@ -105,10 +106,14 @@ router.get("/devices/with-services", getAllDevicesWithServices);
 router.get("/device/:deviceId/services", deviceAssignedServices);
 router.post("/services/unassign", unassignDeviceServices);
 
-router.post("/device/service-type", upload.any(), addNewServiceType);
+router.post("/device/service-type", addNewServiceType);
 router.get("/all/device/service-types", allDeviceServiceTypes);
 router.get("/device/service-type/:id", getDeviceServiceType);
-router.put("/device/service-type/:id", upload.any(), updateServiceTypeById);
+router.get(
+  "/all/device/service-types/user/:userId",
+  allDeviceServiceTypesByUserId
+);
+router.put("/device/service-type/:id", updateServiceTypeById);
 router.delete("/device/service-type/:id", deleteServiceType);
 
 router.post("/service-type/subservice", addNewSubService);

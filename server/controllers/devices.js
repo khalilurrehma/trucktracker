@@ -6,6 +6,7 @@ import {
   devicesWithServices,
   existingCombination,
   fetchAllServiceTypes,
+  fetchAllServiceTypesByUserId,
   fetchAllSubServices,
   getAllDevices,
   getAssignedServicesByDeviceId,
@@ -1041,37 +1042,7 @@ export const addNewServiceType = async (req, res) => {
     return res.status(400).json({ message: "Name and userId are required" });
   }
 
-  if (!req.files || req.files.length === 0) {
-    return res.status(400).json({ message: "No image file provided" });
-  }
-
-  const imageFile = req.files[0];
-
-  if (!["image/png", "image/jpeg"].includes(imageFile.mimetype)) {
-    return res
-      .status(400)
-      .json({ message: "Only PNG or JPEG images are allowed" });
-  }
-
-  if (imageFile.size > 2 * 1024 * 1024) {
-    return res
-      .status(400)
-      .json({ message: "Image size must be less than 2MB" });
-  }
-
   try {
-    const uploadedFile = await s3
-      .upload({
-        Bucket: process.env.CONTABO_BUCKET_NAME,
-        Key: `icon/${Date.now()}-${imageFile.originalname}`,
-        Body: imageFile.buffer,
-        ContentType: imageFile.mimetype,
-        ACL: "public-read",
-      })
-      .promise();
-
-    body.icon_url = uploadedFile.Location;
-
     await saveNewServiceType(body);
 
     res.status(200).json({
@@ -1133,45 +1104,36 @@ export const getDeviceServiceType = async (req, res) => {
   }
 };
 
+export const allDeviceServiceTypesByUserId = async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const services = await fetchAllServiceTypesByUserId(userId);
+
+    if (!services) {
+      return res.status(404).json({
+        status: false,
+        message: "No services found",
+      });
+    }
+
+    res.status(200).json({
+      status: true, 
+      message: services,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
 export const updateServiceTypeById = async (req, res) => {
   const { id } = req.params;
   const body = req.body;
-  const imageFile = req.files?.[0];
 
   if (!body.name) {
     return res.status(400).json({ message: "Name is required" });
-  }
-
-  if (imageFile) {
-    if (!["image/png", "image/jpeg"].includes(imageFile.mimetype)) {
-      return res
-        .status(400)
-        .json({ message: "Only PNG or JPEG images are allowed" });
-    }
-
-    if (imageFile.size > 2 * 1024 * 1024) {
-      return res
-        .status(400)
-        .json({ message: "Image size must be less than 2MB" });
-    }
-
-    try {
-      const uploadedFile = await s3
-        .upload({
-          Bucket: process.env.CONTABO_BUCKET_NAME,
-          Key: `icon/${Date.now()}-${imageFile.originalname}`,
-          Body: imageFile.buffer,
-          ContentType: imageFile.mimetype,
-          ACL: "public-read",
-        })
-        .promise();
-
-      body.icon_url = uploadedFile.Location;
-    } catch (err) {
-      return res
-        .status(500)
-        .json({ message: err.message || "Image upload failed" });
-    }
   }
 
   try {
