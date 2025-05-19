@@ -32,11 +32,6 @@ import axios from "axios";
 import dayjs from "dayjs";
 import { useTranslation } from "../common/components/LocalizationProvider";
 
-const formatDate = (isoDate) => {
-  const date = new Date(isoDate);
-  return date.toLocaleDateString("en-US");
-};
-
 const ConfigShift = () => {
   let url = import.meta.env.DEV
     ? import.meta.env.VITE_DEV_BACKEND_URL
@@ -262,12 +257,9 @@ const ConfigShift = () => {
                               slotProps={{
                                 textField: {
                                   size: "small",
-                                  variant: "contained",
+                                  variant: "outlined",
                                 },
                               }}
-                              renderInput={(params) => (
-                                <TextField {...params} fullWidth />
-                              )}
                             />
                           </LocalizationProvider>
                         ) : (
@@ -276,14 +268,6 @@ const ConfigShift = () => {
                       </TableCell>
 
                       <TableCell sx={{ display: "flex", gap: "8px" }}>
-                        {/* <EditIcon
-                          sx={{ cursor: "pointer" }}
-                          onClick={() => {
-                            navigate(
-                              `/settings/new-shift/${row.id}/${driver.id}`
-                            );
-                          }}
-                        /> */}
                         <DeleteIcon
                           sx={{ cursor: "pointer" }}
                           onClick={() => {

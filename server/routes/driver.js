@@ -2,6 +2,8 @@ import express from "express";
 import {
   assignDriverToVehicle,
   deleteDriver,
+  dispatchCasesForDriver,
+  driverAssociateVehicles,
   driverForgotPassword,
   driverLogin,
   driverLogout,
@@ -15,6 +17,7 @@ import {
   postDriver,
   putDriver,
   saveDriverAvailability,
+  unAssociateDriverVehicle,
 } from "../controllers/driver.js";
 import { authDriver } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -40,17 +43,27 @@ router.get("/drivers/shifts", getDriversShiftDetails);
 
 router.get("/driver/availability/view/:id", getDriverAvailability);
 
+router.get("/driver/associated/vehicles", authDriver, driverAssociateVehicles);
+
 router.get(
   "/driver/company/vehicles/:companyId",
   authDriver,
   getCompanyVehicles
 );
 
+router.get("/driver/cases/:companyId", authDriver, dispatchCasesForDriver);
+
 router.put("/driver/:id", putDriver);
 
 router.patch("/driver/availability/:id", saveDriverAvailability);
 
 router.delete("/driver/:id", deleteDriver);
+
+router.delete(
+  "/driver/unassociate/vehicle/:vehicleId",
+  authDriver,
+  unAssociateDriverVehicle
+);
 
 router.get("/driver/behaivor/status/:userId", getDriverBehaivor);
 

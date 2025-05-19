@@ -7,7 +7,10 @@ import {
   fetchDriverAvailability,
   fetchDrivers,
   fetchDriversByUserId,
+  findAssociateVehicleByDriverId,
+  findVehiclesByDriverId,
   removeDriver,
+  removeVehicleAssociation,
   saveAssociationRelation,
   saveDriverResetToken,
   updateDriver,
@@ -17,6 +20,7 @@ import {
   getLatestDriverBehaivorReports,
   getLatestDriverBehaivorReportsByUserId,
 } from "../model/notifications.js";
+import { findCaseByUserIdAndDeviceId } from "../model/dispatch.js";
 import axios from "axios";
 import { refreshShiftJobs } from "../services/cronJobs.js";
 import bcrypt from "bcrypt";
@@ -235,6 +239,25 @@ export const assignDriverToVehicle = async (req, res) => {
   }
 };
 
+export const driverAssociateVehicles = async (req, res) => {
+  const userId = req.userId;
+
+  try {
+    const driverVehicles = await findVehiclesByDriverId(userId);
+
+    if (driverVehicles.length === 0) {
+      return res.status(404).json({
+        status: false,
+        message: "Driver has no associated vehicles",
+      });
+    }
+
+    res.status(200).json({ status: true, message: driverVehicles });
+  } catch (error) {
+    res.status(500).json({ status: false, message: error.message });
+  }
+};
+
 export const getCompanyVehicles = async (req, res) => {
   const { companyId } = req.params;
   const userId = req.userId;
@@ -246,7 +269,40 @@ export const getCompanyVehicles = async (req, res) => {
     res.status(200).json({ status: true, message: devices });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ status: false, message: "Internal Server Error" });
+    res.status(500).json({ status: false, message: error.message });
+  }
+};
+
+export const dispatchCasesForDriver = async (req, res) => {
+  const { companyId } = req.params;
+  const userId = req.userId;
+
+  try {
+    const driverVehicleId = await findAssociateVehicleByDriverId(userId);
+
+    if (!driverVehicleId) {
+      return res.status(404).json({
+        status: false,
+        message:
+          "Driver has no associated vehicles, Please associate at least one vehicle",
+      });
+    }
+
+    const driverCase = await findCaseByUserIdAndDeviceId(
+      companyId,
+      driverVehicleId
+    );
+
+    if (driverCase.length === 0) {
+      return res.status(404).json({
+        status: false,
+        message: "No cases found for the driver",
+      });
+    }
+
+    res.status(200).json({ status: true, message: driverCase });
+  } catch (error) {
+    res.status(500).json({ status: false, message: error.message });
   }
 };
 
@@ -338,6 +394,28 @@ export const deleteDriver = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ status: false, message: "Internal Server Error" });
+  }
+};
+
+export const unAssociateDriverVehicle = async (req, res) => {
+  const { vehicleId } = req.params;
+  const userId = req.userId;
+
+  if (!vehicleId) {
+    return res.status(400).json({
+      status: false,
+      message: "Vehicle ID is required",
+    });
+  }
+  try {
+    await removeVehicleAssociation(userId, vehicleId);
+
+    res.status(200).json({
+      status: true,
+      message: "Driver Unassociated Successfully",
+    });
+  } catch (error) {
+    res.status(500).json({ status: false, message: error.message });
   }
 };
 

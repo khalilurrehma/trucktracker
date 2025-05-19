@@ -350,6 +350,43 @@ export const saveAssociationRelation = async (body) => {
   });
 };
 
+export const findAssociateVehicleByDriverId = async (driver_id) => {
+  const sql = `SELECT device_id FROM vehicle_driver_association WHERE driver_id = ?`;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [driver_id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0]?.device_id);
+    });
+  });
+};
+
+export const findVehiclesByDriverId = async (driver_id) => {
+  const sql = `
+    SELECT 
+      vda.*, 
+      d.id AS device_id, 
+      d.name AS device_name,
+      dr.id AS driver_id,
+      dr.name AS driver_name
+    FROM 
+      vehicle_driver_association vda
+    JOIN 
+      new_settings_devices d ON vda.device_id = d.id
+    JOIN 
+      drivers dr ON vda.driver_id = dr.id
+    WHERE 
+      vda.driver_id = ?
+  `;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [driver_id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
 export const checkAlreadyAssociatedVehicle = async (driver_id, device_id) => {
   const sql = `SELECT * FROM vehicle_driver_association WHERE driver_id = ? AND device_id = ?`;
 
@@ -367,6 +404,17 @@ export const saveDriverResetToken = async (driver_id, otp, expires_at) => {
 
   return new Promise((resolve, reject) => {
     pool.query(sql, values, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+export const removeVehicleAssociation = async (driver_id, device_id) => {
+  const sql = `DELETE FROM vehicle_driver_association WHERE driver_id = ? AND device_id = ?`;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [driver_id, device_id], (err, results) => {
       if (err) return reject(err);
       resolve(results);
     });

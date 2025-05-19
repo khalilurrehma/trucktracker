@@ -44,70 +44,13 @@ const DispatchDialog = ({
   const [selectedImages, setSelectedImages] = React.useState([]);
 
   const handleAssignTasks = async () => {
-    const selectedItems = slicedFilteredData.filter((item) =>
-      selectedRows.includes(item["device.id"])
-    );
-
-    const tasks = selectedItems.map((item) => ({
-      user_id: traccarUser.id,
-      device_id: item["device.id"],
-      device_name: item["device.name"],
-      address: value.description,
-      place_id: value.place_id,
+    const data = {
+      caseName: value.description,
+      caseAddress: value.description,
+      status: "Pending",
       message: message,
-      pictures: selectedImages,
-      lat: lat,
-      lng: lng,
-    }));
-
-    try {
-      const formDataArray = tasks.map((task) => {
-        const formData = new FormData();
-        formData.append("user_id", task.user_id);
-        formData.append("device_id", task.device_id);
-        formData.append("address", task.address);
-        formData.append("place_id", task.place_id);
-        formData.append("lat", task.lat);
-        formData.append("lng", task.lng);
-        formData.append("message", task.message);
-        Array.from(task.pictures).forEach((file, index) => {
-          formData.append("pictures", file);
-        });
-        return { formData, device_name: task.device_name };
-      });
-
-      const responses = await Promise.all(
-        formDataArray.map(({ formData, device_name }) =>
-          axios
-            .post(`${url}/dispatch/tasks`, formData, {
-              headers: {
-                "Content-Type": "multipart/form-data",
-              },
-            })
-            .then((response) => {
-              if (response.data.status) {
-                toast.success(
-                  `Task created successfully for device: ${device_name}`
-                );
-              } else {
-                toast.error(`Error creating task for device: ${device_name}`);
-              }
-            })
-            .catch((error) => {
-              console.error("An error occurred while creating tasks:", error);
-              toast.error(
-                `An error occurred while creating task for device: ${device_name}`
-              );
-            })
-        )
-      );
-
-      setOpenAssignModal(false);
-      setSelectedRows([]);
-    } catch (error) {
-      console.error("An error occurred while creating tasks:", error);
-      toast.error("An error occurred while creating tasks.");
-    }
+      files: selectedImages,
+    };
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({

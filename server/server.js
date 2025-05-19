@@ -9,9 +9,10 @@ import reportRoutes from "./routes/reports.js";
 import deviceRoutes from "./routes/devices.js";
 import testRoute from "./routes/test.js";
 import userRoute from "./routes/user.js";
-import dispatchRoute from "./routes/dispatch/services.js";
+import dispatchServiceRoute from "./routes/dispatch/services.js";
 import dispatchNewCaseRoute from "./routes/dispatch/newCases.js";
 import protocolsRoute from "./routes/protocols.js";
+import dispatchRoutes from "./routes/dispatch.js";
 import usageControlRoute from "./routes/usageControl.js";
 import driverRoute from "./routes/driver.js";
 import shiftRoute from "./routes/shift.js";
@@ -43,7 +44,7 @@ app.use("/api", reportRoutes);
 app.use("/api", deviceRoutes);
 app.use("/api", testRoute);
 app.use("/api", userRoute);
-app.use("/api", dispatchRoute);
+app.use("/api", dispatchServiceRoute);
 app.use("/api", dispatchNewCaseRoute);
 app.use("/api", protocolsRoute);
 app.use("/api", usageControlRoute);
@@ -58,6 +59,7 @@ app.use("/api", permissionRoute);
 app.use("/api", sessionRoute);
 app.use("/api", notificationsRoute);
 app.use("/api", traccarRoute);
+app.use("/api", dispatchRoutes);
 
 app.get("/api", (req, res) => {
   res.send("server running!");
