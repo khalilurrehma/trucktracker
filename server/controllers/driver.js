@@ -278,9 +278,9 @@ export const dispatchCasesForDriver = async (req, res) => {
   const userId = req.userId;
 
   try {
-    const driverVehicleId = await findAssociateVehicleByDriverId(userId);
+    const driverVehicleIds = await findAssociateVehicleByDriverId(userId);
 
-    if (!driverVehicleId) {
+    if (!driverVehicleIds) {
       return res.status(404).json({
         status: false,
         message:
@@ -290,7 +290,7 @@ export const dispatchCasesForDriver = async (req, res) => {
 
     const driverCase = await findCaseByUserIdAndDeviceId(
       companyId,
-      driverVehicleId
+      driverVehicleIds
     );
 
     if (driverCase.length === 0) {

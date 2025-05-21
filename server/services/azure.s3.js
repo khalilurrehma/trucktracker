@@ -12,5 +12,7 @@ export function getAuthenticatedS3String(originalUrl) {
 
   if (!originalUrl) return null;
 
-  return originalUrl.replace("/notificationsaudio", `/${authKey}`);
+  return originalUrl.includes("notificationsaudio")
+    ? originalUrl.replace("/notificationsaudio", `/${authKey}`)
+    : originalUrl.replace("/photos", `/${authKey}`);
 }

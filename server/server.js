@@ -28,6 +28,8 @@ import traccarRoute from "./routes/traccar.js";
 import "./services/cronJobs.js";
 import { createWebSocketServer } from "./websocket/wsServer.js";
 import { setBroadcast } from "./mqtt/mqtt.handler.js";
+import { upload } from "./middlewares/multer.middleware.js";
+import { getAuthenticatedS3String, s3 } from "./services/azure.s3.js";
 
 dotenv.config();
 
@@ -63,6 +65,39 @@ app.use("/api", dispatchRoutes);
 
 app.get("/api", (req, res) => {
   res.send("server running!");
+});
+
+app.post("/api/upload/photo", upload.any(), async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res
+        .status(400)
+        .json({ status: false, message: "No photo uploaded" });
+    }
+
+    const uploadedFile = await s3
+      .upload({
+        Bucket: process.env.CONTABO_BUCKET_NAME,
+        Key: `vehicle-report-image/${Date.now()}-${req.files[0]?.originalname}`,
+        Body: req.files[0].buffer,
+        ContentType: req.files[0].mimetype,
+        ACL: "public-read",
+      })
+      .promise();
+
+    if (!uploadedFile) {
+      return res.status(500).json({
+        status: false,
+        message: "Failed to upload image",
+      });
+    }
+
+    const imageUrl = getAuthenticatedS3String(uploadedFile.Location);
+
+    res.status(200).json({ status: true, url: imageUrl });
+  } catch (error) {
+    res.status(500).json({ status: false, message: error.message });
+  }
 });
 
 const { broadcast } = createWebSocketServer(server);
