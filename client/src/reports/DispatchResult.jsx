@@ -3,10 +3,10 @@ import {
   Box,
   Button,
   Grid,
-  MenuItem,
   Autocomplete,
   TextField,
   Chip,
+  CircularProgress,
 } from "@mui/material";
 import {
   GoogleMap,
@@ -20,11 +20,8 @@ import { useSelector } from "react-redux";
 import PageLayout from "../common/components/PageLayout";
 import OperationsMenu from "../settings/components/OperationsMenu";
 import axios from "axios";
-import { useAppContext } from "../AppContext";
 import {
-  formatTime,
   generateCaseNumber,
-  getAuthenticatedAudioUrl,
   getDistanceFromLatLonInMeters,
 } from "../settings/common/New.Helper";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
@@ -33,7 +30,16 @@ import DispatchDialog from "./components/DispatchDialog";
 import dayjs from "dayjs";
 import { useTranslation } from "../common/components/LocalizationProvider";
 
-const GOOGLE_MAPS_LIBRARIES = ["places", "maps"];
+// Debounce utility to limit Autocomplete API calls
+const debounce = (func, wait) => {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+};
+
+const GOOGLE_MAPS_LIBRARIES = ["places", "geometry", "maps"];
 const radiusOptions = [
   { label: "500m", value: 500 },
   { label: "1km", value: 1000 },
@@ -46,7 +52,7 @@ const radiusOptions = [
 ];
 
 const DispatchResult = () => {
-  let url = import.meta.env.DEV
+  const url = import.meta.env.DEV
     ? import.meta.env.VITE_DEV_BACKEND_URL
     : import.meta.env.VITE_PROD_BACKEND_URL;
 
@@ -60,104 +66,42 @@ const DispatchResult = () => {
   const [serviceTypes, setServiceTypes] = useState([]);
   const [newAllDevices, setNewAllDevices] = useState([]);
   const [selectedServiceType, setSelectedServiceType] = useState([]);
-  const [filteredDeviceIds, setFilteredDeviceIds] = useState([]);
-  const [selectedDeviceIds, setSelectedDeviceIds] = useState(null);
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState([]);
   const [caseNumber, setCaseNumber] = useState("");
   const [address, setAddress] = useState("");
   const [mapCenter, setMapCenter] = useState(centerDefault);
   const [markerPosition, setMarkerPosition] = useState(null);
-  const [radius, setRadius] = useState("");
+  const [radius, setRadius] = useState(3000); // Default 3km
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   const [searchValue, setSearchValue] = useState("");
   const [openAssignModal, setOpenAssignModal] = useState(false);
-  const [assignedDevices, setAssignedDevices] = useState([]);
+  const [devicesInRadius, setDevicesInRadius] = useState([]);
   const [placeOptions, setPlaceOptions] = useState([]);
-
-  const positionsObj = useSelector((state) => state.session.positions) || {};
-  const positions = Array.isArray(positionsObj)
-    ? positionsObj
-    : Object.values(positionsObj);
+  const [loading, setLoading] = useState(false);
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAP_API,
     libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
-  const handleShowClick = async () => {
-    if (!address) return;
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-        address
-      )}&components=locality:Lima|country:PE&key=${
-        import.meta.env.VITE_GOOGLE_MAP_API
-      }`
-    );
-    const data = await response.json();
-    if (data.status === "OK") {
-      const { lat, lng } = data.results[0].geometry.location;
-      setMapCenter({ lat, lng });
-      setMarkerPosition({ lat, lng });
-      if (map) {
-        map.panTo({ lat, lng });
-      }
-    } else {
-      alert("Address not found");
-    }
-  };
-
-  const fetchNewAllDevices = async () => {
-    const currentDate = dayjs().format("YYYY-MM-DD");
-    try {
-      const apiUrl = `${url}/new-devices?date=${currentDate}`;
-      const res = await axios.get(apiUrl);
-
-      if (res.status === 200) {
-        const formattedDevice = res.data.data.map((device) => {
-          return {
-            id: device.traccarId,
-            name: device.name,
-            uniqueId: device.uniqueId,
-            category: device.category,
-            contact: device.contact,
-            disabled: device.disabled,
-            phone: device.phone,
-            expirationTime: device.expirationTime,
-            groupId: device.groupId,
-            lastUpdate: device.lastUpdate,
-            model: device.model,
-            status: device.traccar_status,
-            attributes: device.attributes,
-            services: device.services,
-            costByKm: device.cost_by_km,
-            initialBase: device.initialBase,
-          };
-        });
-        setNewAllDevices(formattedDevice);
-      } else {
-        throw new Error("Failed to fetch data from one of the APIs");
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const fetchServiceTypes = async () => {
-    try {
-      const { data } =
-        userId === 1
-          ? await axios.get(`${url}/all/device/service-types`)
-          : await axios.get(`${url}/all/device/service-types/user/${userId}`);
-      if (data.status) setServiceTypes(data.message);
-    } catch (error) {
-      console.error("Error fetching service types:", error);
-    }
-  };
-
+  // Fetch service types on mount
   useEffect(() => {
-    fetchNewAllDevices();
-    fetchServiceTypes();
-  }, [userId]);
+    const fetchServiceTypes = async () => {
+      try {
+        const { data } =
+          userId === 1
+            ? await axios.get(`${url}/all/device/service-types`)
+            : await axios.get(`${url}/all/device/service-types/user/${userId}`);
+        if (data.status) setServiceTypes(data.message);
+      } catch (error) {
+        console.error("Error fetching service types:", error);
+      }
+    };
 
+    fetchServiceTypes();
+  }, [userId, url]);
+
+  // Update Peru time every second
   useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date();
@@ -168,103 +112,56 @@ const DispatchResult = () => {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    if (!newAllDevices || selectedServiceType.length === 0) {
+  // Debounced Autocomplete fetch
+  const fetchPlacePredictions = debounce(async (input) => {
+    if (!isLoaded || !window.google || !input) {
+      setPlaceOptions([]);
       return;
     }
 
-    const filteredDevices = newAllDevices.filter((device) => {
-      const deviceServiceIds = (device.services || []).map(
-        (service) => service.serviceId
-      );
-
-      return selectedServiceType.some((selectedService) =>
-        deviceServiceIds.includes(selectedService.id)
-      );
-    });
-
-    setFilteredDeviceIds(filteredDevices.map((device) => device.id));
-  }, [selectedServiceType, newAllDevices]);
-
-  const devicesInRadius = positions.filter((pos) => {
-    if (!filteredDeviceIds.includes(pos.deviceId)) return false;
-    if (!markerPosition) return true;
-    const distance = getDistanceFromLatLonInMeters(
-      pos.latitude,
-      pos.longitude,
-      markerPosition.lat,
-      markerPosition.lng
-    );
-    return distance <= radius;
-  });
-
-  const selectedDevice = devicesInRadius.find(
-    (pos) => pos.deviceId === selectedDeviceId
-  );
-
-  const handleAssignClick = () => {
-    const processDevices = devicesInRadius.filter((device) =>
-      selectedDeviceIds.includes(device.deviceId)
-    );
-
-    if (processDevices.length > 0) {
-      setAssignedDevices(processDevices);
-      setOpenAssignModal(true);
-    }
-  };
-
-  useEffect(() => {
-    if (!isLoaded || !window.google) return;
-
     const autocompleteService =
       new window.google.maps.places.AutocompleteService();
-
-    const fetchPlacePredictions = async (input) => {
-      if (!input) {
-        setPlaceOptions([]);
-        return;
-      }
-
-      try {
-        const response = await autocompleteService.getPlacePredictions({
-          input,
-          componentRestrictions: { country: "PE" },
-          types: ["address"],
-        });
-
-        setPlaceOptions(
-          response.predictions.map((prediction) => ({
-            label: prediction.description,
-            placeId: prediction.place_id,
-          }))
-        );
-      } catch (error) {
-        console.error("Error fetching place predictions:", error);
-        setPlaceOptions([]);
-      }
-    };
-
-    if (address) {
-      fetchPlacePredictions(address);
+    try {
+      const response = await autocompleteService.getPlacePredictions({
+        input,
+        componentRestrictions: { country: "PE" },
+        types: ["address"],
+      });
+      setPlaceOptions(
+        response.predictions.map((prediction) => ({
+          label: prediction.description,
+          placeId: prediction.place_id,
+        }))
+      );
+    } catch (error) {
+      console.error("Error fetching place predictions:", error);
+      setPlaceOptions([]);
     }
-  }, [address, isLoaded]);
+  }, 500);
 
-  const handlePlaceSelect = async (newValue) => {
+  // Handle address input change
+  const handleAddressChange = (e, newInputValue) => {
+    setAddress(newInputValue);
+    fetchPlacePredictions(newInputValue);
+  };
+
+  // Handle place selection
+  const handlePlaceSelect = (newValue) => {
     if (!newValue) {
       setAddress("");
+      setPlaceOptions([]);
       setMarkerPosition(null);
       setMapCenter(centerDefault);
-      if (map) {
-        map.panTo(centerDefault);
-      }
+      if (map) map.panTo(centerDefault);
       return;
     }
 
     setAddress(newValue.label);
+    setPlaceOptions([]);
 
-    const tempDiv = document.createElement("div");
-    const placesService = new window.google.maps.places.PlacesService(tempDiv);
+    if (!map || !isLoaded || !window.google) return;
 
+    const placesService = new window.google.maps.places.PlacesService(map);
     placesService.getDetails(
       { placeId: newValue.placeId, fields: ["geometry"] },
       (place, status) => {
@@ -276,17 +173,131 @@ const DispatchResult = () => {
           const newPosition = { lat: lat(), lng: lng() };
           setMapCenter(newPosition);
           setMarkerPosition(newPosition);
-          if (map) {
-            map.panTo(newPosition);
-          }
+          if (map) map.panTo(newPosition);
         } else {
           console.error("PlacesService failed:", status);
           alert("Unable to retrieve location details");
         }
-        tempDiv.remove();
       }
     );
   };
+
+  // Fetch devices and handle "Show" button click
+  const handleShowClick = async () => {
+    if (
+      !address ||
+      !selectedServiceType.length ||
+      !isLoaded ||
+      !window.google
+    ) {
+      alert("Please enter an address and select at least one service type");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Geocode address
+      const geocoder = new window.google.maps.Geocoder();
+      const geocodeResults = await new Promise((resolve, reject) => {
+        geocoder.geocode(
+          {
+            address,
+            componentRestrictions: { locality: "Lima", country: "PE" },
+          },
+          (results, status) => {
+            if (status === "OK") resolve(results);
+            else reject(new Error(`Geocode failed: ${status}`));
+          }
+        );
+      });
+
+      const { lat, lng } = geocodeResults[0].geometry.location;
+      const newPosition = { lat: lat(), lng: lng() };
+      setMapCenter(newPosition);
+      setMarkerPosition(newPosition);
+      if (map) map.panTo(newPosition);
+
+      // Fetch devices
+      const currentDate = dayjs().format("YYYY-MM-DD");
+      const apiUrl = `${url}/new-devices?date=${currentDate}&deviceLocation=true`;
+      const res = await axios.get(apiUrl);
+
+      if (res.status !== 200) {
+        throw new Error("Failed to fetch devices");
+      }
+
+      const formattedDevice = res.data.data.map((device) => ({
+        id: device.traccarId,
+        name: device.name,
+        uniqueId: device.uniqueId,
+        category: device.category,
+        contact: device.contact,
+        disabled: device.disabled,
+        phone: device.phone,
+        expirationTime: device.expirationTime,
+        groupId: device.groupId,
+        lastUpdate: device.lastUpdate,
+        model: device.model,
+        status: device.traccar_status,
+        attributes: device.attributes,
+        services: device.services,
+        costByKm: device.cost_by_km,
+        initialBase: device.initialBase,
+        lat: device?.location?.lat,
+        lng: device?.location?.lng,
+      }));
+
+      // Filter devices by service type, radius, and sort by distance
+      const filteredDevices = formattedDevice
+        .filter((device) => {
+          const deviceServiceIds = (device.services || []).map(
+            (service) => service.serviceId || service.id
+          );
+          return (
+            selectedServiceType.some((selectedService) =>
+              deviceServiceIds.includes(selectedService.id)
+            ) &&
+            device.lat &&
+            device.lng
+          );
+        })
+        .map((device) => ({
+          ...device,
+          distance: getDistanceFromLatLonInMeters(
+            device.lat,
+            device.lng,
+            newPosition.lat,
+            newPosition.lng
+          ),
+        }))
+        .filter((device) => device.distance <= radius)
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, 10);
+
+      setDevicesInRadius(filteredDevices);
+    } catch (error) {
+      console.error("Error in handleShowClick:", error);
+      alert("Failed to fetch data or geocode address");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle device assignment
+  const handleAssignClick = () => {
+    const processDevices = devicesInRadius.filter((device) =>
+      selectedDeviceIds.includes(device.id)
+    );
+    if (processDevices.length > 0) {
+      setAssignedDevices(processDevices);
+      setOpenAssignModal(true);
+    }
+  };
+
+  // Selected device for InfoWindow
+  const selectedDevice = devicesInRadius.find(
+    (device) => device.id === selectedDeviceId
+  );
 
   return (
     <PageLayout
@@ -349,15 +360,22 @@ const DispatchResult = () => {
                 placeOptions.find((option) => option.label === address) || null
               }
               onChange={(event, newValue) => handlePlaceSelect(newValue)}
-              onInputChange={(event, newInputValue) =>
-                setAddress(newInputValue)
-              }
+              onInputChange={handleAddressChange}
               renderInput={(params) => (
                 <TextField
                   {...params}
                   label="Incident Address"
                   fullWidth
                   variant="outlined"
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {loading ? <CircularProgress size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
                 />
               )}
               isOptionEqualToValue={(option, value) =>
@@ -376,7 +394,7 @@ const DispatchResult = () => {
                 radiusOptions.find((option) => option.value === radius) || null
               }
               onChange={(event, newValue) => {
-                setRadius(newValue ? newValue.value : "");
+                setRadius(newValue ? newValue.value : 3000);
               }}
               renderInput={(params) => (
                 <TextField
@@ -391,22 +409,25 @@ const DispatchResult = () => {
           <Grid item xs={12} sm={2}>
             <Button
               variant="outlined"
-              disabled={!address}
+              disabled={!address || !selectedServiceType.length || loading}
               onClick={handleShowClick}
               sx={{ height: "56px", width: "100%" }}
             >
-              Show
+              {loading ? <CircularProgress size={24} /> : "Show"}
             </Button>
           </Grid>
         </Grid>
 
         {isLoaded && (
-          <Box ref={mapRef} sx={{ mt: 3 }}>
+          <Box ref={mapRef} sx={{ mt: 3, width: "100%", height: "500px" }}>
             <GoogleMap
-              mapContainerStyle={{ width: "100%", height: "500px" }}
+              mapContainerStyle={{ width: "100%", height: "100%" }}
               center={mapCenter}
               zoom={mapZoom}
-              onLoad={(mapInstance) => setMap(mapInstance)}
+              onLoad={(mapInstance) => {
+                console.log("Map loaded:", mapInstance);
+                setMap(mapInstance);
+              }}
             >
               {markerPosition && (
                 <>
@@ -422,49 +443,39 @@ const DispatchResult = () => {
                   />
                 </>
               )}
-              {devicesInRadius.map((pos) => (
+              {devicesInRadius.map((device) => (
                 <Marker
-                  key={pos.deviceId}
-                  position={{ lat: pos.latitude, lng: pos.longitude }}
+                  key={device.id}
+                  position={{ lat: device.lat, lng: device.lng }}
                   icon={{
                     url: carPng,
                     scaledSize: new window.google.maps.Size(30, 30),
                   }}
-                  onClick={() => setSelectedDeviceId(pos.deviceId)}
+                  onClick={() => setSelectedDeviceId(device.id)}
                 />
               ))}
               {selectedDevice && (
                 <InfoWindow
                   position={{
-                    lat: selectedDevice.latitude,
-                    lng: selectedDevice.longitude,
+                    lat: selectedDevice.lat,
+                    lng: selectedDevice.lng,
                   }}
                   onCloseClick={() => setSelectedDeviceId(null)}
                 >
                   <div>
-                    <h3>
-                      {selectedDevice.attributes?.["device.name"] ??
-                        selectedDevice.deviceId}
-                    </h3>
-                    <p>
-                      Fix Time:{" "}
-                      {new Date(selectedDevice.fixTime).toLocaleString()}
-                    </p>
+                    <h3>{selectedDevice.name ?? selectedDevice.id}</h3>
                     <p>
                       Address:{" "}
                       <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${selectedDevice.latitude},${selectedDevice.longitude}`}
+                        href={`https://www.google.com/maps/search/?api=1&query=${selectedDevice.lat},${selectedDevice.lng}`}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
                         Show Address
                       </a>
                     </p>
-                    <p>Speed: {(selectedDevice.speed || 0).toFixed(2)} km/h</p>
                     <p>
-                      Distance:{" "}
-                      {((selectedDevice.totalDistance || 0) / 1000).toFixed(2)}{" "}
-                      km
+                      Distance: {(selectedDevice.distance / 1000).toFixed(2)} km
                     </p>
                   </div>
                 </InfoWindow>
@@ -513,9 +524,7 @@ const DispatchResult = () => {
                   variant="contained"
                   color="primary"
                   sx={{ minWidth: "100px", ml: 2 }}
-                  disabled={
-                    !selectedDeviceIds || selectedDeviceIds.length === 0
-                  }
+                  disabled={!selectedDeviceIds.length}
                   onClick={handleAssignClick}
                 >
                   Assign Case
@@ -537,6 +546,7 @@ const DispatchResult = () => {
             setSelectedDeviceIds={setSelectedDeviceIds}
             mapRef={mapRef}
             setMapZoom={setMapZoom}
+            selectedServiceType={selectedServiceType}
           />
         )}
 
@@ -545,7 +555,9 @@ const DispatchResult = () => {
             value={{ description: address }}
             openAssignModal={openAssignModal}
             setOpenAssignModal={setOpenAssignModal}
-            assignedDevices={assignedDevices}
+            assignedDevices={devicesInRadius.filter((device) =>
+              selectedDeviceIds.includes(device.id)
+            )}
             selectedRows={selectedDeviceIds}
             setSelectedRows={setSelectedDeviceIds}
             lat={markerPosition?.lat}

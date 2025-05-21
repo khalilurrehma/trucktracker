@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Table,
   TableHead,
@@ -12,6 +12,7 @@ import {
   CircularProgress,
   Chip,
   TextField,
+  Tooltip,
 } from "@mui/material";
 import RoomIcon from "@mui/icons-material/Room";
 import dayjs from "dayjs";
@@ -19,6 +20,11 @@ import { getDistanceFromLatLonInMeters } from "../../settings/common/New.Helper"
 import useDistrictFetcher from "../../settings/hooks/useDistrictFetcher";
 
 const AVERAGE_SPEED_KMH = 40;
+// Sample geofence repair area (replace with actual coordinates)
+const GEOFENCE_REPAIR = {
+  center: { lat: -12.0432, lng: -77.0282 }, // Example: Rimac, Lima
+  radius: 500, // 500m radius
+};
 
 const DispatchResultTable = ({
   devicesInRadius,
@@ -31,7 +37,12 @@ const DispatchResultTable = ({
   setSelectedDeviceIds,
   mapRef,
   setMapZoom,
+  selectedServiceType,
 }) => {
+  // Log devicesInRadius for debugging
+  console.log("Devices in Radius (DispatchResultTable):", devicesInRadius);
+  console.log("Selected Service Type:", selectedServiceType);
+
   const [columnFilters, setColumnFilters] = useState({
     deviceId: "",
     licensePlate: "",
@@ -46,149 +57,181 @@ const DispatchResultTable = ({
     initialBase: "",
   });
   const { districts, fetchDistrict } = useDistrictFetcher();
-  const [filteredItems, setFilteredItems] = useState([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [sortColumn, setSortColumn] = useState("lastConnection");
-  const [sortOrder, setSortOrder] = useState("desc");
+  const [sortColumn, setSortColumn] = useState("distance");
+  const [sortOrder, setSortOrder] = useState("asc");
   const [etaMap, setEtaMap] = useState({});
+  const [loadingDistricts, setLoadingDistricts] = useState(new Set());
 
-  const parseNumberFilter = (value) => {
+  const parseNumberFilter = useCallback((value) => {
     if (!value) return null;
     const num = parseFloat(value);
     return isNaN(num) ? null : num;
-  };
+  }, []);
 
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    if (!lat1 || !lon1 || !lat2 || !lon2) return "N/A";
-    return (
-      getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) / 1000
-    ).toFixed(2);
-  };
-
-  const handleFetchDistrict = async (lat, lng, deviceId) => {
-    await fetchDistrict(lat, lng, deviceId);
-  };
-
-  const calculateETAForDevice = (pos) => {
-    if (!markerPosition) return null;
-    const origin = { lat: pos.latitude, lng: pos.longitude };
-    const destination = markerPosition;
-
-    const directionsService = new window.google.maps.DirectionsService();
-
-    directionsService.route(
-      {
-        origin,
-        destination,
-        travelMode: window.google.maps.TravelMode.DRIVING,
-      },
-      (result, status) => {
-        if (status === window.google.maps.DirectionsStatus.OK) {
-          const durationSeconds = result.routes[0].legs[0].duration.value;
-          setEtaMap((prev) => ({
-            ...prev,
-            [pos.deviceId]: Math.ceil(durationSeconds / 60),
-          }));
-        } else {
-          setEtaMap((prev) => ({ ...prev, [pos.deviceId]: null }));
-        }
-      }
+  // Check if a device is inside the geofence repair area
+  const isInsideGeofence = useCallback((lat, lng) => {
+    if (!window.google || !window.google.maps.geometry) return false;
+    const distance = getDistanceFromLatLonInMeters(
+      lat,
+      lng,
+      GEOFENCE_REPAIR.center.lat,
+      GEOFENCE_REPAIR.center.lng
     );
-  };
+    return distance <= GEOFENCE_REPAIR.radius;
+  }, []);
 
-  const handleZoomToDevice = (device) => {
-    setMapCenter({ lat: device.latitude, lng: device.longitude });
-    setMapZoom(18);
-    setSelectedDeviceId(device.deviceId);
-
-    if (mapRef?.current) {
-      mapRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  };
-
-  const handleRowClick = (e, deviceId) => {
-    if (e.ctrlKey || e.metaKey) {
-      setSelectedDeviceIds((prev) =>
-        prev?.includes(deviceId)
-          ? prev.filter((id) => id !== deviceId)
-          : [...prev, deviceId]
-      );
-    } else {
-      setSelectedDeviceIds((prev) =>
-        prev?.length === 1 && prev[0] === deviceId ? [] : [deviceId]
-      );
-    }
-  };
-
-  useEffect(() => {
-    filteredItems.forEach((pos) => {
-      if (!districts[pos.deviceId]) {
-        handleFetchDistrict(pos.latitude, pos.longitude, pos.deviceId);
+  // Fetch ETA and distance using Directions API
+  const calculateETAForDevice = useCallback(
+    (device) => {
+      if (!markerPosition || !window.google || !device.lat || !device.lng) {
+        setEtaMap((prev) => ({ ...prev, [device.id]: null }));
+        return;
       }
-    });
-  }, [filteredItems, districts, fetchDistrict]);
 
-  useEffect(() => {
-    filteredItems.forEach((pos) => {
-      if (!etaMap[pos.deviceId]) {
-        calculateETAForDevice(pos);
+      const directionsService = new window.google.maps.DirectionsService();
+      directionsService.route(
+        {
+          origin: { lat: device.lat, lng: device.lng },
+          destination: markerPosition,
+          travelMode: window.google.maps.TravelMode.DRIVING,
+          provideRouteAlternatives: false,
+        },
+        (result, status) => {
+          if (status === window.google.maps.DirectionsStatus.OK) {
+            const durationSeconds = result.routes[0].legs[0].duration.value;
+            const distanceMeters = result.routes[0].legs[0].distance.value;
+            const etaMinutes = Math.ceil(durationSeconds / 60);
+            const distanceKm = (distanceMeters / 1000).toFixed(2);
+            setEtaMap((prev) => ({
+              ...prev,
+              [device.id]: { eta: etaMinutes, distance: distanceKm },
+            }));
+          } else {
+            setEtaMap((prev) => ({ ...prev, [device.id]: null }));
+          }
+        }
+      );
+    },
+    [markerPosition]
+  );
+
+  // Rate-limited district fetching
+  const handleFetchDistrict = useCallback(
+    async (lat, lng, deviceId) => {
+      if (districts[deviceId] || loadingDistricts.has(deviceId)) return;
+      setLoadingDistricts((prev) => new Set(prev).add(deviceId));
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Rate limit: 1 request/second
+        await fetchDistrict(lat, lng, deviceId);
+      } catch (error) {
+        console.error(`Failed to fetch district for ${deviceId}:`, error);
+      } finally {
+        setLoadingDistricts((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(deviceId);
+          return newSet;
+        });
       }
-    });
-  }, [filteredItems, markerPosition]);
+    },
+    [districts, fetchDistrict, loadingDistricts]
+  );
 
-  useEffect(() => {
-    if (!devicesInRadius || !newAllDevices) {
-      setFilteredItems([]);
-      return;
-    }
+  // Handle zoom to device
+  const handleZoomToDevice = useCallback(
+    (device) => {
+      setMapCenter({ lat: device.lat, lng: device.lng });
+      setMapZoom(18);
+      setSelectedDeviceId(device.id);
+      if (mapRef?.current) {
+        mapRef.current.scrollIntoView({ behavior: "smooth" });
+      }
+    },
+    [setMapCenter, setMapZoom, setSelectedDeviceId, mapRef]
+  );
+
+  // Handle row click for selection
+  const handleRowClick = useCallback(
+    (e, deviceId) => {
+      if (e.ctrlKey || e.metaKey) {
+        setSelectedDeviceIds((prev) =>
+          prev.includes(deviceId)
+            ? prev.filter((id) => id !== deviceId)
+            : [...prev, deviceId]
+        );
+      } else {
+        setSelectedDeviceIds((prev) =>
+          prev.length === 1 && prev[0] === deviceId ? [] : [deviceId]
+        );
+      }
+    },
+    [setSelectedDeviceIds]
+  );
+
+  // Memoized filtering and sorting
+  const filteredItems = useMemo(() => {
+    if (!devicesInRadius) return [];
 
     const globalSearch = (searchValue || "").toLowerCase();
 
-    let filtered = devicesInRadius.filter((pos) => {
-      const device = newAllDevices.find((d) => d.id === pos.deviceId);
-      if (!device) return false;
+    const validDevices = devicesInRadius.filter((device) => {
+      // Skip devices in geofence repair area
+      if (isInsideGeofence(device.lat, device.lng)) return false;
 
-      const deviceId = String(pos.deviceId || "").toLowerCase();
-      const licensePlate = (device.name || "").toLowerCase();
-      const type = (device.attributes?.["device.type"] || "").toLowerCase();
-      const advisor = (device.attributes?.advisor || "").toLowerCase();
-      const serviceNames = (device.services || [])
+      // Service type filtering
+      const deviceServiceIds = (device.services || []).map(
+        (service) => service.serviceId || service.id
+      );
+      if (selectedServiceType?.length) {
+        if (
+          !selectedServiceType.some((selectedService) =>
+            deviceServiceIds.includes(selectedService.id)
+          )
+        ) {
+          return false;
+        }
+      }
+
+      // Use device directly for critical fields, fallback to newAllDevices
+      const deviceInfo =
+        newAllDevices.find((d) => d.id === device.id) || device;
+
+      const deviceId = String(device.id || "").toLowerCase();
+      const licensePlate = (deviceInfo.name || "").toLowerCase();
+      const type = (deviceInfo.services || [])
         .map((service) =>
           (service.serviceName || service.name || "").toLowerCase()
         )
         .join(" ");
-      const lastConnectionStr = pos.fixTime
-        ? dayjs(pos.fixTime).format("YYYY-MM-DD HH:mm:ss")
+      const advisor = (deviceInfo.attributes?.advisor || "").toLowerCase();
+      const lastConnectionStr = device.lastUpdate
+        ? dayjs(device.lastUpdate).format("YYYY-MM-DD HH:mm:ss")
         : "";
-      const distance = markerPosition
-        ? parseFloat(
-            (
-              getDistanceFromLatLonInMeters(
-                markerPosition.lat,
-                markerPosition.lng,
-                pos.latitude,
-                pos.longitude
-              ) / 1000
-            ).toFixed(2)
-          )
-        : null;
+      const movementStatus = device.status === "online" ? "moving" : "stop";
+      const distance = device.distance
+        ? (device.distance / 1000).toFixed(2)
+        : "N/A";
       const eta =
-        distance !== null && !isNaN(distance)
+        etaMap[device.id]?.eta ||
+        (distance !== "N/A"
           ? Math.ceil((distance / AVERAGE_SPEED_KMH) * 60)
-          : null;
+          : null);
       const cost =
-        distance !== null && device?.costByKm
-          ? distance * device.costByKm
-          : null;
-      const district = (districts[pos.deviceId] || "").toLowerCase();
-      const movementStatus = (pos.speed ?? 0) > 5 ? "moving" : "stop";
+        distance !== "N/A" && deviceInfo.costByKm && deviceInfo.initialBase
+          ? (
+              parseFloat(distance) * deviceInfo.costByKm +
+              deviceInfo.initialBase
+            ).toFixed(2)
+          : "N/A";
+      const district = (districts[device.id] || "").toLowerCase();
+      const initialBase = (deviceInfo.initialBase || "").toLowerCase();
 
       const globalMatch =
         deviceId.includes(globalSearch) ||
         licensePlate.includes(globalSearch) ||
         advisor.includes(globalSearch) ||
-        serviceNames.includes(globalSearch);
+        type.includes(globalSearch);
 
       const deviceIdMatch = columnFilters.deviceId
         ? deviceId.includes(columnFilters.deviceId.toLowerCase())
@@ -197,7 +240,7 @@ const DispatchResultTable = ({
         ? licensePlate.includes(columnFilters.licensePlate.toLowerCase())
         : true;
       const typeMatch = columnFilters.type
-        ? serviceNames.includes(columnFilters.type.toLowerCase())
+        ? type.includes(columnFilters.type.toLowerCase())
         : true;
       const advisorMatch = columnFilters.advisor
         ? advisor.includes(columnFilters.advisor.toLowerCase())
@@ -206,27 +249,29 @@ const DispatchResultTable = ({
         ? lastConnectionStr.includes(columnFilters.lastConnection)
         : true;
       const movementMatch = columnFilters.movement
-        ? movementStatus === columnFilters.movement.toLowerCase()
+        ? movementStatus.includes(columnFilters.movement.toLowerCase())
         : true;
       let distanceMatch = true;
-      if (columnFilters.distance) {
+      if (columnFilters.distance && distance !== "N/A") {
         const filterStr = columnFilters.distance.trim();
         const numFilter = parseNumberFilter(
           filterStr.replace(/[^0-9.><=]/g, "")
         );
         if (numFilter !== null) {
-          if (filterStr.startsWith(">=")) distanceMatch = distance >= numFilter;
+          const parsedDistance = parseFloat(distance);
+          if (filterStr.startsWith(">="))
+            distanceMatch = parsedDistance >= numFilter;
           else if (filterStr.startsWith("<="))
-            distanceMatch = distance <= numFilter;
+            distanceMatch = parsedDistance <= numFilter;
           else if (filterStr.startsWith(">"))
-            distanceMatch = distance > numFilter;
+            distanceMatch = parsedDistance > numFilter;
           else if (filterStr.startsWith("<"))
-            distanceMatch = distance < numFilter;
-          else distanceMatch = distance === numFilter;
+            distanceMatch = parsedDistance < numFilter;
+          else distanceMatch = parsedDistance === numFilter;
         }
       }
       let etaMatch = true;
-      if (columnFilters.eta) {
+      if (columnFilters.eta && eta !== null) {
         const filterStr = columnFilters.eta.trim();
         const numFilter = parseNumberFilter(
           filterStr.replace(/[^0-9.><=]/g, "")
@@ -240,26 +285,28 @@ const DispatchResultTable = ({
         }
       }
       let costMatch = true;
-      if (columnFilters.cost) {
+      if (columnFilters.cost && cost !== "N/A") {
         const filterStr = columnFilters.cost.trim();
         const numFilter = parseNumberFilter(
           filterStr.replace(/[^0-9.><=]/g, "")
         );
         if (numFilter !== null) {
-          if (filterStr.startsWith(">=")) costMatch = cost >= numFilter;
-          else if (filterStr.startsWith("<=")) costMatch = cost <= numFilter;
-          else if (filterStr.startsWith(">")) costMatch = cost > numFilter;
-          else if (filterStr.startsWith("<")) costMatch = cost < numFilter;
-          else costMatch = cost === numFilter;
+          const parsedCost = parseFloat(cost);
+          if (filterStr.startsWith(">=")) costMatch = parsedCost >= numFilter;
+          else if (filterStr.startsWith("<="))
+            costMatch = parsedCost <= numFilter;
+          else if (filterStr.startsWith(">"))
+            costMatch = parsedCost > numFilter;
+          else if (filterStr.startsWith("<"))
+            costMatch = parsedCost < numFilter;
+          else costMatch = parsedCost === numFilter;
         }
       }
       const districtMatch = columnFilters.district
         ? district.includes(columnFilters.district.toLowerCase())
         : true;
       const initialBaseMatch = columnFilters.initialBase
-        ? device.initialBase
-            ?.toLowerCase()
-            .includes(columnFilters.initialBase.toLowerCase())
+        ? initialBase.includes(columnFilters.initialBase.toLowerCase())
         : true;
 
       return (
@@ -267,146 +314,88 @@ const DispatchResultTable = ({
         deviceIdMatch &&
         licensePlateMatch &&
         typeMatch &&
-        initialBaseMatch &&
         advisorMatch &&
         lastConnectionMatch &&
         movementMatch &&
         distanceMatch &&
         etaMatch &&
         costMatch &&
-        districtMatch
+        districtMatch &&
+        initialBaseMatch
       );
     });
 
-    filtered = filtered.sort((a, b) => {
-      const deviceA = newAllDevices.find((d) => d.id === a.deviceId);
-      const deviceB = newAllDevices.find((d) => d.id === b.deviceId);
+    console.log("Filtered Items:", validDevices);
+
+    return validDevices.sort((a, b) => {
+      const deviceA = newAllDevices.find((d) => d.id === a.id) || a;
+      const deviceB = newAllDevices.find((d) => d.id === b.id) || b;
       let valueA, valueB;
 
       switch (sortColumn) {
         case "deviceId":
-          valueA = a.deviceId || "";
-          valueB = b.deviceId || "";
+          valueA = a.id || "";
+          valueB = b.id || "";
           break;
         case "lastConnection":
-          valueA = a.fixTime ? new Date(a.fixTime).getTime() : 0;
-          valueB = b.fixTime ? new Date(b.fixTime).getTime() : 0;
+          valueA = a.lastUpdate ? new Date(a.lastUpdate).getTime() : 0;
+          valueB = b.lastUpdate ? new Date(b.lastUpdate).getTime() : 0;
           break;
         case "movement":
-          valueA = (a.speed ?? 0) > 5 ? "moving" : "stop";
-          valueB = (b.speed ?? 0) > 5 ? "moving" : "stop";
+          valueA = a.status === "online" ? "moving" : "stop";
+          valueB = b.status === "online" ? "moving" : "stop";
           break;
         case "licensePlate":
-          valueA = deviceA?.name || "";
-          valueB = deviceB?.name || "";
+          valueA = deviceA.name || "";
+          valueB = deviceB.name || "";
           break;
         case "type":
-          valueA = deviceA?.attributes?.["device.type"] || "";
-          valueB = deviceB?.attributes?.["device.type"] || "";
+          valueA = (deviceA.services || [])
+            .map((s) => s.serviceName || s.name || "")
+            .join(" ");
+          valueB = (deviceB.services || [])
+            .map((s) => s.serviceName || s.name || "")
+            .join(" ");
           break;
         case "advisor":
-          valueA = deviceA?.attributes?.advisor || "";
-          valueB = deviceB?.attributes?.advisor || "";
+          valueA = deviceA.attributes?.advisor || "";
+          valueB = deviceB.attributes?.advisor || "";
           break;
         case "distance":
-          valueA =
-            markerPosition && a.latitude && a.longitude
-              ? parseFloat(
-                  (
-                    getDistanceFromLatLonInMeters(
-                      markerPosition.lat,
-                      markerPosition.lng,
-                      a.latitude,
-                      a.longitude
-                    ) / 1000
-                  ).toFixed(2)
-                )
-              : 0;
-          valueB =
-            markerPosition && b.latitude && b.longitude
-              ? parseFloat(
-                  (
-                    getDistanceFromLatLonInMeters(
-                      markerPosition.lat,
-                      markerPosition.lng,
-                      b.latitude,
-                      b.longitude
-                    ) / 1000
-                  ).toFixed(2)
-                )
-              : 0;
+          valueA = a.distance ? parseFloat((a.distance / 1000).toFixed(2)) : 0;
+          valueB = b.distance ? parseFloat((b.distance / 1000).toFixed(2)) : 0;
           break;
         case "eta":
           valueA =
-            markerPosition && a.latitude && a.longitude
-              ? Math.ceil(
-                  (parseFloat(
-                    (
-                      getDistanceFromLatLonInMeters(
-                        markerPosition.lat,
-                        markerPosition.lng,
-                        a.latitude,
-                        a.longitude
-                      ) / 1000
-                    ).toFixed(2)
-                  ) /
-                    AVERAGE_SPEED_KMH) *
-                    60
-                )
-              : 0;
+            etaMap[a.id]?.eta ||
+            (a.distance
+              ? Math.ceil((a.distance / 1000 / AVERAGE_SPEED_KMH) * 60)
+              : 0);
           valueB =
-            markerPosition && b.latitude && b.longitude
-              ? Math.ceil(
-                  (parseFloat(
-                    (
-                      getDistanceFromLatLonInMeters(
-                        markerPosition.lat,
-                        markerPosition.lng,
-                        b.latitude,
-                        b.longitude
-                      ) / 1000
-                    ).toFixed(2)
-                  ) /
-                    AVERAGE_SPEED_KMH) *
-                    60
-                )
-              : 0;
+            etaMap[b.id]?.eta ||
+            (b.distance
+              ? Math.ceil((b.distance / 1000 / AVERAGE_SPEED_KMH) * 60)
+              : 0);
           break;
         case "cost":
           valueA =
-            markerPosition && a.latitude && a.longitude && deviceA?.costByKm
-              ? parseFloat(
-                  (
-                    getDistanceFromLatLonInMeters(
-                      markerPosition.lat,
-                      markerPosition.lng,
-                      a.latitude,
-                      a.longitude
-                    ) / 1000
-                  ).toFixed(2)
-                ) * deviceA.costByKm
+            a.distance && deviceA.costByKm && deviceA.initialBase
+              ? parseFloat((a.distance / 1000).toFixed(2)) * deviceA.costByKm +
+                deviceA.initialBase
               : 0;
           valueB =
-            markerPosition && b.latitude && b.longitude && deviceB?.costByKm
-              ? parseFloat(
-                  (
-                    getDistanceFromLatLonInMeters(
-                      markerPosition.lat,
-                      markerPosition.lng,
-                      b.latitude,
-                      b.longitude
-                    ) / 1000
-                  ).toFixed(2)
-                ) * deviceB.costByKm
+            b.distance && deviceB.costByKm && deviceB.initialBase
+              ? parseFloat((b.distance / 1000).toFixed(2)) * deviceB.costByKm +
+                deviceB.initialBase
               : 0;
           break;
         case "district":
-          valueA = districts[a.deviceId] || "";
-          valueB = districts[b.deviceId] || "";
+          valueA = districts[a.id] || "";
+          valueB = districts[b.id] || "";
           break;
         case "initialBase":
-          valueA = deviceA?.initialBase || "";
-          valueB = deviceB?.initialBase || "";
+          valueA = deviceA.initialBase || "";
+          valueB = deviceB.initialBase || "";
           break;
         default:
           return 0;
@@ -424,42 +413,63 @@ const DispatchResultTable = ({
         ? 1
         : -1;
     });
-
-    setFilteredItems(filtered);
   }, [
-    searchValue,
     devicesInRadius,
-    newAllDevices,
+    searchValue,
     columnFilters,
     districts,
-    markerPosition,
+    etaMap,
     sortColumn,
     sortOrder,
+    parseNumberFilter,
+    isInsideGeofence,
+    selectedServiceType,
+    newAllDevices,
   ]);
 
-  const handleSort = (column) => {
-    if (sortColumn === column) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortColumn(column);
-      setSortOrder("asc");
-    }
-  };
+  // Fetch districts and ETAs for visible devices
+  useEffect(() => {
+    const visibleDevices = filteredItems.slice(
+      page * rowsPerPage,
+      page * rowsPerPage + rowsPerPage
+    );
+
+    visibleDevices.forEach((device) => {
+      if (!districts[device.id] && !loadingDistricts.has(device.id)) {
+        handleFetchDistrict(device.lat, device.lng, device.id);
+      }
+      if (!etaMap[device.id]) {
+        calculateETAForDevice(device);
+      }
+    });
+  }, [
+    filteredItems,
+    page,
+    rowsPerPage,
+    districts,
+    etaMap,
+    handleFetchDistrict,
+    calculateETAForDevice,
+    loadingDistricts,
+  ]);
+
+  const handleSort = useCallback(
+    (column) => {
+      if (sortColumn === column) {
+        setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+      } else {
+        setSortColumn(column);
+        setSortOrder("asc");
+      }
+    },
+    [sortColumn, sortOrder]
+  );
 
   return (
     <Box sx={{ mt: 4 }}>
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell>
-              <TableSortLabel
-                active={sortColumn === "deviceId"}
-                direction={sortColumn === "deviceId" ? sortOrder : "asc"}
-                onClick={() => handleSort("deviceId")}
-              >
-                Device ID
-              </TableSortLabel>
-            </TableCell>
             <TableCell>Location</TableCell>
             <TableCell>
               <TableSortLabel
@@ -523,7 +533,7 @@ const DispatchResultTable = ({
                 direction={sortColumn === "eta" ? sortOrder : "asc"}
                 onClick={() => handleSort("eta")}
               >
-                ETA
+                ETA (min)
               </TableSortLabel>
             </TableCell>
             <TableCell>
@@ -532,7 +542,7 @@ const DispatchResultTable = ({
                 direction={sortColumn === "cost" ? sortOrder : "asc"}
                 onClick={() => handleSort("cost")}
               >
-                Cost
+                Cost ($)
               </TableSortLabel>
             </TableCell>
             <TableCell>Zone Rate</TableCell>
@@ -554,7 +564,7 @@ const DispatchResultTable = ({
                 Initial Base
               </TableSortLabel>
             </TableCell>
-            <TableCell>Rimac ETA</TableCell>
+            <TableCell>Rimac ETA (min)</TableCell>
           </TableRow>
           <TableRow>
             <TableCell>
@@ -576,7 +586,7 @@ const DispatchResultTable = ({
               <TextField
                 size="small"
                 variant="standard"
-                placeholder="Search"
+                placeholder="YYYY-MM-DD HH:mm:ss"
                 value={columnFilters.lastConnection}
                 onChange={(e) =>
                   setColumnFilters((prev) => ({
@@ -590,7 +600,7 @@ const DispatchResultTable = ({
               <TextField
                 size="small"
                 variant="standard"
-                placeholder="Search"
+                placeholder="Moving/Stop"
                 value={columnFilters.movement}
                 onChange={(e) =>
                   setColumnFilters((prev) => ({
@@ -645,43 +655,52 @@ const DispatchResultTable = ({
               />
             </TableCell>
             <TableCell>
-              <TextField
-                size="small"
-                variant="standard"
-                placeholder="Search"
-                value={columnFilters.distance}
-                onChange={(e) =>
-                  setColumnFilters((prev) => ({
-                    ...prev,
-                    distance: e.target.value,
-                  }))
-                }
-              />
+              <Tooltip title="Use >=, <=, >, <, or exact number">
+                <TextField
+                  size="small"
+                  variant="standard"
+                  placeholder="e.g., >=5"
+                  value={columnFilters.distance}
+                  onChange={(e) =>
+                    setColumnFilters((prev) => ({
+                      ...prev,
+                      distance: e.target.value,
+                    }))
+                  }
+                />
+              </Tooltip>
             </TableCell>
             <TableCell>
-              <TextField
-                size="small"
-                variant="standard"
-                placeholder="Search"
-                value={columnFilters.eta}
-                onChange={(e) =>
-                  setColumnFilters((prev) => ({ ...prev, eta: e.target.value }))
-                }
-              />
+              <Tooltip title="Use >=, <=, >, <, or exact number">
+                <TextField
+                  size="small"
+                  variant="standard"
+                  placeholder="e.g., <=10"
+                  value={columnFilters.eta}
+                  onChange={(e) =>
+                    setColumnFilters((prev) => ({
+                      ...prev,
+                      eta: e.target.value,
+                    }))
+                  }
+                />
+              </Tooltip>
             </TableCell>
             <TableCell>
-              <TextField
-                size="small"
-                variant="standard"
-                placeholder="Search"
-                value={columnFilters.cost}
-                onChange={(e) =>
-                  setColumnFilters((prev) => ({
-                    ...prev,
-                    cost: e.target.value,
-                  }))
-                }
-              />
+              <Tooltip title="Use >=, <=, >, <, or exact number">
+                <TextField
+                  size="small"
+                  variant="standard"
+                  placeholder="e.g., >50"
+                  value={columnFilters.cost}
+                  onChange={(e) =>
+                    setColumnFilters((prev) => ({
+                      ...prev,
+                      cost: e.target.value,
+                    }))
+                  }
+                />
+              </Tooltip>
             </TableCell>
             <TableCell />
             <TableCell>
@@ -718,83 +737,84 @@ const DispatchResultTable = ({
         <TableBody>
           {filteredItems
             .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-            .map((pos) => {
-              const device = newAllDevices.find((d) => d.id === pos.deviceId);
-              const distance = markerPosition
-                ? calculateDistance(
-                    markerPosition.lat,
-                    markerPosition.lng,
-                    pos.latitude,
-                    pos.longitude
-                  )
-                : "N/A";
-              const rimacEta = dayjs().add(30, "minute").format("HH:mm");
-              let calculatedCost =
-                distance !== "N/A" ? distance * device?.costByKm : 0;
+            .map((device) => {
+              const deviceInfo =
+                newAllDevices.find((d) => d.id === device.id) || device;
+              const distance =
+                etaMap[device.id]?.distance ||
+                (device.distance ? (device.distance / 1000).toFixed(2) : "N/A");
+              const eta =
+                etaMap[device.id]?.eta ||
+                (distance !== "N/A"
+                  ? Math.ceil((distance / AVERAGE_SPEED_KMH) * 60)
+                  : "N/A");
+              const cost =
+                distance !== "N/A" &&
+                deviceInfo.costByKm &&
+                deviceInfo.initialBase
+                  ? (
+                      parseFloat(distance) * deviceInfo.costByKm +
+                      deviceInfo.initialBase
+                    ).toFixed(2)
+                  : "N/A";
 
               return (
                 <TableRow
-                  key={pos.deviceId}
+                  key={device.id}
                   hover
-                  onClick={(e) => handleRowClick(e, pos.deviceId)}
+                  onClick={(e) => handleRowClick(e, device.id)}
                   sx={{
                     cursor: "pointer",
-                    backgroundColor: selectedDeviceIds?.includes(pos.deviceId)
+                    backgroundColor: selectedDeviceIds?.includes(device.id)
                       ? "rgba(25, 118, 210, 0.1)"
                       : "inherit",
                   }}
                 >
-                  <TableCell>{pos.deviceId}</TableCell>
                   <TableCell>
                     <IconButton
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleZoomToDevice(pos);
+                        handleZoomToDevice(device);
                       }}
                     >
                       <RoomIcon fontSize="small" />
                     </IconButton>
                   </TableCell>
-                  <TableCell>
-                    {dayjs(pos.fixTime).format("YYYY-MM-DD HH:mm:ss")}
-                  </TableCell>
+                  <TableCell>N/A</TableCell> {/* Last Connection: static */}
                   <TableCell
-                    sx={{ color: (pos.speed ?? 0) > 5 ? "green" : "red" }}
+                    sx={{ color: device.status === "online" ? "green" : "red" }}
                   >
-                    {(pos.speed ?? 0) > 5 ? "Moving" : "Stop"}
+                    {device.status === "online" ? "Moving" : "Stop"}{" "}
+                    {/* Movement: derived */}
                   </TableCell>
-                  <TableCell>Pending</TableCell>
-                  <TableCell>Pending</TableCell>
-                  <TableCell>{device?.name}</TableCell>
+                  <TableCell>N/A</TableCell> {/* App Status: static */}
+                  <TableCell>N/A</TableCell> {/* Subprocess: static */}
+                  <TableCell>{deviceInfo.name || "N/A"}</TableCell>
                   <TableCell>
-                    {device.services?.map((service, index) => (
+                    {deviceInfo.services?.map((service, index) => (
                       <Chip
                         key={index}
-                        label={service.serviceName}
-                        style={{ marginRight: 8, marginBottom: 8 }}
+                        label={service.serviceName || service.name || "N/A"}
+                        sx={{ mr: 1, mb: 1 }}
                       />
-                    ))}
+                    )) || "N/A"}
                   </TableCell>
-                  <TableCell>Pending</TableCell>
+                  <TableCell>N/A</TableCell> {/* Advisor: static */}
                   <TableCell>{distance}</TableCell>
+                  <TableCell>{eta !== "N/A" ? `${eta} min` : eta}</TableCell>
+                  <TableCell>{cost !== "N/A" ? `${cost} $` : cost}</TableCell>
+                  <TableCell>N/A</TableCell> {/* Zone Rate: static */}
                   <TableCell>
-                    {etaMap[pos.deviceId] !== undefined
-                      ? etaMap[pos.deviceId] !== null
-                        ? `${etaMap[pos.deviceId]} min`
-                        : "N/A"
-                      : "Loading..."}
+                    {districts[device.id] ? (
+                      districts[device.id]
+                    ) : loadingDistricts.has(device.id) ? (
+                      <CircularProgress size={15} />
+                    ) : (
+                      "N/A"
+                    )}
                   </TableCell>
-                  <TableCell>
-                    {calculatedCost === 0 ? "Not Set" : `${calculatedCost} $`}
-                  </TableCell>
-                  <TableCell>Pending</TableCell>
-                  <TableCell>
-                    {districts[pos.deviceId] ?? <CircularProgress size={15} />}
-                  </TableCell>
-                  <TableCell>
-                    {device.initialBase ? device.initialBase : "N/A"}
-                  </TableCell>
-                  <TableCell>{rimacEta}</TableCell>
+                  <TableCell>{deviceInfo.initialBase || "N/A"}</TableCell>
+                  <TableCell>N/A</TableCell> {/* Rimac ETA: static */}
                 </TableRow>
               );
             })}
@@ -806,9 +826,10 @@ const DispatchResultTable = ({
         page={page}
         rowsPerPage={rowsPerPage}
         onPageChange={(e, newPage) => setPage(newPage)}
-        onRowsPerPageChange={(e) =>
-          setRowsPerPage(parseInt(e.target.value, 10))
-        }
+        onRowsPerPageChange={(e) => {
+          setRowsPerPage(parseInt(e.target.value, 10));
+          setPage(0);
+        }}
       />
     </Box>
   );

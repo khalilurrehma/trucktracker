@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  dispatchCaseCompleteService,
   dispatchCaseReport,
   fetchAllDispatchCases,
   handleCaseAction,
@@ -23,5 +24,9 @@ router.post(
   dispatchCaseReport
 );
 
-router.put("/dispatch")
+router.put(
+  "/dispatch/case/:caseId/complete/service",
+  authDriver,
+  dispatchCaseCompleteService
+);
 export default router;

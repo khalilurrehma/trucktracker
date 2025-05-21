@@ -1,9 +1,11 @@
 import {
   addNewCase,
   fetchDispatchCases,
+  findCaseById,
   findCaseStatusById,
   saveDispatchCaseAction,
   saveDispatchCaseReport,
+  updateCaseServiceById,
   updateCaseStatusById,
 } from "../model/dispatch.js";
 import { getAuthenticatedS3String, s3 } from "../services/azure.s3.js";
@@ -117,7 +119,7 @@ export const handleCaseAction = async (req, res) => {
     await saveDispatchCaseAction(dbBody);
 
     if (action === "accept") {
-      await updateCaseStatusById(caseId);
+      await updateCaseStatusById(caseId, "in progress");
     }
 
     res.status(200).json({
@@ -253,5 +255,40 @@ export const dispatchCaseReport = async (req, res) => {
       status: false,
       message: error.message,
     });
+  }
+};
+
+export const dispatchCaseCompleteService = async (req, res) => {
+  const driverId = req.userId;
+  const { caseId } = req.params;
+  const { damage, meta_information } = req.body;
+
+  try {
+    const caseCheck = await findCaseById(caseId);
+
+    if (!caseCheck) {
+      return res.status(400).json({
+        status: false,
+        message: "Invalid or unaccepted case",
+      });
+    }
+
+    const fieldsToUpdate = {
+      damage,
+      meta_information,
+    };
+
+    const updateResults = await updateCaseServiceById(fieldsToUpdate, caseId);
+
+    if (updateResults.affectedRows === 1) {
+      await updateCaseStatusById(caseId, "completed");
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: "Case service completed successfully",
+    });
+  } catch (error) {
+    res.status(500).send({ status: false, message: error.message });
   }
 };

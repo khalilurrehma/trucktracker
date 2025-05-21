@@ -69,6 +69,59 @@ export const findCaseStatusById = async (caseId) => {
   }
 };
 
+export const findCaseById = async (id) => {
+  const sql = `SELECT * FROM dispatch_cases WHERE id = ?`;
+
+  try {
+    const rows = await dbQuery(sql, [id]);
+    return rows[0];
+  } catch (error) {
+    console.error("Error fetching dispatch cases:", error);
+    return error;
+  }
+};
+
+export const findCaseReportById = async (caseId) => {
+  const sql = `SELECT 
+  dcr.id AS report_id,
+  dcr.case_id,
+  dc.case_name,
+  dc.status,
+  dcr.suggested_services,
+  dcr.subservices,
+  dcr.additional_information,
+  dcr.photos,
+  dcr.created_at,
+  dcr.updated_at
+  FROM dispatch_case_reports dcr
+  JOIN dispatch_cases dc ON dcr.case_id = dc.id;
+`;
+
+  try {
+    const rows = await dbQuery(sql, [caseId]);
+    return rows;
+  } catch (error) {
+    console.error("Error fetching dispatch cases:", error);
+    return error;
+  }
+};
+
+export const updateCaseServiceById = async (fields, case_id) => {
+  const sql = `UPDATE dispatch_case_reports SET damage = ?, meta_information = ? WHERE case_id = ?`;
+
+  try {
+    const rows = await dbQuery(sql, [
+      fields.damage,
+      fields.meta_information,
+      case_id,
+    ]);
+    return rows;
+  } catch (error) {
+    console.error("Error fetching dispatch cases:", error);
+    return error;
+  }
+};
+
 export const findCaseByUserIdAndDeviceId = async (userId, deviceId) => {
   const query = `
     SELECT 
@@ -116,11 +169,11 @@ export const saveDispatchCaseAction = async (body) => {
   }
 };
 
-export const updateCaseStatusById = async (case_id) => {
-  const sql = `UPDATE dispatch_cases SET status = 'in progress' WHERE id = ?`;
+export const updateCaseStatusById = async (case_id, action) => {
+  const sql = `UPDATE dispatch_cases SET status = ? WHERE id = ?`;
 
   try {
-    const result = await dbQuery(sql, [case_id]);
+    const result = await dbQuery(sql, [action, case_id]);
     return result;
   } catch (error) {
     return error;

@@ -36,6 +36,7 @@ import { extractDefaultCalcsId } from "../model/calculator.js";
 import { fetchAllNotificationLogs } from "../model/notifications.js";
 import { newDeviceInUsageControl } from "../model/usageControl.js";
 import { s3 } from "../services/azure.s3.js";
+import { flespiDeviceLiveLocation } from "../services/flespiApis.js";
 
 const traccarBearerToken = process.env.TraccarToken;
 const traccarApiUrl = `http://${process.env.TraccarPort}/api`;
@@ -428,9 +429,6 @@ export const allNewDevices = async (req, res) => {
           currentDate
         );
 
-        const group = groups.find(
-          (group) => group.traccarId === device.groupId
-        );
         const deviceServices = services.filter(
           (service) => service.device_id === device.id
         );
@@ -439,11 +437,43 @@ export const allNewDevices = async (req, res) => {
           serviceId: service.service_type_id,
           serviceName: service.service_name,
         }));
+
+        const group = groups.find(
+          (group) => group.traccarId === device.groupId
+        );
+
+        let latitude = null;
+        let longitude = null;
+
+        if (query?.deviceLocation) {
+          const deviceLocation = await flespiDeviceLiveLocation(
+            device.flespiId
+          );
+
+          if (
+            Array.isArray(deviceLocation) &&
+            deviceLocation[0]?.telemetry?.position?.value
+          ) {
+            latitude =
+              deviceLocation[0].telemetry.position.value.latitude || null;
+            longitude =
+              deviceLocation[0].telemetry.position.value.longitude || null;
+          }
+        }
+
         return {
           ...device,
           groupName: group ? group.name : `Unknown (${device.groupId})`,
           services: serviceDetails,
           initialBase: initialBase ? initialBase.geofence_name : null,
+          ...(query?.deviceLocation
+            ? {
+                location: {
+                  lat: latitude,
+                  lng: longitude,
+                },
+              }
+            : {}),
         };
       })
     );

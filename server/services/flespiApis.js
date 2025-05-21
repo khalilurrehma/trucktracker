@@ -93,6 +93,20 @@ export const sendCommandToFlespiDevice = async (deviceId, body) => {
   }
 };
 
+export const getFlespiDeviceLocation = async (deviceId) => {
+  const apiUrl = `https://flespi.io/gw/devices/${deviceId}/telemetry/position`;
+  const headers = {
+    Authorization: `FlespiToken ${FlespiToken}`,
+  };
+  try {
+    const response = await axios.get(apiUrl, { headers });
+
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const executionStatus = async (deviceId, commandId) => {
   const apiUrl = `${flespiUrl}/devices/${deviceId}/commands-result/${commandId}`;
   const headers = {
