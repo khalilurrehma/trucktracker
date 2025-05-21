@@ -116,6 +116,17 @@ export const saveDispatchCaseAction = async (body) => {
   }
 };
 
+export const updateCaseStatusById = async (case_id) => {
+  const sql = `UPDATE dispatch_cases SET status = 'in progress' WHERE id = ?`;
+
+  try {
+    const result = await dbQuery(sql, [case_id]);
+    return result;
+  } catch (error) {
+    return error;
+  }
+};
+
 export const saveDispatchCaseReport = async (reportData) => {
   const query = `
       INSERT INTO dispatch_case_reports (
@@ -132,8 +143,8 @@ export const saveDispatchCaseReport = async (reportData) => {
   ];
 
   try {
-    const [result] = await dbQuery(query, values);
-    return result.insertId;
+    const result = await dbQuery(query, values);
+    return result.insertId || result[0]?.insertId || null;
   } catch (error) {
     console.error("Error saving dispatch case report:", error);
     throw error;

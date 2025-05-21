@@ -23,4 +23,5 @@ router.post(
   dispatchCaseReport
 );
 
+router.put("/dispatch")
 export default router;

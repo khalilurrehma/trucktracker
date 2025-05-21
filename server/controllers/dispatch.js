@@ -4,6 +4,7 @@ import {
   findCaseStatusById,
   saveDispatchCaseAction,
   saveDispatchCaseReport,
+  updateCaseStatusById,
 } from "../model/dispatch.js";
 import { getAuthenticatedS3String, s3 } from "../services/azure.s3.js";
 
@@ -115,6 +116,10 @@ export const handleCaseAction = async (req, res) => {
 
     await saveDispatchCaseAction(dbBody);
 
+    if (action === "accept") {
+      await updateCaseStatusById(caseId);
+    }
+
     res.status(200).json({
       status: true,
       message: "Case action saved successfully",
@@ -127,31 +132,59 @@ export const handleCaseAction = async (req, res) => {
 export const dispatchCaseReport = async (req, res) => {
   const driverId = req.userId;
   const { caseId } = req.params;
-  const { suggestedServices, subservices, additionalInformation } = req.body;
+  const {
+    suggestedServices,
+    subservices,
+    additionalInformation = "",
+    fileMeta = [],
+    plateNumbers = [],
+  } = req.body;
+
   const files = req.files || [];
-  const plateNumbers = req.body.plateNumbers || [];
 
   if (!caseId || !driverId) {
-    return res
-      .status(400)
-      .json({ status: false, message: "Case ID and driver ID are required" });
+    return res.status(400).json({
+      status: false,
+      message: "Case ID and driver ID are required",
+    });
   }
+
+  if (
+    !files.length ||
+    !plateNumbers.length ||
+    fileMeta.length !== files.length
+  ) {
+    return res.status(400).json({
+      status: false,
+      message: "Missing or mismatched files and metadata",
+    });
+  }
+
   try {
-    const caseCheck = await findCaseStatusById(caseId, driverId);
+    const caseCheck = await findCaseStatusById(caseId);
 
     if (!caseCheck.length || caseCheck[0].status !== "in progress") {
-      return res
-        .status(400)
-        .json({ status: false, message: "Invalid or unaccepted case" });
+      return res.status(400).json({
+        status: false,
+        message: "Invalid or unaccepted case",
+      });
     }
 
-    const photosWithMetadata = await Promise.all(
-      files.map(async (file) => {
+    const parsedMeta = fileMeta.map((m) => {
+      if (typeof m === "string") {
+        return JSON.parse(m);
+      }
+      return m;
+    });
+
+    const uploadedPhotos = await Promise.all(
+      files.map(async (file, index) => {
+        const meta = parsedMeta[index];
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
         const key = `photos/${uniqueSuffix}-${file.originalname}`;
 
         const params = {
-          Bucket: process.env.CONTABO_BUCKET,
+          Bucket: process.env.CONTABO_BUCKET_NAME,
           Key: key,
           Body: file.buffer,
           ContentType: file.mimetype,
@@ -161,45 +194,44 @@ export const dispatchCaseReport = async (req, res) => {
         const originalUrl = data.Location;
         const authenticatedUrl = getAuthenticatedS3String(originalUrl);
 
-        if (!authenticatedUrl) {
-          throw new Error("Failed to generate authenticated URL");
-        }
-
         return {
           url: authenticatedUrl,
           mimetype: file.mimetype,
-          originalname: file.originalname,
+          ...meta,
         };
       })
     );
 
-    const photoStructure = plateNumbers.map((plate, index) => {
-      const vehiclePhotos = photosWithMetadata
-        .filter((photo) => {
-          return true;
-        })
-        .slice(index * 4, (index + 1) * 4);
+    const grouped = {};
 
-      return {
-        clientVehicle: vehiclePhotos
-          .filter((p) =>
-            ["image/jpeg", "image/jpg", "image/png"].includes(p.mimetype)
-          )
-          .map((p) => p.url),
-        clientDocument: vehiclePhotos
-          .filter((p) => p.mimetype === "application/pdf")
-          .map((p) => p.url),
-        additionalInformation: {
-          description: additionalInformation || "",
-          multipleImages: vehiclePhotos
-            .filter((p) =>
-              ["image/jpeg", "image/jpg", "image/png"].includes(p.mimetype)
-            )
-            .map((p) => p.url),
-          plateNumber: plate || "",
-        },
-      };
+    uploadedPhotos.forEach((photo) => {
+      const index = photo.vehicleIndex;
+
+      if (!grouped[index]) {
+        grouped[index] = {
+          plate_number: plateNumbers[index] || "",
+          clientVehicle: [],
+          clientDocument: [],
+          additionalInformation: {
+            multipleImages: [],
+            description: additionalInformation || "",
+          },
+        };
+      }
+
+      if (photo.category === "Client Vehicle") {
+        grouped[index].clientVehicle.push({ type: photo.type, url: photo.url });
+      } else if (photo.category === "Client Document") {
+        grouped[index].clientDocument.push({
+          type: photo.type,
+          url: photo.url,
+        });
+      } else if (photo.category === "Additional information") {
+        grouped[index].additionalInformation.multipleImages.push(photo.url);
+      }
     });
+
+    const photoStructure = Object.values(grouped);
 
     const reportData = {
       case_id: parseInt(caseId),
@@ -212,11 +244,14 @@ export const dispatchCaseReport = async (req, res) => {
 
     await saveDispatchCaseReport(reportData);
 
-    res.status(201).json({
+    return res.status(201).json({
       status: true,
-      message: "Report submitted successfully",
+      message: reportData,
     });
   } catch (error) {
-    res.status(500).send({ status: false, message: error.message });
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
   }
 };
