@@ -451,3 +451,25 @@ export const removeVehicleAssociation = async (driver_id, device_id) => {
     });
   });
 };
+
+export const driverStatus = async (driver_id) => {
+  const sql = "SELECT availability_status FROM drivers WHERE id = ?";
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [driver_id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0]?.availability_status);
+    });
+  });
+};
+
+export const modifyDriverStatus = async (status, driver_id) => {
+  const sql = "UPDATE drivers SET availability_status = ? WHERE id = ?";
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [status, driver_id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};

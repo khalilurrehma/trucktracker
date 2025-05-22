@@ -3,12 +3,14 @@ import {
   checkAlreadyAssociatedVehicle,
   driverByEmail,
   driversShiftDetails,
+  driverStatus,
   fetchDriver,
   fetchDriverAvailability,
   fetchDrivers,
   fetchDriversByUserId,
   findAssociateVehicleByDriverId,
   findVehiclesByDriverId,
+  modifyDriverStatus,
   removeDriver,
   removeVehicleAssociation,
   saveAssociationRelation,
@@ -258,6 +260,18 @@ export const driverAssociateVehicles = async (req, res) => {
   }
 };
 
+export const getDriverStatus = async (req, res) => {
+  const driverId = req.userId;
+
+  try {
+    const status = await driverStatus(driverId);
+
+    res.status(200).json({ status: true, message: status });
+  } catch (error) {
+    res.status(500).json({ status: false, message: error.message });
+  }
+};
+
 export const getCompanyVehicles = async (req, res) => {
   const { companyId } = req.params;
   const userId = req.userId;
@@ -414,6 +428,21 @@ export const unAssociateDriverVehicle = async (req, res) => {
       status: true,
       message: "Driver Unassociated Successfully",
     });
+  } catch (error) {
+    res.status(500).json({ status: false, message: error.message });
+  }
+};
+
+export const updateDriverStatus = async (req, res) => {
+  const driverId = req.userId;
+  const { status } = req.body;
+
+  try {
+    await modifyDriverStatus(status, driverId);
+
+    res
+      .status(200)
+      .json({ status: true, message: `Status Changed to ${status}` });
   } catch (error) {
     res.status(500).json({ status: false, message: error.message });
   }

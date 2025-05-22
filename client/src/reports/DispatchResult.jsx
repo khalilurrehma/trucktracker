@@ -541,7 +541,7 @@ const DispatchResult = () => {
             setMapZoom={setMapZoom}
             selectedServiceType={selectedServiceType}
             etaMap={etaMap}
-        setEtaMap={setEtaMap}
+            setEtaMap={setEtaMap}
           />
         )}
 

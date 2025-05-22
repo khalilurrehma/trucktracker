@@ -14,10 +14,12 @@ import {
   getDrivers,
   getDriversByUserId,
   getDriversShiftDetails,
+  getDriverStatus,
   postDriver,
   putDriver,
   saveDriverAvailability,
   unAssociateDriverVehicle,
+  updateDriverStatus,
 } from "../controllers/driver.js";
 import { authDriver } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -51,11 +53,15 @@ router.get(
   getCompanyVehicles
 );
 
+router.get("/driver/availability/status", authDriver, getDriverStatus);
+
 router.get("/driver/cases/:companyId", authDriver, dispatchCasesForDriver);
 
 router.put("/driver/:id", putDriver);
 
 router.patch("/driver/availability/:id", saveDriverAvailability);
+
+router.patch("/driver/update/status", authDriver, updateDriverStatus);
 
 router.delete("/driver/:id", deleteDriver);
 

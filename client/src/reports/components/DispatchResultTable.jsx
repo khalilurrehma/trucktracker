@@ -538,7 +538,7 @@ const DispatchResultTable = ({
               <TextField
                 size="small"
                 variant="standard"
-                placeholder="YYYY-MM-DD HH:mm:ss"
+                placeholder="Search"
                 value={columnFilters.lastConnection}
                 onChange={(e) =>
                   setColumnFilters((prev) => ({
@@ -552,7 +552,7 @@ const DispatchResultTable = ({
               <TextField
                 size="small"
                 variant="standard"
-                placeholder="Moving/Stop"
+                placeholder="Search"
                 value={columnFilters.movement}
                 onChange={(e) =>
                   setColumnFilters((prev) => ({
@@ -607,11 +607,11 @@ const DispatchResultTable = ({
               />
             </TableCell>
             <TableCell>
-              <Tooltip title="Use >=, <=, >, <, or exact number">
+              <Tooltip title="search">
                 <TextField
                   size="small"
                   variant="standard"
-                  placeholder="e.g., >=5"
+                  placeholder="Search"
                   value={columnFilters.distance}
                   onChange={(e) =>
                     setColumnFilters((prev) => ({
@@ -623,11 +623,11 @@ const DispatchResultTable = ({
               </Tooltip>
             </TableCell>
             <TableCell>
-              <Tooltip title="Use >=, <=, >, <, or exact number">
+              <Tooltip title="Search">
                 <TextField
                   size="small"
                   variant="standard"
-                  placeholder="e.g., <=10"
+                  placeholder="Search"
                   value={columnFilters.eta}
                   onChange={(e) =>
                     setColumnFilters((prev) => ({
@@ -639,11 +639,11 @@ const DispatchResultTable = ({
               </Tooltip>
             </TableCell>
             <TableCell>
-              <Tooltip title="Use >=, <=, >, <, or exact number">
+              <Tooltip title="Search">
                 <TextField
                   size="small"
                   variant="standard"
-                  placeholder="e.g., >50"
+                  placeholder="Search"
                   value={columnFilters.cost}
                   onChange={(e) =>
                     setColumnFilters((prev) => ({
