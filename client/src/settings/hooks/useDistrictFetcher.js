@@ -16,30 +16,55 @@ const useDistrictFetcher = () => {
     }
   };
 
-  const getDistrictFromCoordinates = async (lat, lng) => {
-    // const apiKey = import.meta.env.VITE_GOOGLE_MAP_API;
-    const url = `http://198.7.113.174/nominatim/reverse?lat=${lat}&lon=${lng}&format=json`;
+  const getDistrictFromCoordinates = async (lat, lng, retries = 2) => {
+    const url = `https://167.86.72.4/nominatim/reverse?lat=${lat}&lon=${lng}&format=json`;
 
-    try {
-      const response = await fetch(url);
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const response = await fetch(url);
+        console.log(
+          "Nominatim API Response Status:",
+          response.status,
+          response.statusText
+        );
 
-      if (!response.ok) {
-        throw new Error("Network response was not ok");
+        if (!response.ok) {
+          console.error(
+            "Nominatim API Error:",
+            response.status,
+            response.statusText
+          );
+          if (attempt === retries) {
+            throw new Error(`Network response was not ok: ${response.status}`);
+          }
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          continue;
+        }
+
+        const data = await response.json();
+        console.log("Nominatim API Response Data:", data);
+
+        const address = data.address || {};
+        const districtName =
+          address.suburb ||
+          address.neighbourhood ||
+          address.city_district ||
+          address.town ||
+          address.city ||
+          "Unknown";
+
+        console.log("Selected districtName:", districtName);
+        return districtName;
+      } catch (error) {
+        console.error(`Attempt ${attempt} failed:`, error, { lat, lng, url });
+        if (attempt === retries) {
+          return "Unknown";
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
-
-      const data = await response.json();
-
-      const { suburb } = data.address;
-
-      console.log(suburb);
-
-      let districtName = "unknown";
-
-      return suburb ? suburb : districtName;
-    } catch (error) {
-      console.error("Error in reverse geocoding:", error);
-      return "Unknown";
     }
+
+    return "Unknown";
   };
 
   return { districts, fetchDistrict };

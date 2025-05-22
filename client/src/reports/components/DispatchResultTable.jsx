@@ -38,6 +38,7 @@ const DispatchResultTable = ({
     type: "",
     advisor: "",
     lastConnection: "",
+    appStatus: "",
     movement: "",
     distance: "",
     eta: "",
@@ -52,6 +53,58 @@ const DispatchResultTable = ({
   const [sortOrder, setSortOrder] = useState("asc");
   const [etaMap, setEtaMap] = useState({});
   const [loadingDistricts, setLoadingDistricts] = useState(new Set());
+
+  const getAvailabilityChip = (status) => {
+    switch (status) {
+      case "available":
+        return (
+          <Chip
+            label="Available"
+            sx={{
+              backgroundColor: "#d0f2d0",
+              color: "#2e7d32",
+              fontWeight: 500,
+            }}
+          />
+        );
+      case "in service":
+        return (
+          <Chip
+            label="In Service"
+            sx={{
+              backgroundColor: "#fff4cc",
+              color: "#ef6c00",
+              fontWeight: 500,
+            }}
+          />
+        );
+      case "unavailable":
+        return (
+          <Chip
+            label="Unavailable"
+            sx={{
+              backgroundColor: "#ffdddd",
+              color: "#c62828",
+              fontWeight: 500,
+            }}
+          />
+        );
+      case "not associate":
+        return (
+          <Chip
+            label="Not Associated"
+            sx={{ backgroundColor: "#f0f0f0", color: "#666", fontWeight: 500 }}
+          />
+        );
+      default:
+        return (
+          <Chip
+            label="Unknown"
+            sx={{ backgroundColor: "#e0e0e0", color: "#999", fontWeight: 500 }}
+          />
+        );
+    }
+  };
 
   const parseNumberFilter = useCallback((value) => {
     if (!value) return null;
@@ -562,6 +615,20 @@ const DispatchResultTable = ({
                 }
               />
             </TableCell>
+            <TableCell>
+              <TextField
+                size="small"
+                variant="standard"
+                placeholder="Search"
+                value={columnFilters.appStatus}
+                onChange={(e) =>
+                  setColumnFilters((prev) => ({
+                    ...prev,
+                    appStatus: e.target.value,
+                  }))
+                }
+              />
+            </TableCell>
             <TableCell />
             <TableCell />
             <TableCell>
@@ -736,7 +803,9 @@ const DispatchResultTable = ({
                   <TableCell sx={{ color: device.speed > 5 ? "green" : "red" }}>
                     {device.speed > 5 ? "Moving" : "Stop"}
                   </TableCell>
-                  <TableCell>N/A</TableCell>
+                  <TableCell>
+                    {getAvailabilityChip(device.driverAvailability)}
+                  </TableCell>
                   <TableCell>N/A</TableCell>
                   <TableCell>{deviceInfo.name || "N/A"}</TableCell>
                   <TableCell>
@@ -756,7 +825,7 @@ const DispatchResultTable = ({
                   </TableCell>
                   <TableCell>N/A</TableCell>
                   <TableCell>
-                    {districts[device.id] ? (
+                    {districts && districts[device.id] ? (
                       districts[device.id]
                     ) : loadingDistricts.has(device.id) ? (
                       <CircularProgress size={15} />

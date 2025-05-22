@@ -40,7 +40,7 @@ import { flespiDeviceLiveLocation } from "../services/flespiApis.js";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
 import timezone from "dayjs/plugin/timezone.js";
-import { driverNameByDeviceId } from "../model/driver.js";
+import { driverNameByDeviceId, driverStatus } from "../model/driver.js";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -454,6 +454,7 @@ export const allNewDevices = async (req, res) => {
         let deviceFixTime = null;
         let deviceSpeed = null;
         let deviceDriver = null;
+        let status_availability = null;
 
         if (query?.deviceLocation) {
           const deviceLocation = await flespiDeviceLiveLocation(
@@ -462,7 +463,12 @@ export const allNewDevices = async (req, res) => {
 
           const driver = await driverNameByDeviceId(device.id);
 
-          deviceDriver = driver ? driver?.driverName : null;
+          const driverAvailability = await driverStatus(driver?.id);
+
+          deviceDriver = driver ? driver?.name : null;
+          status_availability = driverAvailability
+            ? driverAvailability
+            : "not associate";
 
           if (
             Array.isArray(deviceLocation) &&
@@ -499,6 +505,7 @@ export const allNewDevices = async (req, res) => {
                 lastConnection: deviceFixTimePeru,
                 speed: deviceSpeed,
                 driver: deviceDriver,
+                driverAvailability: status_availability,
               }
             : {}),
         };

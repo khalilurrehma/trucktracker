@@ -220,6 +220,8 @@ const DispatchResult = () => {
       }
 
       const formattedDevice = res.data.data.map((device) => {
+        console.log(device);
+
         return {
           id: device.traccarId,
           name: device.name,
@@ -241,6 +243,7 @@ const DispatchResult = () => {
           lng: device?.location?.lng,
           fixTime: device?.lastConnection,
           speed: device?.speed,
+          driverAvailability: device?.driverAvailability,
         };
       });
 
@@ -267,8 +270,8 @@ const DispatchResult = () => {
           ),
         }))
         .filter((device) => device.distance <= radius)
-        .sort((a, b) => a.distance - b.distance);
-      // .slice(0, 10);
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, 10);
 
       setDevicesInRadius(filteredDevices);
     } catch (error) {
@@ -456,7 +459,7 @@ const DispatchResult = () => {
                   onCloseClick={() => setSelectedDeviceId(null)}
                 >
                   <div>
-                    <h3>{selectedDevice.name ?? selectedDevice.id}</h3>
+                    <h1>Name: {selectedDevice.name ?? selectedDevice.id}</h1>
                     <p>
                       Address:{" "}
                       <a
@@ -466,9 +469,6 @@ const DispatchResult = () => {
                       >
                         Show Address
                       </a>
-                    </p>
-                    <p>
-                      Distance: {(selectedDevice.distance / 1000).toFixed(2)} km
                     </p>
                   </div>
                 </InfoWindow>

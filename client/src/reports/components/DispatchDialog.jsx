@@ -133,30 +133,17 @@ const DispatchDialog = ({
               <TableRow>
                 <TableCell>License Plate</TableCell>
                 <TableCell>Address</TableCell>
-                <TableCell>Cost</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {assignedDevices.map((device) => {
                 const deviceInfo =
                   newAllDevices.find((d) => d.id === device.id) || device;
-                const distance =
-                  etaMap[device.id]?.distance ||
-                  (device.distance
-                    ? (device.distance / 1000).toFixed(2)
-                    : "N/A");
-                const cost =
-                  distance !== "N/A" && deviceInfo.costByKm
-                    ? (parseFloat(distance) * deviceInfo.costByKm).toFixed(2)
-                    : "Not set";
 
                 return (
                   <TableRow key={device.id}>
                     <TableCell>{deviceInfo.name || "N/A"}</TableCell>
                     <TableCell>{value.description || "N/A"}</TableCell>
-                    <TableCell>
-                      {cost !== "Not set" ? `${cost} $` : cost}
-                    </TableCell>
                   </TableRow>
                 );
               })}
