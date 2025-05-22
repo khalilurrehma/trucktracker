@@ -16,15 +16,9 @@ import {
 } from "@mui/material";
 import RoomIcon from "@mui/icons-material/Room";
 import dayjs from "dayjs";
-import { getDistanceFromLatLonInMeters } from "../../settings/common/New.Helper";
 import useDistrictFetcher from "../../settings/hooks/useDistrictFetcher";
 
 const AVERAGE_SPEED_KMH = 40;
-// Sample geofence repair area (replace with actual coordinates)
-const GEOFENCE_REPAIR = {
-  center: { lat: -12.0432, lng: -77.0282 }, // Example: Rimac, Lima
-  radius: 500, // 500m radius
-};
 
 const DispatchResultTable = ({
   devicesInRadius,
@@ -39,12 +33,7 @@ const DispatchResultTable = ({
   setMapZoom,
   selectedServiceType,
 }) => {
-  // Log devicesInRadius for debugging
-  console.log("Devices in Radius (DispatchResultTable):", devicesInRadius);
-  console.log("Selected Service Type:", selectedServiceType);
-
   const [columnFilters, setColumnFilters] = useState({
-    deviceId: "",
     licensePlate: "",
     type: "",
     advisor: "",
@@ -70,19 +59,6 @@ const DispatchResultTable = ({
     return isNaN(num) ? null : num;
   }, []);
 
-  // Check if a device is inside the geofence repair area
-  const isInsideGeofence = useCallback((lat, lng) => {
-    if (!window.google || !window.google.maps.geometry) return false;
-    const distance = getDistanceFromLatLonInMeters(
-      lat,
-      lng,
-      GEOFENCE_REPAIR.center.lat,
-      GEOFENCE_REPAIR.center.lng
-    );
-    return distance <= GEOFENCE_REPAIR.radius;
-  }, []);
-
-  // Fetch ETA and distance using Directions API
   const calculateETAForDevice = useCallback(
     (device) => {
       if (!markerPosition || !window.google || !device.lat || !device.lng) {
@@ -117,13 +93,12 @@ const DispatchResultTable = ({
     [markerPosition]
   );
 
-  // Rate-limited district fetching
   const handleFetchDistrict = useCallback(
     async (lat, lng, deviceId) => {
       if (districts[deviceId] || loadingDistricts.has(deviceId)) return;
       setLoadingDistricts((prev) => new Set(prev).add(deviceId));
       try {
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Rate limit: 1 request/second
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         await fetchDistrict(lat, lng, deviceId);
       } catch (error) {
         console.error(`Failed to fetch district for ${deviceId}:`, error);
@@ -138,7 +113,6 @@ const DispatchResultTable = ({
     [districts, fetchDistrict, loadingDistricts]
   );
 
-  // Handle zoom to device
   const handleZoomToDevice = useCallback(
     (device) => {
       setMapCenter({ lat: device.lat, lng: device.lng });
@@ -151,7 +125,6 @@ const DispatchResultTable = ({
     [setMapCenter, setMapZoom, setSelectedDeviceId, mapRef]
   );
 
-  // Handle row click for selection
   const handleRowClick = useCallback(
     (e, deviceId) => {
       if (e.ctrlKey || e.metaKey) {
@@ -169,17 +142,12 @@ const DispatchResultTable = ({
     [setSelectedDeviceIds]
   );
 
-  // Memoized filtering and sorting
   const filteredItems = useMemo(() => {
     if (!devicesInRadius) return [];
 
     const globalSearch = (searchValue || "").toLowerCase();
 
     const validDevices = devicesInRadius.filter((device) => {
-      // Skip devices in geofence repair area
-      if (isInsideGeofence(device.lat, device.lng)) return false;
-
-      // Service type filtering
       const deviceServiceIds = (device.services || []).map(
         (service) => service.serviceId || service.id
       );
@@ -193,49 +161,57 @@ const DispatchResultTable = ({
         }
       }
 
-      // Use device directly for critical fields, fallback to newAllDevices
       const deviceInfo =
         newAllDevices.find((d) => d.id === device.id) || device;
 
-      const deviceId = String(device.id || "").toLowerCase();
-      const licensePlate = (deviceInfo.name || "").toLowerCase();
+      const licensePlate = (deviceInfo.name || "N/A").toLowerCase();
       const type = (deviceInfo.services || [])
         .map((service) =>
-          (service.serviceName || service.name || "").toLowerCase()
+          (service.serviceName || service.name || "N/A").toLowerCase()
         )
         .join(" ");
-      const advisor = (deviceInfo.attributes?.advisor || "").toLowerCase();
-      const lastConnectionStr = device.lastUpdate
-        ? dayjs(device.lastUpdate).format("YYYY-MM-DD HH:mm:ss")
-        : "";
-      const movementStatus = device.status === "online" ? "moving" : "stop";
-      const distance = device.distance
-        ? (device.distance / 1000).toFixed(2)
+      const advisor = (deviceInfo.driver || "Not associated").toLowerCase();
+      const lastConnectionStr = device.fixTime
+        ? dayjs(device.fixTime).format("YYYY-MM-DD HH:mm:ss")
         : "N/A";
+      const movementStatus = device.speed > 5 ? "moving" : "stop";
+      const distance =
+        etaMap[device.id]?.distance ||
+        (device.distance ? (device.distance / 1000).toFixed(2) : "N/A");
       const eta =
         etaMap[device.id]?.eta ||
         (distance !== "N/A"
           ? Math.ceil((distance / AVERAGE_SPEED_KMH) * 60)
-          : null);
-      const cost =
+          : "N/A");
+      const cost = (
         distance !== "N/A" && deviceInfo.costByKm && deviceInfo.initialBase
           ? (
               parseFloat(distance) * deviceInfo.costByKm +
               deviceInfo.initialBase
             ).toFixed(2)
-          : "N/A";
-      const district = (districts[device.id] || "").toLowerCase();
-      const initialBase = (deviceInfo.initialBase || "").toLowerCase();
+          : "Not set"
+      ).toLowerCase();
+      const district = (districts[device.id] || "N/A").toLowerCase();
+      const initialBase = (
+        deviceInfo.initialBase || "Never recorded"
+      ).toLowerCase();
 
-      const globalMatch =
-        deviceId.includes(globalSearch) ||
-        licensePlate.includes(globalSearch) ||
-        advisor.includes(globalSearch) ||
-        type.includes(globalSearch);
-
-      const deviceIdMatch = columnFilters.deviceId
-        ? deviceId.includes(columnFilters.deviceId.toLowerCase())
+      // Global search across specified fields
+      const globalMatch = globalSearch
+        ? [
+            movementStatus,
+            licensePlate,
+            type,
+            advisor,
+            distance,
+            eta !== "N/A" ? `${eta}` : "N/A",
+            cost,
+            district,
+            initialBase,
+          ].some((field) => field.toLowerCase().includes(globalSearch))
         : true;
+
+      // Column-specific filters
       const licensePlateMatch = columnFilters.licensePlate
         ? licensePlate.includes(columnFilters.licensePlate.toLowerCase())
         : true;
@@ -271,7 +247,7 @@ const DispatchResultTable = ({
         }
       }
       let etaMatch = true;
-      if (columnFilters.eta && eta !== null) {
+      if (columnFilters.eta && eta !== "N/A") {
         const filterStr = columnFilters.eta.trim();
         const numFilter = parseNumberFilter(
           filterStr.replace(/[^0-9.><=]/g, "")
@@ -285,7 +261,7 @@ const DispatchResultTable = ({
         }
       }
       let costMatch = true;
-      if (columnFilters.cost && cost !== "N/A") {
+      if (columnFilters.cost && cost !== "not set") {
         const filterStr = columnFilters.cost.trim();
         const numFilter = parseNumberFilter(
           filterStr.replace(/[^0-9.><=]/g, "")
@@ -311,7 +287,6 @@ const DispatchResultTable = ({
 
       return (
         globalMatch &&
-        deviceIdMatch &&
         licensePlateMatch &&
         typeMatch &&
         advisorMatch &&
@@ -333,33 +308,29 @@ const DispatchResultTable = ({
       let valueA, valueB;
 
       switch (sortColumn) {
-        case "deviceId":
-          valueA = a.id || "";
-          valueB = b.id || "";
-          break;
         case "lastConnection":
-          valueA = a.lastUpdate ? new Date(a.lastUpdate).getTime() : 0;
-          valueB = b.lastUpdate ? new Date(b.lastUpdate).getTime() : 0;
+          valueA = a.fixTime ? new Date(a.fixTime).getTime() : 0;
+          valueB = b.fixTime ? new Date(b.fixTime).getTime() : 0;
           break;
         case "movement":
-          valueA = a.status === "online" ? "moving" : "stop";
-          valueB = b.status === "online" ? "moving" : "stop";
+          valueA = a.speed > 5 ? "moving" : "stop";
+          valueB = b.speed > 5 ? "moving" : "stop";
           break;
         case "licensePlate":
-          valueA = deviceA.name || "";
-          valueB = deviceB.name || "";
+          valueA = deviceA.name || "N/A";
+          valueB = deviceB.name || "N/A";
           break;
         case "type":
           valueA = (deviceA.services || [])
-            .map((s) => s.serviceName || s.name || "")
+            .map((s) => s.serviceName || s.name || "N/A")
             .join(" ");
           valueB = (deviceB.services || [])
-            .map((s) => s.serviceName || s.name || "")
+            .map((s) => s.serviceName || s.name || "N/A")
             .join(" ");
           break;
         case "advisor":
-          valueA = deviceA.attributes?.advisor || "";
-          valueB = deviceB.attributes?.advisor || "";
+          valueA = deviceA.driver || "Not associated";
+          valueB = deviceB.driver || "Not associated";
           break;
         case "distance":
           valueA = a.distance ? parseFloat((a.distance / 1000).toFixed(2)) : 0;
@@ -390,12 +361,12 @@ const DispatchResultTable = ({
               : 0;
           break;
         case "district":
-          valueA = districts[a.id] || "";
-          valueB = districts[b.id] || "";
+          valueA = districts[a.id] || "N/A";
+          valueB = districts[b.id] || "N/A";
           break;
         case "initialBase":
-          valueA = deviceA.initialBase || "";
-          valueB = deviceB.initialBase || "";
+          valueA = deviceA.initialBase || "Never recorded";
+          valueB = deviceB.initialBase || "Never recorded";
           break;
         default:
           return 0;
@@ -422,12 +393,10 @@ const DispatchResultTable = ({
     sortColumn,
     sortOrder,
     parseNumberFilter,
-    isInsideGeofence,
     selectedServiceType,
     newAllDevices,
   ]);
 
-  // Fetch districts and ETAs for visible devices
   useEffect(() => {
     const visibleDevices = filteredItems.slice(
       page * rowsPerPage,
@@ -438,7 +407,7 @@ const DispatchResultTable = ({
       if (!districts[device.id] && !loadingDistricts.has(device.id)) {
         handleFetchDistrict(device.lat, device.lng, device.id);
       }
-      if (!etaMap[device.id]) {
+      if (!etaMap[device.id] && markerPosition) {
         calculateETAForDevice(device);
       }
     });
@@ -451,6 +420,7 @@ const DispatchResultTable = ({
     handleFetchDistrict,
     calculateETAForDevice,
     loadingDistricts,
+    markerPosition,
   ]);
 
   const handleSort = useCallback(
@@ -485,9 +455,8 @@ const DispatchResultTable = ({
                 active={sortColumn === "movement"}
                 direction={sortColumn === "movement" ? sortOrder : "asc"}
                 onClick={() => handleSort("movement")}
-              >
-                Movement
-              </TableSortLabel>
+              />
+              Movement
             </TableCell>
             <TableCell>App Status</TableCell>
             <TableCell>Subprocess</TableCell>
@@ -514,9 +483,8 @@ const DispatchResultTable = ({
                 active={sortColumn === "advisor"}
                 direction={sortColumn === "advisor" ? sortOrder : "asc"}
                 onClick={() => handleSort("advisor")}
-              >
-                Advisor
-              </TableSortLabel>
+              />
+              Advisor
             </TableCell>
             <TableCell>
               <TableSortLabel
@@ -551,36 +519,20 @@ const DispatchResultTable = ({
                 active={sortColumn === "district"}
                 direction={sortColumn === "district" ? sortOrder : "asc"}
                 onClick={() => handleSort("district")}
-              >
-                District
-              </TableSortLabel>
+              />
+              District
             </TableCell>
             <TableCell>
               <TableSortLabel
                 active={sortColumn === "initialBase"}
                 direction={sortColumn === "initialBase" ? sortOrder : "asc"}
                 onClick={() => handleSort("initialBase")}
-              >
-                Initial Base
-              </TableSortLabel>
+              />
+              Initial Base
             </TableCell>
             <TableCell>Rimac ETA (min)</TableCell>
           </TableRow>
           <TableRow>
-            <TableCell>
-              <TextField
-                size="small"
-                variant="standard"
-                placeholder="Search"
-                value={columnFilters.deviceId}
-                onChange={(e) =>
-                  setColumnFilters((prev) => ({
-                    ...prev,
-                    deviceId: e.target.value,
-                  }))
-                }
-              />
-            </TableCell>
             <TableCell />
             <TableCell>
               <TextField
@@ -756,7 +708,7 @@ const DispatchResultTable = ({
                       parseFloat(distance) * deviceInfo.costByKm +
                       deviceInfo.initialBase
                     ).toFixed(2)
-                  : "N/A";
+                  : "Not set";
 
               return (
                 <TableRow
@@ -780,15 +732,12 @@ const DispatchResultTable = ({
                       <RoomIcon fontSize="small" />
                     </IconButton>
                   </TableCell>
-                  <TableCell>N/A</TableCell> {/* Last Connection: static */}
-                  <TableCell
-                    sx={{ color: device.status === "online" ? "green" : "red" }}
-                  >
-                    {device.status === "online" ? "Moving" : "Stop"}{" "}
-                    {/* Movement: derived */}
+                  <TableCell>{device.fixTime || "N/A"}</TableCell>
+                  <TableCell sx={{ color: device.speed > 5 ? "green" : "red" }}>
+                    {device.speed > 5 ? "Moving" : "Stop"}
                   </TableCell>
-                  <TableCell>N/A</TableCell> {/* App Status: static */}
-                  <TableCell>N/A</TableCell> {/* Subprocess: static */}
+                  <TableCell>N/A</TableCell>
+                  <TableCell>N/A</TableCell>
                   <TableCell>{deviceInfo.name || "N/A"}</TableCell>
                   <TableCell>
                     {deviceInfo.services?.map((service, index) => (
@@ -799,11 +748,13 @@ const DispatchResultTable = ({
                       />
                     )) || "N/A"}
                   </TableCell>
-                  <TableCell>N/A</TableCell> {/* Advisor: static */}
+                  <TableCell>{deviceInfo.driver || "Not associated"}</TableCell>
                   <TableCell>{distance}</TableCell>
                   <TableCell>{eta !== "N/A" ? `${eta} min` : eta}</TableCell>
-                  <TableCell>{cost !== "N/A" ? `${cost} $` : cost}</TableCell>
-                  <TableCell>N/A</TableCell> {/* Zone Rate: static */}
+                  <TableCell>
+                    {cost !== "Not set" ? `${cost} $` : cost}
+                  </TableCell>
+                  <TableCell>N/A</TableCell>
                   <TableCell>
                     {districts[device.id] ? (
                       districts[device.id]
@@ -813,8 +764,10 @@ const DispatchResultTable = ({
                       "N/A"
                     )}
                   </TableCell>
-                  <TableCell>{deviceInfo.initialBase || "N/A"}</TableCell>
-                  <TableCell>N/A</TableCell> {/* Rimac ETA: static */}
+                  <TableCell>
+                    {deviceInfo.initialBase || "Never recorded"}
+                  </TableCell>
+                  <TableCell>N/A</TableCell>
                 </TableRow>
               );
             })}

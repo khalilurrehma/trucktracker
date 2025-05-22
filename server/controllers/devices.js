@@ -37,6 +37,13 @@ import { fetchAllNotificationLogs } from "../model/notifications.js";
 import { newDeviceInUsageControl } from "../model/usageControl.js";
 import { s3 } from "../services/azure.s3.js";
 import { flespiDeviceLiveLocation } from "../services/flespiApis.js";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc.js";
+import timezone from "dayjs/plugin/timezone.js";
+import { driverNameByDeviceId } from "../model/driver.js";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const traccarBearerToken = process.env.TraccarToken;
 const traccarApiUrl = `http://${process.env.TraccarPort}/api`;
@@ -444,22 +451,39 @@ export const allNewDevices = async (req, res) => {
 
         let latitude = null;
         let longitude = null;
+        let deviceFixTime = null;
+        let deviceSpeed = null;
+        let deviceDriver = null;
 
         if (query?.deviceLocation) {
           const deviceLocation = await flespiDeviceLiveLocation(
             device.flespiId
           );
 
+          const driver = await driverNameByDeviceId(device.id);
+
+          deviceDriver = driver ? driver?.driverName : null;
+
           if (
             Array.isArray(deviceLocation) &&
-            deviceLocation[0]?.telemetry?.position?.value
+            deviceLocation[0]?.telemetry?.position?.value &&
+            deviceLocation[0].telemetry?.position?.ts
           ) {
             latitude =
               deviceLocation[0].telemetry.position.value.latitude || null;
             longitude =
               deviceLocation[0].telemetry.position.value.longitude || null;
+
+            deviceFixTime = deviceLocation[0].telemetry?.position.ts;
+
+            deviceSpeed = deviceLocation[0].telemetry.position.value.speed;
           }
         }
+
+        const deviceFixTimePeru = dayjs
+          .unix(deviceFixTime)
+          .tz("America/Lima")
+          .format("YYYY-MM-DD HH:mm:ss");
 
         return {
           ...device,
@@ -472,6 +496,9 @@ export const allNewDevices = async (req, res) => {
                   lat: latitude,
                   lng: longitude,
                 },
+                lastConnection: deviceFixTimePeru,
+                speed: deviceSpeed,
+                driver: deviceDriver,
               }
             : {}),
         };

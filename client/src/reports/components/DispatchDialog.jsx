@@ -4,21 +4,19 @@ import {
   Button,
   Dialog,
   IconButton,
-  Input,
-  Slide,
   TextField,
   Toolbar,
   Typography,
   Paper,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
   Box,
+  Slide,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import DevicesIcon from "@mui/icons-material/Devices";
-import LocationOnIcon from "@mui/icons-material/LocationOn";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { useAppContext } from "../../AppContext";
 import axios from "axios";
@@ -38,19 +36,54 @@ const DispatchDialog = ({
   setSelectedRows,
   lat,
   lng,
+  newAllDevices,
+  etaMap,
+  caseNumber,
 }) => {
   const { traccarUser, url } = useAppContext();
   const [message, setMessage] = React.useState("");
   const [selectedImages, setSelectedImages] = React.useState([]);
 
   const handleAssignTasks = async () => {
+    const deviceData = assignedDevices.map((device) => {
+      const deviceInfo =
+        newAllDevices.find((d) => d.id === device.id) || device;
+      const distance =
+        etaMap[device.id]?.distance ||
+        (device.distance ? (device.distance / 1000).toFixed(2) : "N/A");
+      const cost =
+        distance !== "N/A" && deviceInfo.costByKm
+          ? (parseFloat(distance) * deviceInfo.costByKm).toFixed(2)
+          : "Not set";
+
+      return {
+        deviceId: device.id,
+        cost: cost !== "Not set" ? cost : "Not set",
+      };
+    });
+
     const data = {
-      caseName: value.description,
-      caseAddress: value.description,
-      status: "Pending",
+      deviceIds: assignedDevices.map((device) => device.id),
+      caseName: caseNumber,
+      caseAddress: value.description || "N/A",
+      devices: deviceData,
       message: message,
       files: selectedImages,
     };
+
+    console.log(data);
+
+    // try {
+    //   await axios.post(`${url}/api/cases`, data, {
+    //     headers: { Authorization: `Bearer ${traccarUser.token}` },
+    //   });
+    //   toast.success("Tasks assigned successfully!");
+    //   setOpenAssignModal(false);
+    //   setSelectedRows([]);
+    // } catch (error) {
+    //   console.error("Failed to assign tasks:", error);
+    //   toast.error("Failed to assign tasks.");
+    // }
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -84,7 +117,6 @@ const DispatchDialog = ({
             autoFocus
             onClick={handleAssignTasks}
             variant="outlined"
-            fullWidth
             style={{ maxWidth: "320px", color: "white", borderColor: "white" }}
           >
             Assign Tasks
@@ -94,34 +126,62 @@ const DispatchDialog = ({
       <Box sx={{ maxWidth: 600, mx: "auto", mt: 4 }}>
         <Paper elevation={3} sx={{ p: 2, mb: 3 }}>
           <Typography variant="h6" gutterBottom>
-            Devices
+            Selected Devices
           </Typography>
-          <List>
-            {assignedDevices
-              .filter((item) => selectedRows.includes(item["deviceId"]))
-              .map((item) => (
-                <ListItem key={item["deviceId"]}>
-                  <ListItemIcon>
-                    <DevicesIcon />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
-                      item.attributes?.["device.name"] ?? item["deviceId"]
-                    }
-                  />
-                </ListItem>
-              ))}
-          </List>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>License Plate</TableCell>
+                <TableCell>Address</TableCell>
+                <TableCell>Cost</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {assignedDevices.map((device) => {
+                const deviceInfo =
+                  newAllDevices.find((d) => d.id === device.id) || device;
+                const distance =
+                  etaMap[device.id]?.distance ||
+                  (device.distance
+                    ? (device.distance / 1000).toFixed(2)
+                    : "N/A");
+                const cost =
+                  distance !== "N/A" && deviceInfo.costByKm
+                    ? (parseFloat(distance) * deviceInfo.costByKm).toFixed(2)
+                    : "Not set";
+
+                return (
+                  <TableRow key={device.id}>
+                    <TableCell>{deviceInfo.name || "N/A"}</TableCell>
+                    <TableCell>{value.description || "N/A"}</TableCell>
+                    <TableCell>
+                      {cost !== "Not set" ? `${cost} $` : cost}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </Paper>
 
         <Paper elevation={3} sx={{ p: 2, mb: 3 }}>
           <Typography variant="h6" gutterBottom>
-            Address
+            Case Details
           </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <LocationOnIcon color="primary" />
-            <Typography variant="body1">{value?.description}</Typography>
-          </Box>
+          <TextField
+            label="Case Number"
+            value={caseNumber || "N/A"}
+            fullWidth
+            margin="normal"
+            disabled
+          />
+          <TextField
+            label="Address"
+            value={value.description || "N/A"}
+            fullWidth
+            margin="normal"
+            disabled
+          />
         </Paper>
 
         <TextField

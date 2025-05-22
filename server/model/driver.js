@@ -361,6 +361,37 @@ export const findAssociateVehicleByDriverId = async (driver_id) => {
   });
 };
 
+export const driverNameByDeviceId = async (device_id) => {
+  const sql = `
+    SELECT 
+      d.id AS driver_id, 
+      d.name AS driver_name
+    FROM 
+      vehicle_driver_association vda
+    JOIN 
+      drivers d ON vda.driver_id = d.id
+    WHERE 
+      vda.device_id = ?
+    ORDER BY 
+      vda.created_at DESC
+    LIMIT 1
+  `;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [device_id], (err, results) => {
+      if (err) return reject(err);
+      if (results.length > 0) {
+        resolve({
+          id: results[0].driver_id,
+          name: results[0].driver_name,
+        });
+      } else {
+        resolve(null);
+      }
+    });
+  });
+};
+
 export const findVehiclesByDriverId = async (driver_id) => {
   const sql = `
     SELECT 
