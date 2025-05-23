@@ -29,6 +29,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import "dotenv/config.js";
 import {
+  associatedDevices,
   devicesListWithSearchByCompanyId,
   getDeviceFlespiIdById,
 } from "../model/devices.js";
@@ -141,10 +142,7 @@ export const assignDriverToVehicle = async (req, res) => {
   }
 
   try {
-    const existingDevice = await checkAlreadyAssociatedVehicle(
-      driver_id,
-      device_id
-    );
+    const existingDevice = await checkAlreadyAssociatedVehicle(driver_id);
 
     if (existingDevice) {
       return res.status(400).json({
@@ -280,7 +278,16 @@ export const getCompanyVehicles = async (req, res) => {
   try {
     const devices = await devicesListWithSearchByCompanyId(search, companyId);
 
-    res.status(200).json({ status: true, message: devices });
+    const associatedVehicles = await associatedDevices();
+
+    const filterDevices = devices?.filter(
+      (device) =>
+        !associatedVehicles.some(
+          (associated) => associated.device_id === device.id
+        )
+    );
+
+    res.status(200).json({ status: true, message: filterDevices });
   } catch (error) {
     console.error(error);
     res.status(500).json({ status: false, message: error.message });
@@ -289,10 +296,10 @@ export const getCompanyVehicles = async (req, res) => {
 
 export const dispatchCasesForDriver = async (req, res) => {
   const { companyId } = req.params;
-  const userId = req.userId;
+  const driverId = req.userId;
 
   try {
-    const driverVehicleIds = await findAssociateVehicleByDriverId(userId);
+    const driverVehicleIds = await findAssociateVehicleByDriverId(driverId);
 
     if (!driverVehicleIds) {
       return res.status(404).json({
@@ -534,6 +541,7 @@ export const getDriverAvailability = async (req, res) => {
 
 export const driverLogin = async (req, res) => {
   const { email, password } = req.body;
+  let isVehicleAssigned = false;
 
   try {
     const driver = await driverByEmail(email);
@@ -564,14 +572,19 @@ export const driverLogin = async (req, res) => {
       }
     );
 
+    const driverVehicle = await checkAlreadyAssociatedVehicle(driver.id);
+
+    if (driverVehicle) {
+      isVehicleAssigned = true;
+    }
+
     const driverData = {
       id: driver.id,
       name: driver.name,
       email: driver.email,
       uniqueId: driver.uniqueId,
       companyId: driver.user_id,
-      // attributes: JSON.parse(driver.attributes),
-      // location: JSON.parse(driver.location),
+      isVehicleAssigned,
       token,
     };
 

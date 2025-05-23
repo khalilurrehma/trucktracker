@@ -79,6 +79,7 @@ const DispatchResult = () => {
   const [placeOptions, setPlaceOptions] = useState([]);
   const [etaMap, setEtaMap] = useState({});
   const [loading, setLoading] = useState(false);
+  const [selectedRowData, setSelectedRowData] = useState([]);
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAP_API,
@@ -220,8 +221,6 @@ const DispatchResult = () => {
       }
 
       const formattedDevice = res.data.data.map((device) => {
-        console.log(device);
-
         return {
           id: device.traccarId,
           name: device.name,
@@ -243,6 +242,7 @@ const DispatchResult = () => {
           lng: device?.location?.lng,
           fixTime: device?.lastConnection,
           speed: device?.speed,
+          driver: device?.driver,
           driverAvailability: device?.driverAvailability,
         };
       });
@@ -296,6 +296,10 @@ const DispatchResult = () => {
     (device) => device.id === selectedDeviceId
   );
 
+  const handleRowDataChange = (rowData) => {
+    setSelectedRowData(rowData);
+  };
+
   return (
     <PageLayout
       menu={<OperationsMenu />}
@@ -335,7 +339,8 @@ const DispatchResult = () => {
               label="Case Number"
               fullWidth
               value={caseNumber}
-              InputProps={{ readOnly: true }}
+              onChange={(event) => setCaseNumber(event.target.value)}
+              // InputProps={{ readOnly: true }}
             />
           </Grid>
           <Grid item xs={12} sm={4}>
@@ -542,6 +547,7 @@ const DispatchResult = () => {
             selectedServiceType={selectedServiceType}
             etaMap={etaMap}
             setEtaMap={setEtaMap}
+            onRowDataChange={handleRowDataChange}
           />
         )}
 
@@ -558,6 +564,7 @@ const DispatchResult = () => {
             newAllDevices={newAllDevices}
             etaMap={etaMap}
             caseNumber={caseNumber}
+            selectedRowData={selectedRowData}
           />
         )}
       </Box>

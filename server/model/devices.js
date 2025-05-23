@@ -764,7 +764,7 @@ export const getDeviceInitialGeofence = async (
 ) => {
   const sql = `SELECT * FROM devices_enter_geofence_record WHERE flespi_device_id = ? AND entry_date = ?`;
   const values = [flespi_device_id, entry_date];
-  
+
   return new Promise((resolve, reject) => {
     dbQuery(sql, values, (err, results) => {
       if (err) {
@@ -826,6 +826,18 @@ export const devicesListWithSearchByCompanyId = async (search, userId) => {
     } else {
       return [];
     }
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const associatedDevices = async () => {
+  const sql = `SELECT device_id FROM vehicle_driver_association`;
+
+  try {
+    const result = await dbQuery(sql);
+
+    return result;
   } catch (error) {
     throw error;
   }

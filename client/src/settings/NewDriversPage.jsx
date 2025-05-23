@@ -276,29 +276,6 @@ const NewDriversPage = () => {
                     <TableCell>{driver.phone}</TableCell>
                     <TableCell>{driver.email}</TableCell>
                     <TableCell>{driver.station}</TableCell>
-                    {/* <TableCell>
-                      {driver.lat && driver.long ? (
-                        <Button
-                          sx={{ fontSize: "12px" }}
-                          onClick={() =>
-                            handleViewLocation(driver.lat, driver.long)
-                          }
-                        >
-                          View Location
-                        </Button>
-                      ) : (
-                        <Button
-                          sx={{ fontSize: "12px" }}
-                          onClick={() => {
-                            navigate(
-                              `/settings/new-driver/${driver.id}?field=location`
-                            );
-                          }}
-                        >
-                          Add location
-                        </Button>
-                      )}
-                    </TableCell> */}
                     <TableCell sx={{ display: "flex", gap: "8px" }}>
                       <EditIcon
                         sx={{ cursor: "pointer" }}

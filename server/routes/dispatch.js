@@ -20,7 +20,7 @@ router.post("/dispatch/case/:caseId/action", authDriver, handleCaseAction);
 router.post(
   "/dispatch/case/report/:caseId",
   authDriver,
-  upload.array("photos", 12),
+  upload.array("photos"),
   dispatchCaseReport
 );
 

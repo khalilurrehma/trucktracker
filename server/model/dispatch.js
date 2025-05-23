@@ -3,58 +3,86 @@ import util from "util";
 const dbQuery = util.promisify(pool.query).bind(pool);
 
 export const addNewCase = async (body) => {
-  const {
-    assigned_device_id,
-    user_id,
-    case_name,
-    case_address,
-    cost,
-    message,
-    file_url,
-  } = body;
+  const { user_id, case_name, case_address, message, devicesMeta, file_data } =
+    body;
 
   const query = `
     INSERT INTO dispatch_cases (
-      assigned_device_id,
       user_id,
       case_name,
       case_address,
       status,
       message,
-      cost,
-      file_url
-    ) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)
+      device_meta,
+      file_data
+    ) VALUES (?, ?, ?, 'pending', ?, ?, ?)
   `;
 
   const values = [
-    assigned_device_id,
     user_id,
     case_name,
     case_address,
     message,
-    cost,
-    file_url,
+    devicesMeta,
+    file_data,
   ];
 
   try {
     const result = await dbQuery(query, values);
 
-    return result;
+    return result.insertId;
   } catch (error) {
     console.error("Error inserting dispatch case:", error);
     return error;
   }
 };
 
+export const saveCaseAssignedDeviceId = async (case_id, device_id) => {
+  const sql = `INSERT INTO dispatch_case_devices (dispatch_case_id, device_id) VALUES (?, ?)`;
+
+  const values = [case_id, device_id];
+
+  try {
+    const result = await dbQuery(sql, values);
+
+    return result.insertId;
+  } catch (error) {
+    return error;
+  }
+};
+
 export const fetchDispatchCases = async () => {
-  const query = `SELECT * FROM dispatch_cases ORDER BY created_at DESC`;
+  const query = `
+    SELECT 
+      dc.*,
+      JSON_ARRAYAGG(
+        JSON_OBJECT(
+          'device_id', dcd.device_id,
+          'device_name', nsd.name
+        )
+      ) AS assigned_devices
+    FROM 
+      dispatch_cases dc
+    LEFT JOIN 
+      dispatch_case_devices dcd ON dc.id = dcd.dispatch_case_id
+    LEFT JOIN 
+      new_settings_devices nsd ON dcd.device_id = nsd.id
+    GROUP BY 
+      dc.id
+    ORDER BY 
+      dc.created_at DESC
+  `;
 
   try {
     const rows = await dbQuery(query);
-    return rows;
+    return rows.map((row) => ({
+      ...row,
+      assigned_devices: JSON.parse(row.assigned_devices || "[]"),
+      file_data: JSON.parse(row.file_data || "[]"),
+    }));
   } catch (error) {
     console.error("Error fetching dispatch cases:", error);
-    return error;
+    throw error;
   }
 };
 
@@ -125,27 +153,37 @@ export const updateCaseServiceById = async (fields, case_id) => {
 export const findCaseByUserIdAndDeviceId = async (userId, deviceId) => {
   const query = `
     SELECT 
-      dc.*, 
-      d.id AS device_id, 
-      d.name AS device_name
+      dc.*,
+      JSON_ARRAYAGG(
+        JSON_OBJECT(
+          'device_id', dcd.device_id,
+          'device_name', nsd.name
+        )
+      ) AS assigned_devices
     FROM 
       dispatch_cases dc
     JOIN 
-      new_settings_devices d 
-      ON dc.assigned_device_id = d.id
+      dispatch_case_devices dcd ON dc.id = dcd.dispatch_case_id
+    JOIN 
+      new_settings_devices nsd ON dcd.device_id = nsd.id
     WHERE 
-      dc.user_id = ? AND dc.assigned_device_id = ? AND dc.status = 'pending'
+      dc.user_id = ? AND dcd.device_id = ? AND dc.status = 'pending'
+    GROUP BY 
+      dc.id
     ORDER BY 
       dc.created_at DESC
   `;
 
   try {
-    const rows = await dbQuery(query, [parseInt(userId), deviceId]);
-
-    return rows;
+    const rows = await dbQuery(query, [parseInt(userId), parseInt(deviceId)]);
+    return rows.map((row) => ({
+      ...row,
+      assigned_devices: JSON.parse(row.assigned_devices || "[]"),
+      file_data: JSON.parse(row.file_data || "[]"),
+    }));
   } catch (error) {
-    console.error("Error fetching dispatch cases:", error);
-    return error;
+    console.error("Error fetching filtered dispatch cases:", error);
+    throw error;
   }
 };
 

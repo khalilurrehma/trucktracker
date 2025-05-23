@@ -3,6 +3,7 @@ import {
   fetchDispatchCases,
   findCaseById,
   findCaseStatusById,
+  saveCaseAssignedDeviceId,
   saveDispatchCaseAction,
   saveDispatchCaseReport,
   updateCaseServiceById,
@@ -11,68 +12,76 @@ import {
 import { getAuthenticatedS3String, s3 } from "../services/azure.s3.js";
 
 export const handleNewDispatchCase = async (req, res) => {
-  const {
-    assignedDeviceId,
-    userId,
-    caseName,
-    caseAddress,
-    status,
-    message,
-    cost,
-  } = req.body;
+  const { userId, caseName, caseAddress, message, devicesMeta } = req.body;
+  let assignedDeviceIds = req.body.assignedDeviceIds;
   let files;
 
-  if (!assignedDeviceId || !caseName || !caseAddress || !status) {
-    return res.status(400).json({ error: "Missing required fields" });
+  assignedDeviceIds = JSON.parse(assignedDeviceIds);
+
+  if (!Array.isArray(assignedDeviceIds)) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Provided Device Ids are not Array!" });
+  }
+
+  if (!caseName || !caseAddress) {
+    return res
+      .status(400)
+      .json({ success: false, message: `Missing required fields` });
   }
 
   try {
     const dbBody = {
-      assigned_device_id: assignedDeviceId,
       user_id: userId,
       case_name: caseName,
       case_address: caseAddress,
-      cost,
-      status,
       message,
+      devicesMeta,
     };
 
-    if (req.files) {
-      files = req.files[0];
+    if (req.files && Array.isArray(req.files)) {
+      const uploadedFiles = [];
 
-      if (!files) {
-        return res.status(400).json({ error: "No files provided" });
-      }
+      for (const file of req.files) {
+        const uploadedFile = await s3
+          .upload({
+            Bucket: process.env.CONTABO_BUCKET_NAME,
+            Key: `dispatch-case-image/${Date.now()}-${
+              file.originalname || "no-file"
+            }`,
+            Body: file.buffer,
+            ContentType: file.mimetype,
+            ACL: "public-read",
+          })
+          .promise();
 
-      const uploadedFile = await s3
-        .upload({
-          Bucket: process.env.CONTABO_BUCKET_NAME,
-          Key: `dispatch-case-image/${Date.now()}-${
-            files.originalname ? files.originalname : "no-file"
-          }`,
-          Body: files?.buffer,
-          ContentType: files.mimetype,
-          ACL: "public-read",
-        })
-        .promise();
+        if (!uploadedFile) {
+          return res.status(500).json({
+            status: false,
+            message: "Failed to upload one or more images",
+          });
+        }
 
-      if (!uploadedFile) {
-        return res.status(500).json({
-          status: false,
-          message: "Failed to upload image",
+        uploadedFiles.push({
+          filename: file.originalname || "no-file",
+          url: getAuthenticatedS3String(uploadedFile.Location),
         });
       }
 
-      const imageUrl = getAuthenticatedS3String(uploadedFile.Location);
-
-      dbBody.file_url = imageUrl;
+      dbBody.file_data = JSON.stringify(uploadedFiles);
     }
 
-    await addNewCase(dbBody);
+    const newCase_id = await addNewCase(dbBody);
+
+    await Promise.all(
+      assignedDeviceIds.map((device_id) =>
+        saveCaseAssignedDeviceId(newCase_id, device_id)
+      )
+    );
 
     res.status(201).json({
       status: true,
-      message: "Case added successfully",
+      message: "Case save and request send successfully!",
     });
   } catch (error) {
     res.status(500).send({ status: false, message: error.message });
@@ -150,6 +159,12 @@ export const dispatchCaseReport = async (req, res) => {
       message: "Case ID and driver ID are required",
     });
   }
+
+  console.log({
+    filesLength: files.length,
+    fileMetaType: typeof fileMeta,
+    fileMeta: fileMeta,
+  });
 
   if (
     !files.length ||

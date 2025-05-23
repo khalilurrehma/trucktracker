@@ -1,9 +1,14 @@
-import React, { useEffect, useRef } from "react";
-import { GoogleMap, Marker, Circle } from "@react-google-maps/api";
-import carPng from "../../images/car-4-48.png";
+import React, { useEffect, useState } from "react";
+import {
+  GoogleMap,
+  Marker,
+  Circle,
+  useJsApiLoader,
+} from "@react-google-maps/api";
 import { ToastContainer, toast } from "react-toastify";
 import useReportStyles from "../common/useReportStyles";
-import { checkDeviceRadius } from "../../apis/api";
+
+const GOOGLE_MAPS_LIBRARIES = ["places", "geometry", "maps"];
 
 const GoogleMapComponent = ({
   initialAddress,
@@ -12,23 +17,29 @@ const GoogleMapComponent = ({
   center,
   radius,
 }) => {
+  const classes = useReportStyles();
+
   const containerStyle = {
     width: styles?.width || "100%",
     height: styles?.height || "400px",
     borderRadius: "10px",
   };
 
-  const [mapCenter, setMapCenter] = React.useState({
+  const [mapCenter, setMapCenter] = useState({
     lat: center ? parseFloat(center?.lat) : -9.5284198,
     lng: center ? parseFloat(center?.lng) : -77.52920309999999,
   });
-  const [markerPosition, setMarkerPosition] = React.useState({
+  const [markerPosition, setMarkerPosition] = useState({
     lat: parseFloat(center?.lat) || 38.750228,
     lng: parseFloat(center?.lng) || -9.20321,
   });
+  const [zoom, setZoom] = useState(16);
 
-  const [zoom, setZoom] = React.useState(16);
-  const classes = useReportStyles();
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAP_API,
+    libraries: GOOGLE_MAPS_LIBRARIES,
+  });
+
   const formattedAddress = encodeURIComponent(initialAddress);
 
   const geocodeAddress = async () => {
@@ -45,13 +56,15 @@ const GoogleMapComponent = ({
       onAddressChange({ lat, lng });
       setZoom(20);
     } else {
-      // toast.error("Address not found!");
+      toast.error("Address not found!");
     }
   };
 
-  React.useEffect(() => {
-    if (initialAddress) geocodeAddress();
-  }, [initialAddress]);
+  useEffect(() => {
+    if (initialAddress && isLoaded) geocodeAddress();
+  }, [initialAddress, isLoaded]);
+
+  if (!isLoaded) return <div>Loading Map...</div>;
 
   return (
     <div className={classes.containerMapBorderRadius}>
@@ -64,7 +77,7 @@ const GoogleMapComponent = ({
         <Marker position={markerPosition} />
         <Circle
           center={markerPosition}
-          radius={false || radius}
+          radius={radius || 0}
           options={{
             strokeColor: "#FF0000",
             strokeOpacity: 0.8,

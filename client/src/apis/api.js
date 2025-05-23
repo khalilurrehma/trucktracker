@@ -31,7 +31,7 @@ export const addNewCase = async (newCaseData) => {
 
 export const getAllNewCases = async () => {
   try {
-    const { data } = await axios.get(`${apiUrl}/dispatch/new-cases`);
+    const data = await axios.get(`${apiUrl}/dispatch/cases`);
 
     return data;
   } catch (error) {

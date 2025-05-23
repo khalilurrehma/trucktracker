@@ -20,6 +20,7 @@
     "dayjs": "^1.11.13",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "firebase-admin": "^13.4.0",
     "geolib": "^3.3.4",
     "jsonwebtoken": "^9.0.2",
     "mqtt": "^5.10.3",

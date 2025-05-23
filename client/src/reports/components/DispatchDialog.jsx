@@ -32,58 +32,69 @@ const DispatchDialog = ({
   openAssignModal,
   setOpenAssignModal,
   assignedDevices,
-  selectedRows,
-  setSelectedRows,
-  lat,
-  lng,
   newAllDevices,
   etaMap,
   caseNumber,
+  selectedRowData,
 }) => {
   const { traccarUser, url } = useAppContext();
   const [message, setMessage] = React.useState("");
   const [selectedImages, setSelectedImages] = React.useState([]);
+  const [loader, setLoader] = React.useState(false);
 
   const handleAssignTasks = async () => {
-    const deviceData = assignedDevices.map((device) => {
-      const deviceInfo =
-        newAllDevices.find((d) => d.id === device.id) || device;
-      const distance =
-        etaMap[device.id]?.distance ||
-        (device.distance ? (device.distance / 1000).toFixed(2) : "N/A");
-      const cost =
-        distance !== "N/A" && deviceInfo.costByKm
-          ? (parseFloat(distance) * deviceInfo.costByKm).toFixed(2)
-          : "Not set";
+    const formData = new FormData();
 
+    const mergedDeviceData = assignedDevices.map((assignedDevice) => {
+      const rowData = selectedRowData.find(
+        (row) => row.id === assignedDevice.id
+      );
       return {
-        deviceId: device.id,
-        cost: cost !== "Not set" ? cost : "Not set",
+        ...assignedDevice,
+        ...rowData,
+        // eta: etaMap[assignedDevice.id]?.eta || null,
+        // distance: etaMap[assignedDevice.id]?.distance || null,
       };
     });
 
-    const data = {
-      deviceIds: assignedDevices.map((device) => device.id),
-      caseName: caseNumber,
-      caseAddress: value.description || "N/A",
-      devices: deviceData,
-      message: message,
-      files: selectedImages,
-    };
+    formData.append(
+      "assignedDeviceIds",
+      JSON.stringify(assignedDevices.map((device) => device.id))
+    );
+    formData.append("caseName", caseNumber);
+    formData.append("userId", traccarUser?.id);
+    formData.append("caseAddress", value.description || "N/A");
+    formData.append("message", message);
+    formData.append("devicesMeta", JSON.stringify(mergedDeviceData));
 
-    console.log(data);
+    selectedImages.forEach((file) => {
+      formData.append("files", file);
+    });
 
-    // try {
-    //   await axios.post(`${url}/api/cases`, data, {
-    //     headers: { Authorization: `Bearer ${traccarUser.token}` },
-    //   });
-    //   toast.success("Tasks assigned successfully!");
-    //   setOpenAssignModal(false);
-    //   setSelectedRows([]);
-    // } catch (error) {
-    //   console.error("Failed to assign tasks:", error);
-    //   toast.error("Failed to assign tasks.");
-    // }
+    try {
+      setLoader(true);
+      const { data } = await axios.post(`${url}/dispatch/case`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      if (data.status) {
+        setLoader(false);
+        toast.success(data.message);
+        setTimeout(() => {
+          setOpenAssignModal(false);
+        }, 1000);
+      }
+    } catch (error) {
+      console.error("Failed to assign tasks:", error);
+      const message =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to assign tasks.";
+      toast.error(message);
+      setLoader(false);
+    }
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -119,7 +130,7 @@ const DispatchDialog = ({
             variant="outlined"
             style={{ maxWidth: "320px", color: "white", borderColor: "white" }}
           >
-            Assign Tasks
+            {loader ? "Loading..." : "Assign Task"}
           </Button>
         </Toolbar>
       </AppBar>

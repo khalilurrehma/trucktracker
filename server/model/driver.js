@@ -418,11 +418,11 @@ export const findVehiclesByDriverId = async (driver_id) => {
   });
 };
 
-export const checkAlreadyAssociatedVehicle = async (driver_id, device_id) => {
-  const sql = `SELECT * FROM vehicle_driver_association WHERE driver_id = ? AND device_id = ?`;
+export const checkAlreadyAssociatedVehicle = async (driver_id) => {
+  const sql = `SELECT * FROM vehicle_driver_association WHERE driver_id = ?`;
 
   return new Promise((resolve, reject) => {
-    pool.query(sql, [driver_id, device_id], (err, results) => {
+    pool.query(sql, [driver_id], (err, results) => {
       if (err) return reject(err);
       resolve(results[0]);
     });

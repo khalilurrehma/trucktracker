@@ -29,6 +29,7 @@ const DispatchResultTable = ({
   setSelectedDeviceId,
   selectedDeviceIds,
   setSelectedDeviceIds,
+  onRowDataChange,
   mapRef,
   setMapZoom,
   selectedServiceType,
@@ -53,6 +54,7 @@ const DispatchResultTable = ({
   const [sortOrder, setSortOrder] = useState("asc");
   const [etaMap, setEtaMap] = useState({});
   const [loadingDistricts, setLoadingDistricts] = useState(new Set());
+  const [rowData, setRowData] = useState([]);
 
   const getAvailabilityChip = (status) => {
     switch (status) {
@@ -179,20 +181,76 @@ const DispatchResultTable = ({
   );
 
   const handleRowClick = useCallback(
-    (e, deviceId) => {
+    (e, deviceId, device) => {
+      let updatedSelectedIds = [...selectedDeviceIds];
+      let updatedRowData = [];
+
       if (e.ctrlKey || e.metaKey) {
-        setSelectedDeviceIds((prev) =>
-          prev.includes(deviceId)
-            ? prev.filter((id) => id !== deviceId)
-            : [...prev, deviceId]
-        );
+        if (updatedSelectedIds.includes(deviceId)) {
+          updatedSelectedIds = updatedSelectedIds.filter(
+            (id) => id !== deviceId
+          );
+        } else {
+          updatedSelectedIds = [...updatedSelectedIds, deviceId];
+        }
       } else {
-        setSelectedDeviceIds((prev) =>
-          prev.length === 1 && prev[0] === deviceId ? [] : [deviceId]
-        );
+        updatedSelectedIds =
+          updatedSelectedIds.length === 1 && updatedSelectedIds[0] === deviceId
+            ? []
+            : [deviceId];
       }
+
+      setSelectedDeviceIds(updatedSelectedIds);
+
+      updatedRowData = updatedSelectedIds.map((id) => {
+        const deviceInfo = devicesInRadius.find((d) => d.id === id);
+        const fullDeviceInfo =
+          newAllDevices.find((d) => d.id === id) || deviceInfo;
+        const distance =
+          etaMap[id]?.distance ||
+          (deviceInfo.distance
+            ? (deviceInfo.distance / 1000).toFixed(2)
+            : "N/A");
+        const eta =
+          etaMap[id]?.eta ||
+          (distance !== "N/A"
+            ? Math.ceil((distance / AVERAGE_SPEED_KMH) * 60)
+            : "N/A");
+        const cost =
+          distance !== "N/A" &&
+          fullDeviceInfo.costByKm &&
+          fullDeviceInfo.initialBase
+            ? (
+                parseFloat(distance) * fullDeviceInfo.costByKm +
+                fullDeviceInfo.initialBase
+              ).toFixed(2)
+            : "Not set";
+
+        return {
+          id: deviceInfo.id,
+          eta,
+          speed: deviceInfo.speed,
+          driverAvailability: deviceInfo.driverAvailability,
+          name: fullDeviceInfo.name || "N/A",
+          services: fullDeviceInfo.services || [],
+          drivername: fullDeviceInfo.driver || "Not associated",
+          district: districts[id] || "N/A",
+          initialBase: fullDeviceInfo.initialBase || "Never recorded",
+          distance,
+          cost,
+        };
+      });
+
+      onRowDataChange(updatedRowData);
     },
-    [setSelectedDeviceIds]
+    [
+      setSelectedDeviceIds,
+      devicesInRadius,
+      newAllDevices,
+      etaMap,
+      districts,
+      onRowDataChange,
+    ]
   );
 
   const filteredItems = useMemo(() => {
@@ -249,7 +307,6 @@ const DispatchResultTable = ({
         deviceInfo.initialBase || "Never recorded"
       ).toLowerCase();
 
-      // Global search across specified fields
       const globalMatch = globalSearch
         ? [
             movementStatus,
@@ -264,7 +321,6 @@ const DispatchResultTable = ({
           ].some((field) => field.toLowerCase().includes(globalSearch))
         : true;
 
-      // Column-specific filters
       const licensePlateMatch = columnFilters.licensePlate
         ? licensePlate.includes(columnFilters.licensePlate.toLowerCase())
         : true;
@@ -352,8 +408,6 @@ const DispatchResultTable = ({
         initialBaseMatch
       );
     });
-
-    console.log("Filtered Items:", validDevices);
 
     return validDevices.sort((a, b) => {
       const deviceA = newAllDevices.find((d) => d.id === a.id) || a;
@@ -487,6 +541,12 @@ const DispatchResultTable = ({
     },
     [sortColumn, sortOrder]
   );
+
+  useEffect(() => {
+    if (rowData) {
+      console.log(rowData);
+    }
+  }, [rowData]);
 
   return (
     <Box sx={{ mt: 4 }}>
@@ -781,7 +841,9 @@ const DispatchResultTable = ({
                 <TableRow
                   key={device.id}
                   hover
-                  onClick={(e) => handleRowClick(e, device.id)}
+                  onClick={(e) => {
+                    handleRowClick(e, device.id, device);
+                  }}
                   sx={{
                     cursor: "pointer",
                     backgroundColor: selectedDeviceIds?.includes(device.id)
