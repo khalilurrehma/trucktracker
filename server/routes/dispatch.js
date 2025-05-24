@@ -3,6 +3,7 @@ import {
   dispatchCaseCompleteService,
   dispatchCaseReport,
   fetchAllDispatchCases,
+  getDispatchCaseReport,
   handleCaseAction,
   handleNewDispatchCase,
 } from "../controllers/dispatch.js";
@@ -15,12 +16,14 @@ router.post("/dispatch/case", upload.any(), handleNewDispatchCase);
 
 router.get("/dispatch/cases", fetchAllDispatchCases);
 
+router.get("/dispatch/case/report/:caseId", getDispatchCaseReport);
+
 router.post("/dispatch/case/:caseId/action", authDriver, handleCaseAction);
 
 router.post(
-  "/dispatch/case/report/:caseId",
+  "/dispatch/case/report/:caseId/:companyId",
   authDriver,
-  upload.array("photos"),
+  upload.any(),
   dispatchCaseReport
 );
 

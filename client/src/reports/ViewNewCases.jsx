@@ -24,34 +24,14 @@ import {
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import NotificationsIcon from "@mui/icons-material/Notifications";
-import SearchIcon from "@mui/icons-material/Search";
+import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import { getAllNewCases } from "../apis/api";
-
-const Search = styled("div")(({ theme }) => ({
-  position: "relative",
-  borderRadius: theme.shape.borderRadius,
-  backgroundColor: theme.palette.grey[100],
-  border: `1px solid ${theme.palette.grey[300]}`,
-  marginRight: theme.spacing(2),
-  width: "100%",
-  maxWidth: 300,
-}));
-const SearchIconWrapper = styled("div")(({ theme }) => ({
-  padding: theme.spacing(0, 2),
-  position: "absolute",
-  pointerEvents: "none",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-}));
-const StyledInputBase = styled(InputBase)(({ theme }) => ({
-  color: "inherit",
-  width: "100%",
-  paddingLeft: theme.spacing(5),
-}));
+import CaseReportDialog from "./components/CaseReportDialog";
 
 const ViewNewCases = () => {
   const [allCases, setAllCases] = useState([]);
+  const [openAssignModal, setOpenAssignModal] = useState(false);
+  const [caseDetails, setCaseDetails] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
@@ -135,6 +115,9 @@ const ViewNewCases = () => {
                 <TableCell>
                   <b>Initial Base</b>
                 </TableCell>
+                <TableCell>
+                  <b>Report</b>
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -166,6 +149,16 @@ const ViewNewCases = () => {
                       </TableCell>
                       <TableCell>{device.district || "N/A"}</TableCell>
                       <TableCell>{device.initialBase || "N/A"}</TableCell>
+                      <TableCell>
+                        <IconButton
+                          onClick={() => {
+                            setOpenAssignModal(true);
+                            setCaseDetails({ id: row.id, name: row.case_name });
+                          }}
+                        >
+                          <FullscreenIcon />
+                        </IconButton>
+                      </TableCell>
                     </TableRow>
                   );
                 });
@@ -173,6 +166,12 @@ const ViewNewCases = () => {
             </TableBody>
           </Table>
         </TableContainer>
+
+        <CaseReportDialog
+          openAssignModal={openAssignModal}
+          setOpenAssignModal={setOpenAssignModal}
+          caseDetails={caseDetails}
+        />
       </Box>
     </PageLayout>
   );

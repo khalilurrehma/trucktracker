@@ -83,16 +83,18 @@ const SubSocket = () => {
             updateMqttMessage(recievedData, "cronLogs");
           }
 
-          if (recievedData.topic.endsWith("/connected")) {
+          if (recievedData?.topic?.endsWith("/connected")) {
             updateMqttMessage(recievedData, "deviceConnected");
           }
-          if (recievedData.topic.endsWith("telemetry/engine.ignition.status")) {
+          if (
+            recievedData?.topic?.endsWith("telemetry/engine.ignition.status")
+          ) {
             updateMqttMessage(recievedData, "engineIgnitionStatus");
           }
-          if (recievedData.topic.endsWith("telemetry/position")) {
+          if (recievedData?.topic?.endsWith("telemetry/position")) {
             updateMqttMessage(recievedData, "deviceLiveLocation");
           }
-          if (recievedData.topic.endsWith("telemetry/din")) {
+          if (recievedData?.topic?.endsWith("telemetry/din")) {
             // console.log(recievedData);
             updateMqttMessage(recievedData, "deviceDin");
           }
@@ -108,7 +110,12 @@ const SubSocket = () => {
             updateMqttMessage(recievedData, "Behaivor");
           }
 
-          if (recievedData.notificationStatus) {
+          if (recievedData?.dispatchNotification) {
+            // const {} = recievedData;
+            console.log(recievedData);
+          }
+
+          if (recievedData?.notificationStatus) {
             const {
               eventType,
               deviceName,

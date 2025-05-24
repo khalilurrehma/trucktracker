@@ -309,6 +309,8 @@ export const dispatchCasesForDriver = async (req, res) => {
       });
     }
 
+    console.log(driverVehicleIds);
+
     const driverCase = await findCaseByUserIdAndDeviceId(
       companyId,
       driverVehicleIds

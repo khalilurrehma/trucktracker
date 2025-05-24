@@ -1,15 +1,21 @@
 import {
   addNewCase,
+  fetchCaseReportById,
   fetchDispatchCases,
   findCaseById,
   findCaseStatusById,
   saveCaseAssignedDeviceId,
   saveDispatchCaseAction,
   saveDispatchCaseReport,
+  saveInvolvedVehicle,
+  saveVehiclePhoto,
   updateCaseServiceById,
   updateCaseStatusById,
 } from "../model/dispatch.js";
 import { getAuthenticatedS3String, s3 } from "../services/azure.s3.js";
+import { EventEmitter } from "events";
+
+export const DispatchEmitter = new EventEmitter();
 
 export const handleNewDispatchCase = async (req, res) => {
   const { userId, caseName, caseAddress, message, devicesMeta } = req.body;
@@ -140,18 +146,36 @@ export const handleCaseAction = async (req, res) => {
   }
 };
 
+export const getDispatchCaseReport = async (req, res) => {
+  const { caseId } = req.params;
+
+  if (!caseId) {
+    return res.status(400).json({
+      status: false,
+      message: "Case ID is required",
+    });
+  }
+
+  try {
+    const report = await fetchCaseReportById(caseId);
+
+    return res.status(200).json({
+      status: true,
+      message: report,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
 export const dispatchCaseReport = async (req, res) => {
   const driverId = req.userId;
-  const { caseId } = req.params;
-  const {
-    suggestedServices,
-    subservices,
-    additionalInformation = "",
-    fileMeta = [],
-    plateNumbers = [],
-  } = req.body;
-
-  const files = req.files || [];
+  const { caseId, companyId } = req.params;
+  const { suggestedServices, subservices, additionalInformation, vehicles } =
+    req.body;
 
   if (!caseId || !driverId) {
     return res.status(400).json({
@@ -160,20 +184,10 @@ export const dispatchCaseReport = async (req, res) => {
     });
   }
 
-  console.log({
-    filesLength: files.length,
-    fileMetaType: typeof fileMeta,
-    fileMeta: fileMeta,
-  });
-
-  if (
-    !files.length ||
-    !plateNumbers.length ||
-    fileMeta.length !== files.length
-  ) {
+  if (!vehicles || !Array.isArray(vehicles) || vehicles.length === 0) {
     return res.status(400).json({
       status: false,
-      message: "Missing or mismatched files and metadata",
+      message: "At least one vehicle is required",
     });
   }
 
@@ -181,74 +195,13 @@ export const dispatchCaseReport = async (req, res) => {
     const caseCheck = await findCaseStatusById(caseId);
 
     if (!caseCheck.length || caseCheck[0].status !== "in progress") {
+      let message = `Case not found`;
+      let caseProgressMsg = `Case not in progress yet!`;
       return res.status(400).json({
         status: false,
-        message: "Invalid or unaccepted case",
+        message: !caseCheck.length ? message : caseProgressMsg,
       });
     }
-
-    const parsedMeta = fileMeta.map((m) => {
-      if (typeof m === "string") {
-        return JSON.parse(m);
-      }
-      return m;
-    });
-
-    const uploadedPhotos = await Promise.all(
-      files.map(async (file, index) => {
-        const meta = parsedMeta[index];
-        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        const key = `photos/${uniqueSuffix}-${file.originalname}`;
-
-        const params = {
-          Bucket: process.env.CONTABO_BUCKET_NAME,
-          Key: key,
-          Body: file.buffer,
-          ContentType: file.mimetype,
-        };
-
-        const data = await s3.upload(params).promise();
-        const originalUrl = data.Location;
-        const authenticatedUrl = getAuthenticatedS3String(originalUrl);
-
-        return {
-          url: authenticatedUrl,
-          mimetype: file.mimetype,
-          ...meta,
-        };
-      })
-    );
-
-    const grouped = {};
-
-    uploadedPhotos.forEach((photo) => {
-      const index = photo.vehicleIndex;
-
-      if (!grouped[index]) {
-        grouped[index] = {
-          plate_number: plateNumbers[index] || "",
-          clientVehicle: [],
-          clientDocument: [],
-          additionalInformation: {
-            multipleImages: [],
-            description: additionalInformation || "",
-          },
-        };
-      }
-
-      if (photo.category === "Client Vehicle") {
-        grouped[index].clientVehicle.push({ type: photo.type, url: photo.url });
-      } else if (photo.category === "Client Document") {
-        grouped[index].clientDocument.push({
-          type: photo.type,
-          url: photo.url,
-        });
-      } else if (photo.category === "Additional information") {
-        grouped[index].additionalInformation.multipleImages.push(photo.url);
-      }
-    });
-
-    const photoStructure = Object.values(grouped);
 
     const reportData = {
       case_id: parseInt(caseId),
@@ -256,14 +209,41 @@ export const dispatchCaseReport = async (req, res) => {
       suggested_services: suggestedServices || null,
       subservices: subservices || null,
       additional_information: additionalInformation || null,
-      photos: JSON.stringify(photoStructure),
     };
 
-    await saveDispatchCaseReport(reportData);
+    const reportId = await saveDispatchCaseReport(reportData);
+
+    for (const vehicle of vehicles) {
+      const vehicleId = await saveInvolvedVehicle(reportId, vehicle);
+      if (vehicle.photos && Array.isArray(vehicle.photos)) {
+        for (const photo of vehicle.photos) {
+          if (!photo.category || !photo.type || !photo.url) {
+            throw new Error(
+              "Invalid photo data: category, type, and url are required"
+            );
+          }
+          await saveVehiclePhoto(vehicleId, photo);
+        }
+      }
+    }
+
+    const reportDetails = {
+      reportId,
+      caseId: parseInt(caseId),
+      driverId: parseInt(driverId),
+      companyId: parseInt(companyId),
+      caseName: caseCheck[0]?.case_name,
+      createdAt: new Date().toISOString(),
+    };
+
+    DispatchEmitter.emit("newcase", {
+      reportDetails,
+    });
 
     return res.status(201).json({
       status: true,
-      message: reportData,
+      message: "Report created successfully",
+      reportId,
     });
   } catch (error) {
     return res.status(500).json({

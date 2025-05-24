@@ -1,3 +1,4 @@
+import { DispatchEmitter } from "../controllers/dispatch.js";
 import { cronEmitter } from "../services/cronJobs.js";
 import {
   activatedDoutHandler,
@@ -77,11 +78,21 @@ cronEmitter.on("cronSaved", async (cronData) => {
       loaded,
     };
 
-    console.log(message, "cronSaved");
-
     broadcast(message);
   } catch (error) {
     console.error("❌ Error processing cron event:", error.message);
+  }
+});
+
+DispatchEmitter.on("newcase", async (casedata) => {
+  try {
+    let message = {
+      ...casedata,
+      dispatchNotification: "newcase-notification",
+    };
+    broadcast(message);
+  } catch (error) {
+    console.error("❌ Error processing dispatch case event:", error.message);
   }
 });
 

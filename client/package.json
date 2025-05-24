@@ -28,6 +28,8 @@
     "events": "^3.3.0",
     "export-to-csv": "^1.4.0",
     "file-saver": "^2.0.5",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.1",
     "leaflet": "^1.9.3",
     "lodash": "^4.17.21",
     "mapbox-gl": "^1.13.3",

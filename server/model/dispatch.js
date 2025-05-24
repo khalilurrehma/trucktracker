@@ -87,7 +87,7 @@ export const fetchDispatchCases = async () => {
 };
 
 export const findCaseStatusById = async (caseId) => {
-  const query = `SELECT status FROM dispatch_cases WHERE id = ?`;
+  const query = `SELECT * FROM dispatch_cases WHERE id = ?`;
 
   try {
     const rows = await dbQuery(query, [parseInt(caseId)]);
@@ -221,8 +221,8 @@ export const updateCaseStatusById = async (case_id, action) => {
 export const saveDispatchCaseReport = async (reportData) => {
   const query = `
       INSERT INTO dispatch_case_reports (
-        case_id, driver_id, suggested_services, subservices, additional_information, photos
-      ) VALUES (?, ?, ?, ?, ?, ?)
+        case_id, driver_id, suggested_services, subservices, additional_information
+      ) VALUES (?, ?, ?, ?, ?)
     `;
   const values = [
     reportData.case_id,
@@ -230,7 +230,6 @@ export const saveDispatchCaseReport = async (reportData) => {
     reportData.suggested_services,
     reportData.subservices,
     reportData.additional_information,
-    reportData.photos,
   ];
 
   try {
@@ -238,6 +237,91 @@ export const saveDispatchCaseReport = async (reportData) => {
     return result.insertId || result[0]?.insertId || null;
   } catch (error) {
     console.error("Error saving dispatch case report:", error);
+    throw error;
+  }
+};
+
+export const saveInvolvedVehicle = async (reportId, vehicle) => {
+  const { plateNumber } = vehicle;
+
+  const query = `INSERT INTO dispatch_involved_vehicles (report_id, plate_number)
+     VALUES (?, ?)`;
+
+  const values = [reportId, plateNumber];
+
+  const result = await dbQuery(query, values);
+
+  return result.insertId || result[0]?.insertId || null;
+};
+
+export const saveVehiclePhoto = async (vehicleId, photo) => {
+  const { category, type, url } = photo;
+
+  const query = `INSERT INTO dispatch_vehicle_photos (vehicle_id, category, type, url)
+     VALUES (?, ?, ?, ?)`;
+
+  const values = [vehicleId, category, type, url];
+
+  const result = await dbQuery(query, values);
+
+  return result.insertId || result[0]?.insertId || null;
+};
+
+export const fetchCaseReportById = async (case_id) => {
+  const query = `
+    SELECT 
+        dcr.id AS report_id,
+        dcr.case_id,
+        dcr.driver_id,
+        dcr.suggested_services,
+        dcr.subservices,
+        dcr.additional_information,
+        dcr.damage,
+        dcr.meta_information,
+        dcr.created_at AS report_created_at,
+        dcr.updated_at AS report_updated_at,
+        JSON_ARRAYAGG(
+            JSON_OBJECT(
+                'vehicle_id', dv.id,
+                'plate_number', dv.plate_number,
+                'created_at', dv.created_at,
+                'photos', (
+                    SELECT JSON_ARRAYAGG(
+                        JSON_OBJECT(
+                            'photo_id', dvp.id,
+                            'category', dvp.category,
+                            'type', dvp.type,
+                            'url', dvp.url,
+                            'created_at', dvp.created_at
+                        )
+                    )
+                    FROM dispatch_vehicle_photos dvp
+                    WHERE dvp.vehicle_id = dv.id
+                )
+            )
+        ) AS vehicles
+    FROM dispatch_case_reports dcr
+    LEFT JOIN dispatch_involved_vehicles dv ON dcr.id = dv.report_id
+    WHERE dcr.case_id = ?
+    GROUP BY 
+        dcr.id,
+        dcr.case_id,
+        dcr.driver_id,
+        dcr.suggested_services,
+        dcr.subservices,
+        dcr.additional_information,
+        dcr.damage,
+        dcr.meta_information,
+        dcr.created_at,
+        dcr.updated_at;
+  `;
+
+  try {
+    const result = await dbQuery(query, [parseInt(case_id)]);
+
+    return result.length ? result[0] : null;
+  } catch (error) {
+    console.error("Query error:", error);
     throw error;
   }
 };
