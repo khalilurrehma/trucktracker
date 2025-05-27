@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  authorizeCaseReport,
   dispatchCaseCompleteService,
   dispatchCaseReport,
   fetchAllDispatchCases,
@@ -21,11 +22,17 @@ router.get("/dispatch/case/report/:caseId", getDispatchCaseReport);
 router.post("/dispatch/case/:caseId/action", authDriver, handleCaseAction);
 
 router.post(
+  "/dispatch/case/report/authorize/:reportId/:driverId",
+  authorizeCaseReport
+);
+
+router.post(
   "/dispatch/case/report/:caseId/:companyId",
   authDriver,
   upload.any(),
   dispatchCaseReport
 );
+
 
 router.put(
   "/dispatch/case/:caseId/complete/service",

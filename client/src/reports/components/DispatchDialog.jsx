@@ -150,6 +150,7 @@ const DispatchDialog = ({
               {assignedDevices.map((device) => {
                 const deviceInfo =
                   newAllDevices.find((d) => d.id === device.id) || device;
+                // console.log(selectedRowData);
 
                 return (
                   <TableRow key={device.id}>

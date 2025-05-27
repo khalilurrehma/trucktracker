@@ -135,7 +135,7 @@ export const findCaseReportById = async (caseId) => {
 };
 
 export const updateCaseServiceById = async (fields, case_id) => {
-  const sql = `UPDATE dispatch_case_reports SET damage = ?, meta_information = ? WHERE case_id = ?`;
+  const sql = `UPDATE dispatch_case_reports SET damage = ?, meta_information = ? WHERE case_id = ? AND authorized_status = true`;
 
   try {
     const rows = await dbQuery(sql, [
@@ -278,6 +278,7 @@ export const fetchCaseReportById = async (case_id) => {
         dcr.additional_information,
         dcr.damage,
         dcr.meta_information,
+        dcr.authorized_status,
         dcr.created_at AS report_created_at,
         dcr.updated_at AS report_updated_at,
         JSON_ARRAYAGG(
@@ -322,6 +323,18 @@ export const fetchCaseReportById = async (case_id) => {
     return result.length ? result[0] : null;
   } catch (error) {
     console.error("Query error:", error);
+    throw error;
+  }
+};
+
+export const updateCaseReportStatus = async (report_id, status) => {
+  const query = `UPDATE dispatch_case_reports SET authorized_status = ? WHERE id = ?`;
+
+  try {
+    const result = await dbQuery(query, [status, parseInt(report_id)]);
+    return result.affectedRows > 0;
+  } catch (error) {
+    console.error("Error updating case report status:", error);
     throw error;
   }
 };

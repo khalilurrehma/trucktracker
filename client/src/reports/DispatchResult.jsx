@@ -222,7 +222,7 @@ const DispatchResult = () => {
 
       const formattedDevice = res.data.data.map((device) => {
         return {
-          id: device.traccarId,
+          id: device.id,
           name: device.name,
           uniqueId: device.uniqueId,
           category: device.category,

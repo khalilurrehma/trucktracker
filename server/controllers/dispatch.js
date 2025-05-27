@@ -9,11 +9,17 @@ import {
   saveDispatchCaseReport,
   saveInvolvedVehicle,
   saveVehiclePhoto,
+  updateCaseReportStatus,
   updateCaseServiceById,
   updateCaseStatusById,
 } from "../model/dispatch.js";
+import {
+  getDriverIdsByDeviceIds,
+  getFcmTokensByDriverIds,
+} from "../model/driver.js";
 import { getAuthenticatedS3String, s3 } from "../services/azure.s3.js";
 import { EventEmitter } from "events";
+import { sendPushNotification } from "../utils/pushNotification.js";
 
 export const DispatchEmitter = new EventEmitter();
 
@@ -85,6 +91,29 @@ export const handleNewDispatchCase = async (req, res) => {
       )
     );
 
+    const driverIds = await getDriverIdsByDeviceIds(assignedDeviceIds);
+
+    if (driverIds.length > 0) {
+      const fcmTokens = await getFcmTokensByDriverIds(driverIds);
+
+      if (fcmTokens.length > 0) {
+        const notificationTitle = "New Case Assigned";
+        const notificationBody = `You have a new case: ${caseName} at ${caseAddress}`;
+        const { successCount, failureCount } = await sendPushNotification(
+          fcmTokens,
+          notificationTitle,
+          notificationBody
+        );
+        console.log(
+          `Notifications sent: ${successCount} succeeded, ${failureCount} failed`
+        );
+      } else {
+        console.log("No FCM tokens found for drivers");
+      }
+    } else {
+      console.log("No drivers found for the provided device IDs");
+    }
+
     res.status(201).json({
       status: true,
       message: "Case save and request send successfully!",
@@ -146,6 +175,54 @@ export const handleCaseAction = async (req, res) => {
   }
 };
 
+export const authorizeCaseReport = async (req, res) => {
+  const { reportId, driverId } = req.params;
+
+  if (!reportId || !driverId) {
+    return res.status(400).json({
+      status: false,
+      message: "Report ID and Driver ID are required",
+    });
+  }
+
+  try {
+    const result = await updateCaseReportStatus(reportId, true);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        status: false,
+        message: "Report not found or already authorized",
+      });
+    }
+
+    const fcmToken = await getFcmTokensByDriverIds(driverId);
+
+    if (fcmToken.length > 0) {
+      const notificationTitle = "Case Report Authorized";
+      const notificationBody = `Your case report has been authorized.`;
+      const { successCount, failureCount } = await sendPushNotification(
+        fcmToken,
+        notificationTitle,
+        notificationBody
+      );
+      console.log(
+        `Notifications sent: ${successCount} succeeded, ${failureCount} failed`
+      );
+    } else {
+      console.log("No FCM token found for driver");
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: "Report authorized successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
 export const getDispatchCaseReport = async (req, res) => {
   const { caseId } = req.params;
 
@@ -177,10 +254,17 @@ export const dispatchCaseReport = async (req, res) => {
   const { suggestedServices, subservices, additionalInformation, vehicles } =
     req.body;
 
-  if (!caseId || !driverId) {
+  if (!caseId || !driverId || !companyId) {
     return res.status(400).json({
       status: false,
       message: "Case ID and driver ID are required",
+    });
+  }
+
+  if (!companyId) {
+    return res.status(400).json({
+      status: false,
+      message: "Company ID is required in API V1.1",
     });
   }
 
@@ -277,6 +361,11 @@ export const dispatchCaseCompleteService = async (req, res) => {
 
     if (updateResults.affectedRows === 1) {
       await updateCaseStatusById(caseId, "completed");
+    } else {
+      return res.status(400).json({
+        status: false,
+        message: error.message,
+      });
     }
 
     return res.status(200).json({

@@ -44,11 +44,12 @@ const CaseReportDialog = ({
 }) => {
   const { url } = useAppContext();
   const [report, setReport] = useState(null);
-  const reportRef = useRef(null); // For PDF generation
+  const reportRef = useRef(null);
   const [zoomOpen, setZoomOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [selectedPhotos, setSelectedPhotos] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [authorizeLoader, setAuthorizeLoader] = useState(false);
 
   const fetchReport = async () => {
     try {
@@ -59,7 +60,6 @@ const CaseReportDialog = ({
         }
       );
       if (data.status) {
-        // Parse vehicles if it's a string
         const reportData = {
           ...data.message,
           vehicles:
@@ -130,6 +130,24 @@ const CaseReportDialog = ({
     setSelectedImage(selectedPhotos[newIndex]);
   };
 
+  const handleAuthorizeReport = async (report) => {
+    setAuthorizeLoader(true);
+    try {
+      const { data } = await axios.post(
+        `${url}/dispatch/case/report/authorize/${report.report_id}/${report.driver_id}`
+      );
+      if (data.status) {
+        setAuthorizeLoader(false);
+        toast.success(data.message || "Report authorized successfully");
+        setReport((prev) => ({ ...prev, authorized_status: 1 }));
+      } else {
+        toast.error(data.message || "Failed to authorize report");
+      }
+    } catch (error) {
+      toast.error("Error authorizing report: " + error.message);
+    }
+  };
+
   return (
     <Dialog
       open={openAssignModal}
@@ -155,6 +173,16 @@ const CaseReportDialog = ({
           {report && (
             <Button color="inherit" onClick={handleDownloadPDF}>
               Download PDF
+            </Button>
+          )}
+          {report && report.authorized_status == 0 && (
+            <Button
+              color="info"
+              variant="contained"
+              onClick={() => handleAuthorizeReport(report)}
+              sx={{ ml: 2 }}
+            >
+              {authorizeLoader ? "Authorizing..." : "Authorize Report"}
             </Button>
           )}
         </Toolbar>

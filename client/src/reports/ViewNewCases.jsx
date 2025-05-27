@@ -34,6 +34,51 @@ const ViewNewCases = () => {
   const [caseDetails, setCaseDetails] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
 
+  const getStatusChip = (status) => {
+    switch (status) {
+      case "pending":
+        return (
+          <Chip
+            label="Pending"
+            sx={{
+              backgroundColor: "#ffdddd",
+              color: "#c62828",
+              fontWeight: 500,
+            }}
+          />
+        );
+      case "in progress":
+        return (
+          <Chip
+            label="In Progress"
+            sx={{
+              backgroundColor: "#fff4cc",
+              color: "#ef6c00",
+              fontWeight: 500,
+            }}
+          />
+        );
+      case "completed":
+        return (
+          <Chip
+            label="Case Completed"
+            sx={{
+              backgroundColor: "#d0f2d0",
+              color: "#2e7d32",
+              fontWeight: 500,
+            }}
+          />
+        );
+      default:
+        return (
+          <Chip
+            label="Unknown"
+            sx={{ backgroundColor: "#e0e0e0", color: "#999", fontWeight: 500 }}
+          />
+        );
+    }
+  };
+
   useEffect(() => {
     async function fetchCases() {
       const { data } = await getAllNewCases();
@@ -129,7 +174,7 @@ const ViewNewCases = () => {
                     <TableRow key={`${row.id}-${device.id}-${idx}`}>
                       <TableCell>{row.case_name}</TableCell>
                       <TableCell>{row.case_address}</TableCell>
-                      <TableCell>{row.status}</TableCell>
+                      <TableCell>{getStatusChip(row.status)}</TableCell>
                       <TableCell>
                         {device.services?.map((service, index) => (
                           <Chip

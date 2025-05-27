@@ -79,7 +79,7 @@ const SubSocket = () => {
         try {
           const recievedData = JSON.parse(event.data);
 
-          if (recievedData.type === "cronLogs") {
+          if (recievedData?.type === "cronLogs") {
             updateMqttMessage(recievedData, "cronLogs");
           }
 
@@ -110,9 +110,12 @@ const SubSocket = () => {
             updateMqttMessage(recievedData, "Behaivor");
           }
 
-          if (recievedData?.dispatchNotification) {
-            // const {} = recievedData;
-            console.log(recievedData);
+          if (
+            recievedData.dispatchNotification === "newcase-notification" &&
+            (recievedData.reportDetails?.companyId === sessionUserId ||
+              sessionUserId === 1)
+          ) {
+            addNotification("Case Authorize request received");
           }
 
           if (recievedData?.notificationStatus) {

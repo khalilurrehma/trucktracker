@@ -473,3 +473,69 @@ export const modifyDriverStatus = async (status, driver_id) => {
     });
   });
 };
+
+export const saveFCMToken = async (driver_id, fcm_token) => {
+  const sql = `
+    INSERT INTO drivers_fcm_token (driver_id, fcm_token, created_at, updated_at)
+    VALUES (?, ?, NOW(), NOW())
+  `;
+
+  const values = [driver_id, fcm_token];
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, values, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+export const existingFCMToken = async (driver_id) => {
+  const sql = `
+    SELECT fcm_token FROM drivers_fcm_token WHERE driver_id = ?
+  `;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [driver_id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+export const updateFCMToken = async (driver_id, fcm_token) => {
+  const sql = `
+    UPDATE drivers_fcm_token SET fcm_token = ?, updated_at = NOW() WHERE driver_id = ?
+  `;
+  const values = [fcm_token, driver_id];
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, values, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+export const getDriverIdsByDeviceIds = async (device_ids) => {
+  const sql =
+    "SELECT DISTINCT driver_id FROM vehicle_driver_association WHERE device_id IN (?)";
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [device_ids], (err, results) => {
+      if (err) return reject(err);
+      resolve(results.map((row) => row.driver_id));
+    });
+  });
+};
+
+export const getFcmTokensByDriverIds = async (driver_ids) => {
+  const sql = `SELECT fcm_token FROM drivers_fcm_token WHERE driver_id IN (?)`;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [driver_ids], (err, results) => {
+      if (err) return reject(err);
+      resolve(results.map((row) => row.fcm_token));
+    });
+  });
+};

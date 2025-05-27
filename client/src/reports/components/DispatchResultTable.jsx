@@ -837,6 +837,8 @@ const DispatchResultTable = ({
                     ).toFixed(2)
                   : "Not set";
 
+              // console.log(device);
+
               return (
                 <TableRow
                   key={device.id}

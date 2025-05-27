@@ -4,6 +4,7 @@ import {
   driverByEmail,
   driversShiftDetails,
   driverStatus,
+  existingFCMToken,
   fetchDriver,
   fetchDriverAvailability,
   fetchDrivers,
@@ -15,8 +16,10 @@ import {
   removeVehicleAssociation,
   saveAssociationRelation,
   saveDriverResetToken,
+  saveFCMToken,
   updateDriver,
   updateDriverAvailability,
+  updateFCMToken,
 } from "../model/driver.js";
 import {
   getLatestDriverBehaivorReports,
@@ -37,6 +40,7 @@ import { getAuthenticatedS3String, s3 } from "../services/azure.s3.js";
 import { getDeviceOdometer } from "../services/flespiApis.js";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
+import { messaging } from "../firebase/firebase.js";
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -309,7 +313,6 @@ export const dispatchCasesForDriver = async (req, res) => {
       });
     }
 
-    console.log(driverVehicleIds);
 
     const driverCase = await findCaseByUserIdAndDeviceId(
       companyId,
@@ -542,7 +545,7 @@ export const getDriverAvailability = async (req, res) => {
 };
 
 export const driverLogin = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, fcmToken } = req.body;
   let isVehicleAssigned = false;
 
   try {
@@ -562,6 +565,16 @@ export const driverLogin = async (req, res) => {
         status: false,
         message: "Invalid password",
       });
+    }
+
+    if (fcmToken) {
+      const exisitingToken = await existingFCMToken(driver.id);
+
+      if (exisitingToken.length === 0) {
+        await saveFCMToken(driver.id, fcmToken);
+      } else {
+        await updateFCMToken(driver.id, fcmToken);
+      }
     }
 
     const parsedAttributes = JSON.parse(driver.attributes);
@@ -586,8 +599,10 @@ export const driverLogin = async (req, res) => {
       email: driver.email,
       uniqueId: driver.uniqueId,
       companyId: driver.user_id,
+      device_id: driverVehicle?.device_id,
       isVehicleAssigned,
       token,
+      fcmToken,
     };
 
     res.status(200).json({
