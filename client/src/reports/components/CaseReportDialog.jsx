@@ -60,14 +60,18 @@ const CaseReportDialog = ({
         }
       );
       if (data.status) {
-        const reportData = {
-          ...data.message,
-          vehicles:
-            typeof data.message.vehicles === "string"
-              ? JSON.parse(data.message.vehicles)
-              : data.message.vehicles,
-        };
-        setReport(reportData);
+        if (!data.message || Object.keys(data.message).length === 0) {
+          setReport("empty");
+        } else {
+          const reportData = {
+            ...data.message,
+            vehicles:
+              typeof data.message.vehicles === "string"
+                ? JSON.parse(data.message.vehicles)
+                : data.message.vehicles,
+          };
+          setReport(reportData);
+        }
       } else {
         toast.error("Failed to fetch report");
       }
@@ -188,7 +192,13 @@ const CaseReportDialog = ({
         </Toolbar>
       </AppBar>
       <Box sx={{ p: 3, maxWidth: 1200, mx: "auto" }} ref={reportRef}>
-        {report ? (
+        {report === null ? (
+          <Typography>Loading report...</Typography>
+        ) : report === "empty" ? (
+          <Typography color="text.secondary">
+            🚫 Case report has not been received yet.
+          </Typography>
+        ) : (
           <>
             <Typography variant="h5" gutterBottom>
               Case Report Details
@@ -327,8 +337,6 @@ const CaseReportDialog = ({
               <Typography>No vehicles associated with this report.</Typography>
             )}
           </>
-        ) : (
-          <Typography>Loading report...</Typography>
         )}
       </Box>
 

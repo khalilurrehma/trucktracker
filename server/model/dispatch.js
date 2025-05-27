@@ -338,3 +338,24 @@ export const updateCaseReportStatus = async (report_id, status) => {
     throw error;
   }
 };
+
+export const saveCaseReportNotification = async ({
+  company_id,
+  report_id,
+  message,
+}) => {
+  const query = `
+    INSERT INTO dispatch_case_notification (report_id, user_id, message)
+    VALUES (?, ?, ?)
+  `;
+
+  const values = [company_id, report_id, message];
+
+  try {
+    const result = await dbQuery(query, values);
+    return result.insertId || result[0]?.insertId || null;
+  } catch (error) {
+    console.error("Error saving case report notification:", error);
+    throw error;
+  }
+};

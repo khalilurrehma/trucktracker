@@ -21,6 +21,7 @@ import {
   Chip,
   Grid,
   TextField,
+  Menu,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import NotificationsIcon from "@mui/icons-material/Notifications";
@@ -33,6 +34,12 @@ const ViewNewCases = () => {
   const [openAssignModal, setOpenAssignModal] = useState(false);
   const [caseDetails, setCaseDetails] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
+  const [notifications, setNotifications] = useState([
+    { id: 1, message: "New case assigned", read: false },
+    { id: 2, message: "ETA updated", read: false },
+  ]);
+
+  const [anchorEl, setAnchorEl] = useState(null);
 
   const getStatusChip = (status) => {
     switch (status) {
@@ -102,6 +109,16 @@ const ViewNewCases = () => {
     return searchMatch;
   });
 
+  const handleNotificationClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
   return (
     <PageLayout
       menu={<OperationsMenu />}
@@ -119,11 +136,38 @@ const ViewNewCases = () => {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <IconButton>
-          <Badge badgeContent={filteredCases.length} color="error">
+        <IconButton onClick={handleNotificationClick}>
+          <Badge badgeContent={unreadCount} color="error">
             <NotificationsIcon />
           </Badge>
         </IconButton>
+
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={handleClose}
+          PaperProps={{ style: { width: 300 } }}
+        >
+          {notifications.length === 0 ? (
+            <MenuItem disabled>No notifications</MenuItem>
+          ) : (
+            notifications.map((note) => (
+              <MenuItem
+                key={note.id}
+                sx={{ bgcolor: note.read ? "white" : "#f0f4ff" }}
+                onClick={() => {
+                  setNotifications((prev) =>
+                    prev.map((n) =>
+                      n.id === note.id ? { ...n, read: true } : n
+                    )
+                  );
+                }}
+              >
+                {note.message}
+              </MenuItem>
+            ))
+          )}
+        </Menu>
       </Box>
       <Box sx={{ p: 2 }}>
         <TableContainer>
@@ -200,6 +244,7 @@ const ViewNewCases = () => {
                             setOpenAssignModal(true);
                             setCaseDetails({ id: row.id, name: row.case_name });
                           }}
+                          disabled={row.status === "pending"}
                         >
                           <FullscreenIcon />
                         </IconButton>

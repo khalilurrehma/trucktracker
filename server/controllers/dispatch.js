@@ -5,6 +5,7 @@ import {
   findCaseById,
   findCaseStatusById,
   saveCaseAssignedDeviceId,
+  saveCaseReportNotification,
   saveDispatchCaseAction,
   saveDispatchCaseReport,
   saveInvolvedVehicle,
@@ -28,7 +29,9 @@ export const handleNewDispatchCase = async (req, res) => {
   let assignedDeviceIds = req.body.assignedDeviceIds;
   let files;
 
-  assignedDeviceIds = JSON.parse(assignedDeviceIds);
+  // assignedDeviceIds = JSON.parse(assignedDeviceIds)
+
+  assignedDeviceIds = [assignedDeviceIds];
 
   if (!Array.isArray(assignedDeviceIds)) {
     return res
@@ -99,10 +102,21 @@ export const handleNewDispatchCase = async (req, res) => {
       if (fcmTokens.length > 0) {
         const notificationTitle = "New Case Assigned";
         const notificationBody = `You have a new case: ${caseName} at ${caseAddress}`;
+        const payload = {
+          userId,
+          caseName,
+          caseAddress,
+          message,
+          status: "pending",
+          file_data: dbBody.file_data ?? [],
+          assignedDeviceIds,
+        };
+
         const { successCount, failureCount } = await sendPushNotification(
           fcmTokens,
           notificationTitle,
-          notificationBody
+          notificationBody,
+          payload
         );
         console.log(
           `Notifications sent: ${successCount} succeeded, ${failureCount} failed`
@@ -238,7 +252,7 @@ export const getDispatchCaseReport = async (req, res) => {
 
     return res.status(200).json({
       status: true,
-      message: report,
+      message: report || [],
     });
   } catch (error) {
     return res.status(500).json({
@@ -322,6 +336,12 @@ export const dispatchCaseReport = async (req, res) => {
 
     DispatchEmitter.emit("newcase", {
       reportDetails,
+    });
+
+    await saveCaseReportNotification({
+      company_id: companyId,
+      report_id: reportId,
+      message: `New case report generated: ${caseCheck[0]?.case_name}`,
     });
 
     return res.status(201).json({

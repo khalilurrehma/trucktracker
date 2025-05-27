@@ -1,6 +1,11 @@
 import { messaging } from "../firebase/firebase.js";
 
-export const sendPushNotification = async (fcmTokens, title, body) => {
+export const sendPushNotification = async (
+  fcmTokens,
+  title,
+  body,
+  data = {}
+) => {
   if (!fcmTokens || fcmTokens.length === 0) {
     console.log("No FCM tokens provided for notification");
     return { successCount: 0, failureCount: 0 };
@@ -13,6 +18,12 @@ export const sendPushNotification = async (fcmTokens, title, body) => {
         title,
         body,
       },
+      data: Object.fromEntries(
+        Object.entries(data).map(([key, value]) => [
+          key,
+          typeof value === "object" ? JSON.stringify(value) : String(value),
+        ])
+      ),
       android: {
         priority: "high",
         notification: {

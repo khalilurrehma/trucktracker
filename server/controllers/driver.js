@@ -313,7 +313,6 @@ export const dispatchCasesForDriver = async (req, res) => {
       });
     }
 
-
     const driverCase = await findCaseByUserIdAndDeviceId(
       companyId,
       driverVehicleIds
@@ -434,6 +433,15 @@ export const unAssociateDriverVehicle = async (req, res) => {
     });
   }
   try {
+    const driverVehicle = await checkAlreadyAssociatedVehicle(userId);
+
+    if (parseInt(vehicleId) !== driverVehicle?.device_id) {
+      return res.status(400).json({
+        status: false,
+        message: "This vehicle is not associated with the driver",
+      });
+    }
+
     await removeVehicleAssociation(userId, vehicleId);
 
     res.status(200).json({
