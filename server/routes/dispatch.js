@@ -7,6 +7,8 @@ import {
   getDispatchCaseReport,
   handleCaseAction,
   handleNewDispatchCase,
+  notificationStatusUpdate,
+  newCaseReportNotifications,
 } from "../controllers/dispatch.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { authDriver } from "../middlewares/auth.middleware.js";
@@ -33,10 +35,16 @@ router.post(
   dispatchCaseReport
 );
 
+router.get("/dispatch/notifications/:companyId", newCaseReportNotifications);
 
 router.put(
   "/dispatch/case/:caseId/complete/service",
   authDriver,
   dispatchCaseCompleteService
+);
+
+router.patch(
+  "/dispatch/update/report/notification/:id",
+  notificationStatusUpdate
 );
 export default router;

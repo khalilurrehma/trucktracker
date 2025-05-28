@@ -4,12 +4,14 @@ import {
   fetchDispatchCases,
   findCaseById,
   findCaseStatusById,
+  getNotificationsByCompanyId,
   saveCaseAssignedDeviceId,
   saveCaseReportNotification,
   saveDispatchCaseAction,
   saveDispatchCaseReport,
   saveInvolvedVehicle,
   saveVehiclePhoto,
+  setNewStatusNotification,
   updateCaseReportStatus,
   updateCaseServiceById,
   updateCaseStatusById,
@@ -394,5 +396,45 @@ export const dispatchCaseCompleteService = async (req, res) => {
     });
   } catch (error) {
     res.status(500).send({ status: false, message: error.message });
+  }
+};
+
+export const newCaseReportNotifications = async (req, res) => {
+  const { companyId } = req.params;
+
+  if (!companyId) {
+    res.status(204).send({ status: false, message: "Company Id is required" });
+  }
+
+  try {
+    const notifications = await getNotificationsByCompanyId(companyId);
+
+    if (!notifications) {
+      res
+        .status(204)
+        .send({ status: false, message: "No notifications found" });
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: notifications,
+    });
+  } catch (error) {
+    res.status(204).send({ status: false, message: error.message });
+  }
+};
+
+export const notificationStatusUpdate = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    await setNewStatusNotification(parseInt(id));
+
+    return res.status(200).json({
+      status: true,
+      message: `notification readed!`,
+    });
+  } catch (error) {
+    res.status(204).send({ status: false, message: error.message });
   }
 };

@@ -28,8 +28,15 @@ import NotificationsIcon from "@mui/icons-material/Notifications";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import { getAllNewCases } from "../apis/api";
 import CaseReportDialog from "./components/CaseReportDialog";
+import axios from "axios";
 
 const ViewNewCases = () => {
+  let url;
+  if (import.meta.env.DEV) {
+    url = import.meta.env.VITE_DEV_BACKEND_URL;
+  } else {
+    url = import.meta.env.VITE_PROD_BACKEND_URL;
+  }
   const [allCases, setAllCases] = useState([]);
   const [openAssignModal, setOpenAssignModal] = useState(false);
   const [caseDetails, setCaseDetails] = useState({});
@@ -92,7 +99,16 @@ const ViewNewCases = () => {
 
       if (data.status) setAllCases(data.data);
     }
+
+    async function getNotifications() {
+      const { data } = await axios.get(`${url}/dispatch/notifications/${180}`);
+
+      if (data.status && Array.isArray(data.message)) {
+        setNotifications(data.message);
+      }
+    }
     fetchCases();
+    getNotifications();
   }, []);
 
   const filteredCases = allCases.filter((item) => {
@@ -155,7 +171,14 @@ const ViewNewCases = () => {
               <MenuItem
                 key={note.id}
                 sx={{ bgcolor: note.read ? "white" : "#f0f4ff" }}
-                onClick={() => {
+                onClick={async () => {
+                  setCaseDetails({ id: note.report_id });
+                  setOpenAssignModal(true);
+
+                  await axios.patch(
+                    `${url}/dispatch/update/report/notification/${note.id}`
+                  );
+
                   setNotifications((prev) =>
                     prev.map((n) =>
                       n.id === note.id ? { ...n, read: true } : n

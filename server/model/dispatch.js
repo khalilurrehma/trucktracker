@@ -349,11 +349,37 @@ export const saveCaseReportNotification = async ({
     VALUES (?, ?, ?)
   `;
 
-  const values = [company_id, report_id, message];
+  const values = [report_id, company_id, message];
 
   try {
     const result = await dbQuery(query, values);
     return result.insertId || result[0]?.insertId || null;
+  } catch (error) {
+    console.error("Error saving case report notification:", error);
+    throw error;
+  }
+};
+
+export const getNotificationsByCompanyId = async (company_id) => {
+  const query =
+    "SELECT * FROM dispatch_case_notification WHERE user_id = ? AND is_read = 0 ORDER BY created_at DESC";
+
+  try {
+    const results = await dbQuery(query, [parseInt(company_id)]);
+    return results;
+  } catch (error) {
+    console.error("Error saving case report notification:", error);
+    throw error;
+  }
+};
+
+export const setNewStatusNotification = async (id) => {
+  const query =
+    "UPDATE dispatch_case_notification SET is_read = 1 WHERE id = ?";
+
+  try {
+    const results = await dbQuery(query, [parseInt(id)]);
+    return results;
   } catch (error) {
     console.error("Error saving case report notification:", error);
     throw error;
