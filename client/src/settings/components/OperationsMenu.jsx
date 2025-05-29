@@ -15,6 +15,7 @@ import { useTranslation } from "../../common/components/LocalizationProvider";
 import MenuItem from "../../common/components/MenuItem";
 import { useAppContext } from "../../AppContext";
 import axios from "axios";
+import { useSuperVisor } from "../../common/util/permissions";
 
 const OperationsMenu = () => {
   let url;
@@ -25,6 +26,7 @@ const OperationsMenu = () => {
   }
   const t = useTranslation();
   const location = useLocation();
+  const superVisor = useSuperVisor();
   const { traccarUser } = useAppContext();
 
   const [expanded, setExpanded] = React.useState([]);
@@ -67,12 +69,14 @@ const OperationsMenu = () => {
   return (
     <>
       <List>
-        <MenuItem
-          title={t("operationsDispatch")}
-          link="/operations/dispatch"
-          icon={<SettingsIcon />}
-          selected={location.pathname === "/operations/dispatch"}
-        />
+        {!superVisor && (
+          <MenuItem
+            title={t("operationsDispatch")}
+            link="/operations/dispatch"
+            icon={<SettingsIcon />}
+            selected={location.pathname === "/operations/dispatch"}
+          />
+        )}
         <MenuItem
           title={t("operationsCases")}
           link="/operations/cases"
