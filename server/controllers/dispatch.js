@@ -25,7 +25,10 @@ import {
 import { getAuthenticatedS3String, s3 } from "../services/azure.s3.js";
 import { EventEmitter } from "events";
 import { sendPushNotification } from "../utils/pushNotification.js";
-import { realmUserTraccarIdsByUserId } from "../model/realm.js";
+import {
+  realmUserByTraccarId,
+  realmUserTraccarIdsByUserId,
+} from "../model/realm.js";
 
 export const DispatchEmitter = new EventEmitter();
 
@@ -88,7 +91,7 @@ export const handleNewDispatchCase = async (req, res) => {
         });
       }
 
-      dbBody.file_data = JSON.stringify(uploadedFiles);
+      dbBody.file_data = uploadedFiles;
     }
 
     const newCase_id = await addNewCase(dbBody);
@@ -113,7 +116,7 @@ export const handleNewDispatchCase = async (req, res) => {
           caseAddress,
           message,
           status: "pending",
-          file_data: dbBody.file_data ? JSON.parse(dbBody.file_data) : [],
+          file_data: dbBody.file_data || [],
           assignedDeviceIds,
         };
 
@@ -144,12 +147,21 @@ export const handleNewDispatchCase = async (req, res) => {
 
 export const fetchAllDispatchCases = async (req, res) => {
   const { userId } = req.query;
-  let dispatchCases;
+  const superVisor = JSON.parse(req.query.superVisor || "false");
+
   try {
-    if (parseInt(userId) === 1) {
-      dispatchCases = await fetchDispatchCases();
+    let dispatchCases;
+
+    if (!superVisor) {
+      if (parseInt(userId) === 1) {
+        dispatchCases = await fetchDispatchCases();
+      } else {
+        dispatchCases = await fetchDispatchCasesByUserId(userId);
+      }
     } else {
-      dispatchCases = await fetchDispatchCasesByUserId(userId);
+      const fetchSuperVisorCompanyId = await realmUserByTraccarId(userId);
+      const companyId = fetchSuperVisorCompanyId[0].user_id;
+      dispatchCases = await fetchDispatchCasesByUserId(companyId);
     }
 
     res.status(200).json({

@@ -24,7 +24,7 @@ export const addNewCase = async (body) => {
     case_address,
     message,
     devicesMeta,
-    file_data,
+    JSON.stringify(file_data),
   ];
 
   try {

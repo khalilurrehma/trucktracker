@@ -32,6 +32,7 @@ import CaseReportDialog from "./components/CaseReportDialog";
 import axios from "axios";
 import { useSelector } from "react-redux";
 import TableShimmer from "../common/components/TableShimmer";
+import { useSuperVisor } from "../common/util/permissions";
 
 const ViewNewCases = () => {
   let url;
@@ -53,6 +54,7 @@ const ViewNewCases = () => {
   const [page, setPage] = useState(0);
 
   const userId = useSelector((state) => state.session.user.id);
+  const superVisor = useSuperVisor();
 
   const [anchorEl, setAnchorEl] = useState(null);
 
@@ -106,7 +108,9 @@ const ViewNewCases = () => {
       setLoader(true);
       try {
         const { data } =
-          userId === 1 ? await getAllNewCases() : await getAllNewCases(userId);
+          userId === 1
+            ? await getAllNewCases()
+            : await getAllNewCases(userId, superVisor);
 
         if (data.status) setAllCases(data.data), setLoader(false);
       } catch (error) {

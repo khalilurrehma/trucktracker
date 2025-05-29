@@ -29,9 +29,11 @@ export const addNewCase = async (newCaseData) => {
   }
 };
 
-export const getAllNewCases = async (userId = 1) => {
+export const getAllNewCases = async (userId = 1, superVisor = false) => {
   try {
-    const data = await axios.get(`${apiUrl}/dispatch/cases?userId=${userId}`);
+    const data = await axios.get(
+      `${apiUrl}/dispatch/cases?userId=${userId}&superVisor=${superVisor}`
+    );
 
     return data;
   } catch (error) {
