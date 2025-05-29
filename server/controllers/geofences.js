@@ -236,7 +236,7 @@ export const updateNewGeofence = async (req, res) => {
   const { userId, isSuperAdmin, traccarUserToken, ...Fields } = req.body;
   const { geofenceType } = Fields;
   const id = req.params.id;
-  const geofenceIsStation = geofenceType?.name?.toLowerCase() === "station";
+  const geofenceIsStation = geofenceType?.toLowerCase() === "station";
   let newGeofence;
   let assigningResult;
 
@@ -254,7 +254,7 @@ export const updateNewGeofence = async (req, res) => {
     const requestData = {
       id: result.traccarId,
       attributes: {
-        geofenceStation: geofenceType.name,
+        geofenceStation: geofenceType,
       },
       calendarId,
       description,
@@ -274,7 +274,7 @@ export const updateNewGeofence = async (req, res) => {
 
     const flespiResponse = await axios.put(
       `https://flespi.io/gw/geofences/${result?.flespiId}?fields=id%2Cname`,
-      { name, metadata: { geofenceStation: geofenceType.name } },
+      { name, metadata: { geofenceStation: geofenceType } },
       {
         headers: {
           Authorization: `FlespiToken ${flespiToken}`,

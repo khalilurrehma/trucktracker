@@ -2,8 +2,10 @@ import {
   addNewCase,
   fetchCaseReportById,
   fetchDispatchCases,
+  fetchDispatchCasesByUserId,
   findCaseById,
   findCaseStatusById,
+  getAllNotifications,
   getNotificationsByCompanyId,
   saveCaseAssignedDeviceId,
   saveCaseReportNotification,
@@ -23,6 +25,7 @@ import {
 import { getAuthenticatedS3String, s3 } from "../services/azure.s3.js";
 import { EventEmitter } from "events";
 import { sendPushNotification } from "../utils/pushNotification.js";
+import { realmUserTraccarIdsByUserId } from "../model/realm.js";
 
 export const DispatchEmitter = new EventEmitter();
 
@@ -31,9 +34,9 @@ export const handleNewDispatchCase = async (req, res) => {
   let assignedDeviceIds = req.body.assignedDeviceIds;
   let files;
 
-  // assignedDeviceIds = JSON.parse(assignedDeviceIds)
+  assignedDeviceIds = JSON.parse(assignedDeviceIds);
 
-  assignedDeviceIds = [assignedDeviceIds];
+  // assignedDeviceIds = [assignedDeviceIds];
 
   if (!Array.isArray(assignedDeviceIds)) {
     return res
@@ -110,7 +113,7 @@ export const handleNewDispatchCase = async (req, res) => {
           caseAddress,
           message,
           status: "pending",
-          file_data: dbBody.file_data ?? [],
+          file_data: dbBody.file_data ? JSON.parse(dbBody.file_data) : [],
           assignedDeviceIds,
         };
 
@@ -140,8 +143,14 @@ export const handleNewDispatchCase = async (req, res) => {
 };
 
 export const fetchAllDispatchCases = async (req, res) => {
+  const { userId } = req.query;
+  let dispatchCases;
   try {
-    const dispatchCases = await fetchDispatchCases();
+    if (parseInt(userId) === 1) {
+      dispatchCases = await fetchDispatchCases();
+    } else {
+      dispatchCases = await fetchDispatchCasesByUserId(userId);
+    }
 
     res.status(200).json({
       status: true,
@@ -327,11 +336,14 @@ export const dispatchCaseReport = async (req, res) => {
       }
     }
 
+    const superVisorIds = await realmUserTraccarIdsByUserId(companyId);
+
     const reportDetails = {
       reportId,
       caseId: parseInt(caseId),
       driverId: parseInt(driverId),
       companyId: parseInt(companyId),
+      superVisorIds: superVisorIds || null,
       caseName: caseCheck[0]?.case_name,
       createdAt: new Date().toISOString(),
     };
@@ -396,6 +408,25 @@ export const dispatchCaseCompleteService = async (req, res) => {
     });
   } catch (error) {
     res.status(500).send({ status: false, message: error.message });
+  }
+};
+
+export const allCaseReportsNotifications = async (req, res) => {
+  try {
+    const notifications = await getAllNotifications();
+
+    if (!notifications) {
+      res
+        .status(204)
+        .send({ status: false, message: "No notifications found" });
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: notifications,
+    });
+  } catch (error) {
+    res.status(204).send({ status: false, message: error.message });
   }
 };
 

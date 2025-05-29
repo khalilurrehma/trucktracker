@@ -247,3 +247,24 @@ export const removeRealmUser = async (realmId, id) => {
     });
   });
 };
+
+export const realmUserTraccarIdsByUserId = async (userId) => {
+  const sql = `
+    SELECT JSON_UNQUOTE(JSON_EXTRACT(traccar_user_body, '$.id')) AS traccar_id
+    FROM realm_users
+    WHERE userId = ?
+  `;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [userId], (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      const traccarIds = results
+        .map((row) => parseInt(row.traccar_id))
+        .filter((id) => id !== null);
+      resolve(traccarIds);
+    });
+  });
+};

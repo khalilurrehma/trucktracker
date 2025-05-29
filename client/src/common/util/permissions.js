@@ -11,7 +11,7 @@ export const useSuperVisor = () => {
     (state) => state.session.user.attributes?.non_admin
   );
 
-  return superVisor;
+  return superVisor || false;
 };
 
 export const useManager = () =>

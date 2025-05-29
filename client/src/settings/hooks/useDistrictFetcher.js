@@ -17,7 +17,7 @@ const useDistrictFetcher = () => {
   };
 
   const getDistrictFromCoordinates = async (lat, lng, retries = 2) => {
-    const url = `https://167.86.72.4/nominatim/reverse?lat=${lat}&lon=${lng}&format=json`;
+    const url = `https://maps.nextop.pt/nominatim/reverse?lat=${lat}&lon=${lng}&format=json`;
 
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {

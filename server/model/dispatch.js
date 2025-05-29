@@ -86,6 +86,42 @@ export const fetchDispatchCases = async () => {
   }
 };
 
+export const fetchDispatchCasesByUserId = async (user_id) => {
+  const query = `
+    SELECT 
+      dc.*,
+      JSON_ARRAYAGG(
+        JSON_OBJECT(
+          'device_id', dcd.device_id,
+          'device_name', nsd.name
+        )
+      ) AS assigned_devices
+    FROM 
+      dispatch_cases dc
+    LEFT JOIN 
+      dispatch_case_devices dcd ON dc.id = dcd.dispatch_case_id
+    LEFT JOIN 
+      new_settings_devices nsd ON dcd.device_id = nsd.id
+      WHERE user_id = ?
+    GROUP BY 
+      dc.id
+    ORDER BY 
+      dc.created_at DESC
+  `;
+
+  try {
+    const rows = await dbQuery(query, [user_id]);
+    return rows.map((row) => ({
+      ...row,
+      assigned_devices: JSON.parse(row.assigned_devices || "[]"),
+      file_data: JSON.parse(row.file_data || "[]"),
+    }));
+  } catch (error) {
+    console.error("Error fetching dispatch cases:", error);
+    throw error;
+  }
+};
+
 export const findCaseStatusById = async (caseId) => {
   const query = `SELECT * FROM dispatch_cases WHERE id = ?`;
 
@@ -360,6 +396,18 @@ export const saveCaseReportNotification = async ({
   }
 };
 
+export const getAllNotifications = async () => {
+  const query =
+    "SELECT * FROM dispatch_case_notification WHERE is_read = 0 ORDER BY created_at DESC";
+
+  try {
+    const results = await dbQuery(query);
+    return results;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const getNotificationsByCompanyId = async (company_id) => {
   const query =
     "SELECT * FROM dispatch_case_notification WHERE user_id = ? AND is_read = 0 ORDER BY created_at DESC";
@@ -368,7 +416,6 @@ export const getNotificationsByCompanyId = async (company_id) => {
     const results = await dbQuery(query, [parseInt(company_id)]);
     return results;
   } catch (error) {
-    console.error("Error saving case report notification:", error);
     throw error;
   }
 };

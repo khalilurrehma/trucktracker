@@ -117,7 +117,7 @@ const NewGeofencePage = () => {
                   label="Geofence Type"
                 >
                   {geofencesTypes?.map((type) => (
-                    <MenuItem key={type.id} value={type}>
+                    <MenuItem key={type.id} value={type.name}>
                       {type.name}
                     </MenuItem>
                   ))}

@@ -111,9 +111,11 @@ const SubSocket = () => {
           }
 
           if (
-            recievedData.dispatchNotification === "newcase-notification" &&
-            (recievedData.reportDetails?.companyId === sessionUserId ||
-              sessionUserId === 1)
+            (recievedData.dispatchNotification === "newcase-notification" &&
+              (recievedData.reportDetails?.companyId === sessionUserId ||
+                sessionUserId === 1)) ||
+            (Array.isArray(recievedData.reportDetails?.superVisorIds) &&
+              recievedData.reportDetails.superVisorIds.includes(sessionUserId))
           ) {
             addNotification("Case Authorize request received");
           }

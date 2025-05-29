@@ -77,7 +77,9 @@ export async function getGeofenceById(id) {
     if (result.length === 1) {
       const item = result[0];
       if (item.attributes) {
-        item.attributes = JSON.parse(item.attributes);
+        let parsedAttribute = JSON.parse(item.attributes);
+        item.attributes = parsedAttribute;
+        item.geofenceType = parsedAttribute.geofenceStation;
       }
       return item;
     } else {

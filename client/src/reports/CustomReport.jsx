@@ -45,7 +45,6 @@ function MapViewComponent({ routeData }) {
   const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
-    // Listen for MapView ready state
     const handleMessage = (event) => {
       if (
         typeof event.data === "string" &&
@@ -62,19 +61,15 @@ function MapViewComponent({ routeData }) {
     return () => window.removeEventListener("message", handleMessage);
   }, []);
 
-  // Function to send commands to MapView
   const sendMapCommand = (command) => {
     if (!mapReady || !mapRef.current) return;
     const cmdString = "MapView|cmd:" + JSON.stringify(command);
     mapRef.current.contentWindow.postMessage(cmdString, "*");
   };
 
-  // Display route when routeData changes
   useEffect(() => {
     if (mapReady && routeData) {
-      // Clear previous routes
       sendMapCommand({ clear: "all" });
-      // Add the new route
       sendMapCommand({ addgroutes: [routeData] });
     }
   }, [mapReady, routeData]);

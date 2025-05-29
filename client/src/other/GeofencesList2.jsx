@@ -141,7 +141,7 @@ const GeofencesList = ({ onGeofenceSelected }) => {
             : null;
 
           const createdRole = item.created_role || "supervisor";
-          console.log(userRole);
+
           if (userRole === "superAdmin") {
             return true;
           } else if (userRole === "admin") {

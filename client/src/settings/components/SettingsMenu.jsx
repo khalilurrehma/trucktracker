@@ -5,6 +5,11 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
+  CircularProgress,
+  Skeleton,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import TravelExploreIcon from "@mui/icons-material/TravelExplore";
@@ -38,6 +43,7 @@ import {
   useAdministrator,
   useManager,
   useRestriction,
+  useSuperVisor,
 } from "../../common/util/permissions";
 import useFeatures from "../../common/util/useFeatures";
 import MenuItem from "../../common/components/MenuItem";
@@ -55,10 +61,11 @@ const SettingsMenu = () => {
   const location = useLocation();
   const { traccarUser } = useAppContext();
   const [realmId, setRealmId] = useState(null);
+  const [loadingRealm, setLoadingRealm] = useState(false);
 
   const readonly = useRestriction("readonly");
   const admin = useAdministrator();
-  const manager = useManager();
+  const superVisor = useSuperVisor();
   const userId = useSelector((state) => state.session.user.id);
   const supportLink = useSelector(
     (state) => state.session.server.attributes.support
@@ -104,12 +111,13 @@ const SettingsMenu = () => {
   const features = useFeatures();
 
   useEffect(() => {
-    if (!userId === 1) {
+    if (userId !== 1) {
       fetchCompanyRealmByTraccarId(userId);
     }
   }, [userId]);
 
   const fetchCompanyRealmByTraccarId = async (userId) => {
+    setLoadingRealm(true);
     try {
       const apiUrl = `${url}/realm/traccarUser/${userId}`;
 
@@ -120,6 +128,8 @@ const SettingsMenu = () => {
       }
     } catch (error) {
       console.error(error);
+    } finally {
+      setLoadingRealm(false);
     }
   };
 
@@ -521,29 +531,25 @@ const SettingsMenu = () => {
           </>
         )}
       </List>
-      {!userId === 1 && admin && (
+      {userId !== 1 && !superVisor && (
         <>
           <Divider />
           <List>
-            <MenuItem
-              title={t("serverAnnouncement")}
-              link="/settings/announcement"
-              icon={<CampaignIcon />}
-              selected={location.pathname === "/settings/announcement"}
-            />
-            {admin && (
-              <MenuItem
-                title={t("settingsServer")}
-                link="/settings/server"
-                icon={<StorageIcon />}
-                selected={location.pathname === "/settings/server"}
-              />
-            )}
-            {realmId && (
+            {loadingRealm ? (
+              <ListItem>
+                <ListItemIcon>
+                  <Skeleton variant="circular" width={24} height={24} />
+                </ListItemIcon>
+                <ListItemText
+                  primary={<Skeleton variant="text" width={100} />}
+                />
+              </ListItem>
+            ) : (
               <MenuItem
                 title={t("settingsUsers")}
                 link={`/settings/realm/${realmId?.flespi_realm_id}/users`}
                 icon={<PeopleIcon />}
+                disabled={false}
                 selected={
                   location.pathname.startsWith("/settings/realm") &&
                   location.pathname !== `/settings/user/${userId}`
