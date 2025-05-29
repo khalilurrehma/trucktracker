@@ -203,7 +203,7 @@ export const findCaseByUserIdAndDeviceId = async (userId, deviceId) => {
     JOIN 
       new_settings_devices nsd ON dcd.device_id = nsd.id
     WHERE 
-      dc.user_id = ? AND dcd.device_id = ? AND dc.status = 'pending'
+      dc.user_id = ? AND dcd.device_id = ? AND dc.status IN ('pending', 'in progress')
     GROUP BY 
       dc.id
     ORDER BY 
@@ -429,6 +429,27 @@ export const setNewStatusNotification = async (id) => {
     return results;
   } catch (error) {
     console.error("Error saving case report notification:", error);
+    throw error;
+  }
+};
+
+export const processTimeTemplate = async () => {
+  const query = `
+    SELECT 
+      id,
+      name,
+      group_name,
+      default_time,
+      is_custom
+    FROM case_status_templates
+    WHERE company_id IS NULL
+    ORDER BY id;
+  `;
+
+  try {
+    const results = await dbQuery(query);
+    return results;
+  } catch (error) {
     throw error;
   }
 };

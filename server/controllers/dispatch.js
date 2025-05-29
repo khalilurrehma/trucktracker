@@ -7,6 +7,7 @@ import {
   findCaseStatusById,
   getAllNotifications,
   getNotificationsByCompanyId,
+  processTimeTemplate,
   saveCaseAssignedDeviceId,
   saveCaseReportNotification,
   saveDispatchCaseAction,
@@ -19,6 +20,7 @@ import {
   updateCaseStatusById,
 } from "../model/dispatch.js";
 import {
+  driverStatusInService,
   getDriverIdsByDeviceIds,
   getFcmTokensByDriverIds,
 } from "../model/driver.js";
@@ -160,7 +162,8 @@ export const fetchAllDispatchCases = async (req, res) => {
       }
     } else {
       const fetchSuperVisorCompanyId = await realmUserByTraccarId(userId);
-      const companyId = fetchSuperVisorCompanyId[0].user_id;
+      const companyId = fetchSuperVisorCompanyId[0].userId;
+
       dispatchCases = await fetchDispatchCasesByUserId(companyId);
     }
 
@@ -201,6 +204,7 @@ export const handleCaseAction = async (req, res) => {
 
     if (action === "accept") {
       await updateCaseStatusById(caseId, "in progress");
+      await driverStatusInService(driverId);
     }
 
     res.status(200).json({
@@ -443,16 +447,25 @@ export const allCaseReportsNotifications = async (req, res) => {
 };
 
 export const newCaseReportNotifications = async (req, res) => {
-  const { companyId } = req.params;
+  const { userId } = req.params;
+  const superVisor = JSON.parse(req.query.superVisor || "false");
+  let notifications;
 
-  if (!companyId) {
+  if (!userId) {
     res.status(204).send({ status: false, message: "Company Id is required" });
   }
 
   try {
-    const notifications = await getNotificationsByCompanyId(companyId);
+    if (!superVisor) {
+      notifications = await getNotificationsByCompanyId(userId);
+    } else {
+      const fetchSuperVisorCompanyId = await realmUserByTraccarId(userId);
+      const companyId = fetchSuperVisorCompanyId[0].userId;
 
-    if (!notifications) {
+      notifications = await getNotificationsByCompanyId(companyId);
+    }
+
+    if (!notifications || notifications.length === 0) {
       res
         .status(204)
         .send({ status: false, message: "No notifications found" });
@@ -476,6 +489,19 @@ export const notificationStatusUpdate = async (req, res) => {
     return res.status(200).json({
       status: true,
       message: `notification readed!`,
+    });
+  } catch (error) {
+    res.status(204).send({ status: false, message: error.message });
+  }
+};
+
+export const processTemplate = async (req, res) => {
+  try {
+    const template = await processTimeTemplate();
+
+    return res.status(200).json({
+      status: true,
+      message: template,
     });
   } catch (error) {
     res.status(204).send({ status: false, message: error.message });

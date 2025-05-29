@@ -123,7 +123,9 @@ const ViewNewCases = () => {
         const { data } =
           userId === 1
             ? await axios.get(`${url}/dispatch/notifications/all`)
-            : await axios.get(`${url}/dispatch/notifications/${180}`);
+            : await axios.get(
+                `${url}/dispatch/notifications/${userId}?superVisor=${superVisor}`
+              );
 
         if (data.status && Array.isArray(data.message)) {
           setNotifications(data.message);

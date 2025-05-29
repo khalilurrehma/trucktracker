@@ -318,13 +318,6 @@ export const dispatchCasesForDriver = async (req, res) => {
       driverVehicleIds
     );
 
-    if (driverCase.length === 0) {
-      return res.status(404).json({
-        status: false,
-        message: "No cases found for the driver",
-      });
-    }
-
     res.status(200).json({ status: true, message: driverCase });
   } catch (error) {
     res.status(500).json({ status: false, message: error.message });

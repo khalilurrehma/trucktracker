@@ -79,12 +79,27 @@ const DispatchResult = () => {
   const [placeOptions, setPlaceOptions] = useState([]);
   const [etaMap, setEtaMap] = useState({});
   const [loading, setLoading] = useState(false);
+  const [sessionToken, setSessionToken] = useState(null);
   const [selectedRowData, setSelectedRowData] = useState([]);
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAP_API,
     libraries: GOOGLE_MAPS_LIBRARIES,
   });
+
+  useEffect(() => {
+    if (window.google && window.google.maps && window.google.maps.places) {
+      setSessionToken(new window.google.maps.places.AutocompleteSessionToken());
+    }
+  }, [isLoaded]);
+
+  const preprocessAddress = (input) => {
+    if (!input) return input;
+    let cleaned = input.trim();
+    cleaned = cleaned.replace(/,\s*Lima,\s*Lima\b/gi, ", Lima");
+    cleaned = cleaned.replace(/\s+/g, " ").trim();
+    return cleaned;
+  };
 
   useEffect(() => {
     const fetchServiceTypes = async () => {
@@ -120,23 +135,50 @@ const DispatchResult = () => {
 
     const autocompleteService =
       new window.google.maps.places.AutocompleteService();
+    const cleanedInput = preprocessAddress(input);
+
     try {
       const response = await autocompleteService.getPlacePredictions({
-        input,
+        input: cleanedInput,
         componentRestrictions: { country: "PE" },
-        types: ["address"],
+        types: ["geocode", "establishment"],
+        sessionToken,
+        location: new window.google.maps.LatLng(-12.0464, -77.0428),
+        radius: 50000,
       });
-      setPlaceOptions(
-        response.predictions.map((prediction) => ({
-          label: prediction.description,
-          placeId: prediction.place_id,
-        }))
-      );
+
+      const predictions = response.predictions.map((prediction) => ({
+        label: prediction.description,
+        placeId: prediction.place_id,
+        types: prediction.types,
+      }));
+
+      if (predictions.length === 0 && cleanedInput) {
+        const geocoder = new window.google.maps.Geocoder();
+        geocoder.geocode(
+          { address: cleanedInput, componentRestrictions: { country: "PE" } },
+          (results, status) => {
+            if (status === "OK" && results[0]) {
+              setPlaceOptions([
+                {
+                  label: results[0].formatted_address,
+                  placeId: results[0].place_id,
+                  types: results[0].types,
+                },
+              ]);
+            } else {
+              setPlaceOptions([]);
+            }
+          }
+        );
+      } else {
+        setPlaceOptions(predictions);
+      }
     } catch (error) {
       console.error("Error fetching place predictions:", error);
       setPlaceOptions([]);
     }
-  }, 500);
+  }, 300);
 
   const handleAddressChange = (e, newInputValue) => {
     setAddress(newInputValue);
@@ -160,7 +202,11 @@ const DispatchResult = () => {
 
     const placesService = new window.google.maps.places.PlacesService(map);
     placesService.getDetails(
-      { placeId: newValue.placeId, fields: ["geometry"] },
+      {
+        placeId: newValue.placeId,
+        fields: ["geometry", "formatted_address", "types"],
+        sessionToken,
+      },
       (place, status) => {
         if (
           status === window.google.maps.places.PlacesServiceStatus.OK &&
@@ -170,13 +216,38 @@ const DispatchResult = () => {
           const newPosition = { lat: lat(), lng: lng() };
           setMapCenter(newPosition);
           setMarkerPosition(newPosition);
-          if (map) map.panTo(newPosition);
+          if (map) {
+            map.panTo(newPosition);
+            const zoomLevel = place.types.includes("point_of_interest")
+              ? 16
+              : 15;
+            setMapZoom(zoomLevel);
+          }
         } else {
           console.error("PlacesService failed:", status);
-          alert("Unable to retrieve location details");
+          const geocoder = new window.google.maps.Geocoder();
+          geocoder.geocode(
+            {
+              address: newValue.label,
+              componentRestrictions: { country: "PE" },
+            },
+            (results, status) => {
+              if (status === "OK" && results[0]) {
+                const { lat, lng } = results[0].geometry.location;
+                const newPosition = { lat: lat(), lng: lng() };
+                setMapCenter(newPosition);
+                setMarkerPosition(newPosition);
+                if (map) map.panTo(newPosition);
+              } else {
+                alert("Unable to retrieve location details");
+              }
+            }
+          );
         }
       }
     );
+
+    setSessionToken(new window.google.maps.places.AutocompleteSessionToken());
   };
 
   const handleShowClick = async () => {
@@ -193,11 +264,12 @@ const DispatchResult = () => {
     setLoading(true);
     try {
       const geocoder = new window.google.maps.Geocoder();
+      const cleanedAddress = preprocessAddress(address);
       const geocodeResults = await new Promise((resolve, reject) => {
         geocoder.geocode(
           {
-            address,
-            componentRestrictions: { locality: "Lima", country: "PE" },
+            address: cleanedAddress,
+            componentRestrictions: { country: "PE" },
           },
           (results, status) => {
             if (status === "OK") resolve(results);
@@ -257,7 +329,8 @@ const DispatchResult = () => {
               deviceServiceIds.includes(selectedService.id)
             ) &&
             device.lat &&
-            device.lng
+            device.lng &&
+            device.driverAvailability !== "in service"
           );
         })
         .map((device) => ({
@@ -359,10 +432,14 @@ const DispatchResult = () => {
               options={placeOptions}
               getOptionLabel={(option) => option.label || ""}
               value={
-                placeOptions.find((option) => option.label === address) || null
+                placeOptions.find((option) => option.label === address) || {
+                  label: address,
+                  placeId: null,
+                }
               }
               onChange={(event, newValue) => handlePlaceSelect(newValue)}
               onInputChange={handleAddressChange}
+              freeSolo
               renderInput={(params) => (
                 <TextField
                   {...params}
@@ -381,7 +458,7 @@ const DispatchResult = () => {
                 />
               )}
               isOptionEqualToValue={(option, value) =>
-                option.placeId === value.placeId
+                option.placeId === value.placeId || option.label === value.label
               }
             />
           </Grid>

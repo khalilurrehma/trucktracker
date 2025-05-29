@@ -10,6 +10,7 @@ import {
   notificationStatusUpdate,
   newCaseReportNotifications,
   allCaseReportsNotifications,
+  processTemplate,
 } from "../controllers/dispatch.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { authDriver } from "../middlewares/auth.middleware.js";
@@ -21,6 +22,8 @@ router.post("/dispatch/case", upload.any(), handleNewDispatchCase);
 router.get("/dispatch/cases", fetchAllDispatchCases);
 
 router.get("/dispatch/case/report/:caseId", getDispatchCaseReport);
+
+router.get("/dispatch/process/template", processTemplate);
 
 router.post("/dispatch/case/:caseId/action", authDriver, handleCaseAction);
 
@@ -38,7 +41,7 @@ router.post(
 
 router.get("/dispatch/notifications/all", allCaseReportsNotifications);
 
-router.get("/dispatch/notifications/:companyId", newCaseReportNotifications);
+router.get("/dispatch/notifications/:userId", newCaseReportNotifications);
 
 router.put(
   "/dispatch/case/:caseId/complete/service",
