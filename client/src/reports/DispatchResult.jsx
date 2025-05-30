@@ -82,6 +82,26 @@ const DispatchResult = () => {
   const [sessionToken, setSessionToken] = useState(null);
   const [selectedRowData, setSelectedRowData] = useState([]);
 
+  const resetStates = () => {
+    setSelectedServiceType([]);
+    setSelectedDeviceIds([]);
+    setCaseNumber("");
+    setAddress("");
+    setMapCenter(centerDefault);
+    setMarkerPosition(null);
+    setRadius(3000);
+    setSelectedDeviceId(null);
+    setSearchValue("");
+    setOpenAssignModal(false);
+    setDevicesInRadius([]);
+    setAssignedDevices([]);
+    setPlaceOptions([]);
+    setEtaMap({});
+    setLoading(false);
+    setSessionToken(null);
+    setSelectedRowData([]);
+  };
+
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAP_API,
     libraries: GOOGLE_MAPS_LIBRARIES,
@@ -642,6 +662,8 @@ const DispatchResult = () => {
             etaMap={etaMap}
             caseNumber={caseNumber}
             selectedRowData={selectedRowData}
+            markerPosition={markerPosition}
+            resetStates={resetStates}
           />
         )}
       </Box>

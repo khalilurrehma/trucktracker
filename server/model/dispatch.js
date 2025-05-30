@@ -3,25 +3,34 @@ import util from "util";
 const dbQuery = util.promisify(pool.query).bind(pool);
 
 export const addNewCase = async (body) => {
-  const { user_id, case_name, case_address, message, devicesMeta, file_data } =
-    body;
+  const {
+    user_id,
+    case_name,
+    case_address,
+    position,
+    message,
+    devicesMeta,
+    file_data,
+  } = body;
 
   const query = `
     INSERT INTO dispatch_cases (
       user_id,
       case_name,
       case_address,
+      position,
       status,
       message,
       device_meta,
       file_data
-    ) VALUES (?, ?, ?, 'pending', ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)
   `;
 
   const values = [
     user_id,
     case_name,
     case_address,
+    JSON.stringify(position),
     message,
     devicesMeta,
     JSON.stringify(file_data),

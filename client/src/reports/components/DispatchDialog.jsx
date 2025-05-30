@@ -36,6 +36,8 @@ const DispatchDialog = ({
   etaMap,
   caseNumber,
   selectedRowData,
+  markerPosition,
+  resetStates,
 }) => {
   const { traccarUser, url } = useAppContext();
   const [message, setMessage] = React.useState("");
@@ -64,6 +66,8 @@ const DispatchDialog = ({
     formData.append("caseName", caseNumber);
     formData.append("userId", traccarUser?.id);
     formData.append("caseAddress", value.description || "N/A");
+    formData.append("lat", markerPosition.lat || "N/A");
+    formData.append("lng", markerPosition.lng || "N/A");
     formData.append("message", message);
     formData.append("devicesMeta", JSON.stringify(mergedDeviceData));
 
@@ -83,6 +87,7 @@ const DispatchDialog = ({
         setLoader(false);
         toast.success(data.message);
         setTimeout(() => {
+          resetStates();
           setOpenAssignModal(false);
         }, 1000);
       }

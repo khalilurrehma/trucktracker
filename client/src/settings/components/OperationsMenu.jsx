@@ -10,6 +10,8 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import TrackChangesIcon from "@mui/icons-material/TrackChanges";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
+import BusinessIcon from "@mui/icons-material/Business";
+import CasesIcon from "@mui/icons-material/Cases";
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "../../common/components/LocalizationProvider";
 import MenuItem from "../../common/components/MenuItem";
@@ -105,6 +107,33 @@ const OperationsMenu = () => {
                 icon={<TrackChangesIcon sx={{ ml: 2 }} />}
                 selected={location.pathname.startsWith(
                   "/operations/control-usage"
+                )}
+              />
+            </AccordionDetails>
+          </Accordion>
+        )}
+        {!traccarUser?.attributes?.non_admin && (
+          <Accordion
+            expanded={expanded.includes("rimac_control")}
+            onChange={handleChange("rimac_control")}
+            sx={accordinSX}
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="dispatchbh-content"
+              id="dispatchbh-header"
+              sx={{ pl: 2, m: 0 }}
+            >
+              <BusinessIcon sx={{ mr: 4 }} />
+              {t("operationRimac")}
+            </AccordionSummary>
+            <AccordionDetails sx={{ p: 0 }}>
+              <MenuItem
+                title={t("operationRimacCases")}
+                link="/operations/rimac/cases"
+                icon={<CasesIcon sx={{ ml: 2 }} />}
+                selected={location.pathname.startsWith(
+                  "/operations/rimac/cases"
                 )}
               />
             </AccordionDetails>

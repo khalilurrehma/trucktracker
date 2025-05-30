@@ -125,6 +125,8 @@ import ServiceTypesSubService from "./settings/ServiceTypesSubService";
 import DevicesServices from "./settings/DevicesServices";
 import AssignedDevicesServices from "./settings/AssignedDevicesServices";
 import ServiceSettings from "./settings/ServiceSettings";
+import RimacCases from "./operations/RimacCases";
+import RimacCaseReport from "./operations/RimacCaseReport";
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -380,6 +382,8 @@ const Navigation = () => {
           <Route path="cases" element={<ViewNewCases />} />
           <Route path="control-usage" element={<ControlUsage />} />
           <Route path="alerts" element={<MqttAlerts />} />
+          <Route path="rimac/cases" element={<RimacCases />} />
+          <Route path="rimac/case/report" element={<RimacCaseReport />} />
         </Route>
 
         <Route path="reports">

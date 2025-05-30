@@ -35,7 +35,8 @@ import {
 export const DispatchEmitter = new EventEmitter();
 
 export const handleNewDispatchCase = async (req, res) => {
-  const { userId, caseName, caseAddress, message, devicesMeta } = req.body;
+  const { userId, caseName, caseAddress, lat, lng, message, devicesMeta } =
+    req.body;
   let assignedDeviceIds = req.body.assignedDeviceIds;
   let files;
 
@@ -60,6 +61,7 @@ export const handleNewDispatchCase = async (req, res) => {
       user_id: userId,
       case_name: caseName,
       case_address: caseAddress,
+      position: { lat, lng },
       message,
       devicesMeta,
     };
@@ -116,6 +118,7 @@ export const handleNewDispatchCase = async (req, res) => {
           userId,
           caseName,
           caseAddress,
+          position: { lat, lng },
           message,
           status: "pending",
           file_data: dbBody.file_data || [],
@@ -383,6 +386,44 @@ export const dispatchCaseReport = async (req, res) => {
     return res.status(500).json({
       status: false,
       message: error.message,
+    });
+  }
+};
+
+export const rimacReport = async (req, res) => {
+  try {
+    const reportData = req.body;
+
+    if (!reportData.caseId || !reportData.comments || !reportData.state) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing required fields: caseId, comments, and state are mandatory",
+      });
+    }
+
+    // Log the report data (replace this with actual HTTP request to Rimac's API)
+    console.log("Investigation Report to Rimac:", reportData);
+
+    // Simulate sending to Rimac (replace with actual fetch/axios call)
+    // Example:
+    /*
+    const rimacResponse = await axios.post('https://api.rimac.com/case-report', reportData, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    */
+
+    res.status(200).json({
+      success: true,
+      message: "Investigation report sent to Rimac successfully",
+      data: reportData,
+    });
+  } catch (error) {
+    console.error("Error sending report to Rimac:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to send report to Rimac",
+      error: error.message,
     });
   }
 };

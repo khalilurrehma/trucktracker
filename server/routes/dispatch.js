@@ -11,6 +11,7 @@ import {
   newCaseReportNotifications,
   allCaseReportsNotifications,
   processTemplate,
+  rimacReport,
 } from "../controllers/dispatch.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { authDriver } from "../middlewares/auth.middleware.js";
@@ -38,6 +39,8 @@ router.post(
   upload.any(),
   dispatchCaseReport
 );
+
+router.post("/dispatch/rimac/send-report", rimacReport);
 
 router.get("/dispatch/notifications/all", allCaseReportsNotifications);
 
