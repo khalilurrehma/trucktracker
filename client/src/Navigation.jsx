@@ -127,6 +127,7 @@ import AssignedDevicesServices from "./settings/AssignedDevicesServices";
 import ServiceSettings from "./settings/ServiceSettings";
 import RimacCases from "./operations/RimacCases";
 import RimacCaseReport from "./operations/RimacCaseReport";
+import Subprocess from "./operations/Subprocess";
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -380,6 +381,7 @@ const Navigation = () => {
           <Route path="dispatch" element={<DispatchResult />} />
           <Route path="case" element={<NewDispatchCase />} />
           <Route path="cases" element={<ViewNewCases />} />
+          <Route path="subprocesses" element={<Subprocess />} />
           <Route path="control-usage" element={<ControlUsage />} />
           <Route path="alerts" element={<MqttAlerts />} />
           <Route path="rimac/cases" element={<RimacCases />} />

@@ -445,18 +445,56 @@ export const setNewStatusNotification = async (id) => {
 export const processTimeTemplate = async () => {
   const query = `
     SELECT 
-      id,
-      name,
-      group_name,
-      default_time,
-      is_custom
-    FROM case_status_templates
-    WHERE company_id IS NULL
-    ORDER BY id;
+         stage_key, label, default_time_sec AS time_sec, display_order 
+       FROM case_stage_templates 
+       ORDER BY display_order ASC
   `;
 
   try {
     const results = await dbQuery(query);
+    return results;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const processTemplateForAdmin = async (admin_id) => {
+  const query = `
+    SELECT 
+         t.stage_key,
+         t.label,
+         COALESCE(o.custom_time_sec, t.default_time_sec) AS time_sec,
+         t.display_order
+       FROM case_stage_templates t
+       LEFT JOIN admin_stage_overrides o
+         ON t.stage_key = o.stage_key AND o.admin_id = ?
+       ORDER BY t.display_order ASC
+  `;
+
+  try {
+    const results = await dbQuery(query, [parseInt(admin_id)]);
+    return results;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// ------------------------------- DISPATCH CASE TRACKING
+
+export const initialCaseStageStatus = async ({ caseId }) => {
+  const now = new Date();
+
+  const query = `
+    INSERT INTO case_stage_tracking (case_id, stage_name, status, expected_duration, start_time)
+    VALUES 
+      (?, 'Assignment of the advisor', 'sent', ?, ?),
+      (?, 'Reception Case', 'pending', ?, ?)
+  `;
+
+  const values = [caseId, 60, now, caseId, 30, now];
+
+  try {
+    const results = await dbQuery(query, values);
     return results;
   } catch (error) {
     throw error;

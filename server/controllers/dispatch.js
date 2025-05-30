@@ -7,6 +7,8 @@ import {
   findCaseStatusById,
   getAllNotifications,
   getNotificationsByCompanyId,
+  initialCaseStageStatus,
+  processTemplateForAdmin,
   processTimeTemplate,
   saveCaseAssignedDeviceId,
   saveCaseReportNotification,
@@ -31,8 +33,31 @@ import {
   realmUserByTraccarId,
   realmUserTraccarIdsByUserId,
 } from "../model/realm.js";
+import {
+  getDispatchCaseAction,
+  markCaseStageAsDelayed,
+} from "../services/dispatchService.js";
 
 export const DispatchEmitter = new EventEmitter();
+
+const checkAndMarkDelayedCase = async (caseId) => {
+  try {
+    const stage = await getDispatchCaseAction(caseId);
+
+    if (
+      (stage && stage?.action === "accept") ||
+      (stage && stage?.action === "reject")
+    ) {
+      console.log(`Driver already responded for case ${caseId}`);
+      return;
+    }
+
+    await markCaseStageAsDelayed(caseId);
+    console.log(`Case ${caseId} is marked as delayed`);
+  } catch (error) {
+    console.error("Error in Bull job for delay check:", error.message);
+  }
+};
 
 export const handleNewDispatchCase = async (req, res) => {
   const { userId, caseName, caseAddress, lat, lng, message, devicesMeta } =
@@ -100,6 +125,8 @@ export const handleNewDispatchCase = async (req, res) => {
 
     const newCase_id = await addNewCase(dbBody);
 
+    console.log(newCase_id);
+
     await Promise.all(
       assignedDeviceIds.map((device_id) =>
         saveCaseAssignedDeviceId(newCase_id, device_id)
@@ -140,6 +167,20 @@ export const handleNewDispatchCase = async (req, res) => {
     } else {
       console.log("No drivers found for the provided device IDs");
     }
+
+    const defaultTemplate = await processTimeTemplate();
+
+    const initialStage = defaultTemplate.find(
+      (stage) => stage.stage_key === "advisor_assignment"
+    );
+
+    const expectedDuration = initialStage ? initialStage.default_time_sec : 60;
+
+    await initialCaseStageStatus({ caseId: newCase_id });
+
+    setTimeout(() => {
+      checkAndMarkDelayedCase(newCase_id);
+    }, expectedDuration * 1000);
 
     res.status(201).json({
       status: true,
@@ -539,6 +580,20 @@ export const notificationStatusUpdate = async (req, res) => {
 export const processTemplate = async (req, res) => {
   try {
     const template = await processTimeTemplate();
+
+    return res.status(200).json({
+      status: true,
+      message: template,
+    });
+  } catch (error) {
+    res.status(204).send({ status: false, message: error.message });
+  }
+};
+
+export const adminProcessTemplate = async (req, res) => {
+  const { adminId } = req.params;
+  try {
+    const template = await processTemplateForAdmin(adminId);
 
     return res.status(200).json({
       status: true,

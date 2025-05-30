@@ -6,6 +6,7 @@ import { useTranslation } from "../common/components/LocalizationProvider";
 import DeviceServiceTypes from "./DeviceServiceTypes";
 import ServiceTypesSubServices from "./ServiceTypesSubServices";
 import AssignedDevicesServices from "./AssignedDevicesServices";
+import CaseStages from "./CaseStages";
 
 const ServiceSettings = () => {
   const t = useTranslation();
@@ -60,11 +61,22 @@ const ServiceSettings = () => {
         >
           {t("settingsAssignService")}
         </Button>
+        <Button
+          sx={{
+            fontSize: 16,
+            textTransform: "none",
+            color: component === 4 ? "royalblue" : "text.primary",
+          }}
+          onClick={() => handleComponentChange(4)}
+        >
+          {t("operationsSubprocesses")}
+        </Button>
       </Box>
 
       {component === 1 && <DeviceServiceTypes />}
       {component === 2 && <ServiceTypesSubServices />}
       {component === 3 && <AssignedDevicesServices />}
+      {component === 4 && <CaseStages />}
     </PageLayout>
   );
 };

@@ -12,6 +12,7 @@ import TrackChangesIcon from "@mui/icons-material/TrackChanges";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import BusinessIcon from "@mui/icons-material/Business";
 import CasesIcon from "@mui/icons-material/Cases";
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "../../common/components/LocalizationProvider";
 import MenuItem from "../../common/components/MenuItem";
@@ -84,6 +85,12 @@ const OperationsMenu = () => {
           link="/operations/cases"
           icon={<NotificationsActiveIcon />}
           selected={location.pathname === "/operations/cases"}
+        />
+        <MenuItem
+          title={t("operationsSubprocesses")}
+          link="/operations/subprocesses"
+          icon={<AccountTreeIcon />}
+          selected={location.pathname === "/operations/subprocesses"}
         />
         {!traccarUser?.attributes?.non_admin && (
           <Accordion

@@ -12,6 +12,7 @@ import {
   allCaseReportsNotifications,
   processTemplate,
   rimacReport,
+  adminProcessTemplate,
 } from "../controllers/dispatch.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { authDriver } from "../middlewares/auth.middleware.js";
@@ -25,6 +26,8 @@ router.get("/dispatch/cases", fetchAllDispatchCases);
 router.get("/dispatch/case/report/:caseId", getDispatchCaseReport);
 
 router.get("/dispatch/process/template", processTemplate);
+
+router.get("/dispatch/process/template/admin/:adminId", adminProcessTemplate);
 
 router.post("/dispatch/case/:caseId/action", authDriver, handleCaseAction);
 

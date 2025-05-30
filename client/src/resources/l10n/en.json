@@ -307,6 +307,7 @@
   "operationsTitle": "Operations",
   "operationsDispatch": "Dispatch",
   "operationsCases": "Cases",
+  "operationsSubprocesses": "Subprocesses",
   "operationUsageControl": "Usage Control",
   "operationRimac": "Rimac",
   "operationRealtime": "Real-time",
