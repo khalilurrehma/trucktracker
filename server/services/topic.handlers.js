@@ -323,6 +323,7 @@ export const handleDeviceLiveLocation = async (topic, message) => {
   const topicParts = topic.split("/");
   const deviceIdIndex = topicParts.indexOf("devices") + 1;
   const deviceId = parseInt(topicParts[deviceIdIndex]);
+  let withinRadius = false;
 
   if (!deviceShiftCache[deviceId]) {
     const shiftData = await fetchDeviceShiftByFlespiId(deviceId);
@@ -342,8 +343,6 @@ export const handleDeviceLiveLocation = async (topic, message) => {
   const authLocation = driverLocation
     ? { latitude: driverLocation.latitude, longitude: driverLocation.longitude }
     : null;
-
-  let withinRadius = false;
 
   if (authLocation) {
     withinRadius = getDeviceRadiusReport(deviceLocation, authLocation, 100);

@@ -4,6 +4,7 @@ import {
   deleteDriver,
   dispatchCasesForDriver,
   driverAssociateVehicles,
+  driverCaseStart,
   driverForgotPassword,
   driverLogin,
   driverLogout,
@@ -56,6 +57,8 @@ router.get(
 router.get("/driver/availability/status", authDriver, getDriverStatus);
 
 router.get("/driver/cases/:companyId", authDriver, dispatchCasesForDriver);
+
+router.get("/driver/start/case/:caseId", authDriver, driverCaseStart);
 
 router.put("/driver/:id", putDriver);
 

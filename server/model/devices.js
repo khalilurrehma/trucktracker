@@ -305,6 +305,18 @@ export async function getDeviceNameByFlespId(flespiId) {
   }
 }
 
+export async function getDeviceIdByFlespId(flespiId) {
+  const sql = "SELECT id FROM new_settings_devices WHERE flespiId = ?";
+  const values = [flespiId];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result[0]?.id;
+  } catch (error) {
+    throw error;
+  }
+}
+
 export async function getDeviceByFlespiId(flespiId) {
   const sql = `SELECT * FROM new_settings_devices WHERE flespiId = ?`;
 

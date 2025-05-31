@@ -1,15 +1,19 @@
 import {
   addNewCase,
+  caseTrackingById,
   fetchCaseReportById,
   fetchDispatchCases,
   fetchDispatchCasesByUserId,
   findCaseById,
+  findCaseByName,
   findCaseStatusById,
   getAllNotifications,
   getNotificationsByCompanyId,
   initialCaseStageStatus,
+  onTheWayCaseStageStatus,
   processTemplateForAdmin,
   processTimeTemplate,
+  saveAdminOverrideTemplate,
   saveCaseAssignedDeviceId,
   saveCaseReportNotification,
   saveDispatchCaseAction,
@@ -34,8 +38,11 @@ import {
   realmUserTraccarIdsByUserId,
 } from "../model/realm.js";
 import {
+  defaultTemplateTime,
   getDispatchCaseAction,
+  markCaseStage,
   markCaseStageAsDelayed,
+  onTheWayStageStatusCheck,
 } from "../services/dispatchService.js";
 
 export const DispatchEmitter = new EventEmitter();
@@ -49,13 +56,16 @@ const checkAndMarkDelayedCase = async (caseId) => {
       (stage && stage?.action === "reject")
     ) {
       console.log(`Driver already responded for case ${caseId}`);
+      let status = stage?.action === "accept" ? "accepted" : "rejected";
+
+      markCaseStage(caseId, status);
       return;
     }
 
     await markCaseStageAsDelayed(caseId);
     console.log(`Case ${caseId} is marked as delayed`);
   } catch (error) {
-    console.error("Error in Bull job for delay check:", error.message);
+    console.error("Error in delay check:", error.message);
   }
 };
 
@@ -83,7 +93,7 @@ export const handleNewDispatchCase = async (req, res) => {
 
   try {
     const dbBody = {
-      user_id: userId,
+      user_id: 180,
       case_name: caseName,
       case_address: caseAddress,
       position: { lat, lng },
@@ -174,7 +184,7 @@ export const handleNewDispatchCase = async (req, res) => {
       (stage) => stage.stage_key === "advisor_assignment"
     );
 
-    const expectedDuration = initialStage ? initialStage.default_time_sec : 60;
+    let expectedDuration = initialStage ? initialStage?.time_sec : 60;
 
     await initialCaseStageStatus({ caseId: newCase_id });
 
@@ -184,7 +194,7 @@ export const handleNewDispatchCase = async (req, res) => {
 
     res.status(201).json({
       status: true,
-      message: "Case save and request send successfully!",
+      message: `Case saved, Case ID: ${newCase_id} and request send successfully!`,
     });
   } catch (error) {
     res.status(500).send({ status: false, message: error.message });
@@ -220,6 +230,56 @@ export const fetchAllDispatchCases = async (req, res) => {
   }
 };
 
+export const dispatchCaseSearch = async (req, res) => {
+  const { name } = req.query;
+
+  if (!name) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Case name is required" });
+  }
+
+  try {
+    const caseData = await findCaseByName(name);
+
+    if (caseData.length === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Case not found" });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: "Case found",
+      case: caseData,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getDispatchCaseTracking = async (req, res) => {
+  const { caseId } = req.params;
+
+  if (!caseId) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Case Id is required" });
+  }
+
+  try {
+    const caseData = await caseTrackingById(caseId);
+
+    res.status(200).json({
+      status: true,
+      message: "Case subprocesses loaded",
+      case: caseData,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const handleCaseAction = async (req, res) => {
   const driverId = req.userId;
   const { caseId } = req.params;
@@ -247,8 +307,21 @@ export const handleCaseAction = async (req, res) => {
     await saveDispatchCaseAction(dbBody);
 
     if (action === "accept") {
+      const stage = await defaultTemplateTime("on_the_way");
+      console.log(stage);
+
+      let expectedDuration = stage ? stage?.time_sec : 60;
+
       await updateCaseStatusById(caseId, "in progress");
       await driverStatusInService(driverId);
+      await onTheWayCaseStageStatus({
+        caseId,
+        expected_duration: expectedDuration,
+      });
+
+      setTimeout(() => {
+        onTheWayStageStatusCheck(caseId);
+      }, expectedDuration * 1000);
     }
 
     res.status(200).json({
@@ -422,6 +495,30 @@ export const dispatchCaseReport = async (req, res) => {
       status: true,
       message: "Report created successfully",
       reportId,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
+export const adminOverrideTemplate = async (req, res) => {
+  const { adminId, stage_key, custom_time_sec } = req.body;
+
+  if (!adminId) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Admin ID is required" });
+  }
+
+  try {
+    await saveAdminOverrideTemplate(req.body);
+
+    return res.status(201).json({
+      status: true,
+      message: "Saved Successfully",
     });
   } catch (error) {
     return res.status(500).json({

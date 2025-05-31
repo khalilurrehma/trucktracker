@@ -13,6 +13,9 @@ import {
   processTemplate,
   rimacReport,
   adminProcessTemplate,
+  dispatchCaseSearch,
+  getDispatchCaseTracking,
+  adminOverrideTemplate,
 } from "../controllers/dispatch.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { authDriver } from "../middlewares/auth.middleware.js";
@@ -22,6 +25,10 @@ const router = express.Router();
 router.post("/dispatch/case", upload.any(), handleNewDispatchCase);
 
 router.get("/dispatch/cases", fetchAllDispatchCases);
+
+router.get("/dispatch/case/search", dispatchCaseSearch);
+
+router.get("/dispatch/case/:caseId/tracking", getDispatchCaseTracking);
 
 router.get("/dispatch/case/report/:caseId", getDispatchCaseReport);
 
@@ -42,6 +49,8 @@ router.post(
   upload.any(),
   dispatchCaseReport
 );
+
+router.post("/dispatch/process/template/override", adminOverrideTemplate);
 
 router.post("/dispatch/rimac/send-report", rimacReport);
 

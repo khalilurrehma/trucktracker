@@ -25,7 +25,10 @@ import {
   getLatestDriverBehaivorReports,
   getLatestDriverBehaivorReportsByUserId,
 } from "../model/notifications.js";
-import { findCaseByUserIdAndDeviceId } from "../model/dispatch.js";
+import {
+  findCaseById,
+  findCaseByUserIdAndDeviceId,
+} from "../model/dispatch.js";
 import axios from "axios";
 import { refreshShiftJobs } from "../services/cronJobs.js";
 import bcrypt from "bcrypt";
@@ -41,6 +44,7 @@ import { getDeviceOdometer } from "../services/flespiApis.js";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
 import { messaging } from "../firebase/firebase.js";
+import { updateOnTheWayStageStatus } from "../services/dispatchService.js";
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -319,6 +323,28 @@ export const dispatchCasesForDriver = async (req, res) => {
     );
 
     res.status(200).json({ status: true, message: driverCase });
+  } catch (error) {
+    res.status(500).json({ status: false, message: error.message });
+  }
+};
+
+export const driverCaseStart = async (req, res) => {
+  const driverId = req.userId;
+  const { caseId } = req.params;
+
+  try {
+    const caseData = await findCaseById(caseId);
+
+    if (!caseData) {
+      res.status(400).json({ status: false, message: "Invalid Case Id" });
+    }
+
+    await updateOnTheWayStageStatus(caseId, "on the way");
+
+    res.status(200).json({
+      status: true,
+      message: `Case started. We expect your quickest arrival.`,
+    });
   } catch (error) {
     res.status(500).json({ status: false, message: error.message });
   }

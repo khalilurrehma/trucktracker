@@ -154,6 +154,18 @@ export const findCaseById = async (id) => {
   }
 };
 
+export const findCaseByName = async (case_name) => {
+  const sql = `SELECT id, case_name FROM dispatch_cases WHERE case_name = ? LIMIT 1`;
+
+  try {
+    const rows = await dbQuery(sql, [case_name]);
+    return rows[0];
+  } catch (error) {
+    console.error("Error fetching dispatch cases:", error);
+    return error;
+  }
+};
+
 export const findCaseReportById = async (caseId) => {
   const sql = `SELECT 
   dcr.id AS report_id,
@@ -492,6 +504,65 @@ export const initialCaseStageStatus = async ({ caseId }) => {
   `;
 
   const values = [caseId, 60, now, caseId, 30, now];
+
+  try {
+    const results = await dbQuery(query, values);
+    return results;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const onTheWayCaseStageStatus = async ({
+  caseId,
+  expected_duration,
+}) => {
+  const now = new Date();
+  const query = `
+    INSERT INTO case_stage_tracking (case_id, stage_name, status, expected_duration, start_time)
+    VALUES 
+      (?, 'On the way', 'pending', ?, ?)
+  `;
+
+  const values = [caseId, expected_duration, now];
+
+  try {
+    const results = await dbQuery(query, values);
+    return results;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const caseTrackingById = async (case_id) => {
+  const query = `SELECT 
+         id,
+         case_id,
+         stage_name,
+         status,
+         expected_duration,
+         start_time,
+         end_time
+       FROM case_stage_tracking
+       WHERE case_id = ?
+       ORDER BY start_time ASC`;
+
+  try {
+    const results = await dbQuery(query, [parseInt(case_id)]);
+    return results;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const saveAdminOverrideTemplate = async (body) => {
+  const { adminId, stage_key, custom_time_sec } = body;
+
+  const query = `INSERT INTO admin_stage_overrides (admin_id, stage_key, custom_time_sec)
+       VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE custom_time_sec = VALUES(custom_time_sec)`;
+
+  const values = [adminId, stage_key, custom_time_sec];
 
   try {
     const results = await dbQuery(query, values);
