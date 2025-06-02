@@ -23,7 +23,7 @@ const Subprocess = () => {
   const [caseName, setCaseName] = useState("");
   const [trackingData, setTrackingData] = useState([]);
 
-  const getStatusChip = (status) => {
+  const getStatusChip = (status, delay) => {
     switch (status) {
       case "pending":
         return (
@@ -50,7 +50,7 @@ const Subprocess = () => {
       case "delayed":
         return (
           <Chip
-            label="Delayed"
+            label={`Delayed ${delay}`}
             sx={{
               backgroundColor: "#FFEBEE",
               color: "#C62828",
@@ -158,14 +158,14 @@ const Subprocess = () => {
       breadcrumbs2={["Operations", "Track Subprocesses"]}
     >
       <ToastContainer />
-      <Box display="flex" gap={2} p={2}>
+      <Box display="flex" gap={2} p={2} justifyContent={"center"}>
         <TextField
           label="Enter Case Name"
           value={caseName}
           onChange={(e) => setCaseName(e.target.value)}
-          sx={{ width: "40%" }}
+          sx={{ width: "50%" }}
         />
-        <Button variant="contained" onClick={handleSearch}>
+        <Button variant="outlined" onClick={handleSearch}>
           Search
         </Button>
       </Box>
@@ -177,29 +177,41 @@ const Subprocess = () => {
               <TableRow>
                 <TableCell>Stage Name</TableCell>
                 <TableCell>Status</TableCell>
-                {/* <TableCell>Expected Duration (sec)</TableCell> */}
                 <TableCell>Start Time</TableCell>
                 <TableCell>End Time</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {trackingData.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.stage_name}</TableCell>
-                  <TableCell>{getStatusChip(item.status)}</TableCell>
-                  {/* <TableCell>{item.expected_duration || "-"}</TableCell> */}
-                  <TableCell>
-                    {item.start_time
-                      ? new Date(item.start_time).toLocaleString()
-                      : "-"}
-                  </TableCell>
-                  <TableCell>
-                    {item.end_time
-                      ? new Date(item.end_time).toLocaleString()
-                      : "-"}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {trackingData.map((item) => {
+                let delay;
+                // console.log(item);
+                if (item.status === "delayed") {
+                  const delayInMinutes = Math.floor(
+                    (new Date(item.end_time) - new Date(item.start_time)) /
+                      (1000 * 60)
+                  );
+                  // delayInMinutes - 30 secs
+                  delay = ` by ${delayInMinutes} minutes`;
+                } else {
+                  delay = "";
+                }
+                return (
+                  <TableRow key={item.id}>
+                    <TableCell>{item.stage_name}</TableCell>
+                    <TableCell>{getStatusChip(item.status, delay)}</TableCell>
+                    <TableCell>
+                      {item.start_time
+                        ? new Date(item.start_time).toLocaleString()
+                        : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {item.end_time
+                        ? new Date(item.end_time).toLocaleString()
+                        : "-"}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </Box>

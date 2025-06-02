@@ -485,6 +485,17 @@ export const driverStatusInService = async (driver_id) => {
   });
 };
 
+export const driverStatusAvailable = async (driver_id) => {
+  const sql = `UPDATE drivers SET availability_status = 'available' WHERE id = ?`;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [driver_id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
 export const saveFCMToken = async (driver_id, fcm_token) => {
   const sql = `
     INSERT INTO drivers_fcm_token (driver_id, fcm_token, created_at, updated_at)

@@ -1,4 +1,5 @@
 import {
+  getDeviceIdByFlespId,
   getDeviceInitialGeofence,
   getDeviceNameByFlespId,
   getDeviceUserIdByFlespiId,
@@ -22,9 +23,15 @@ import { fetchDeviceShiftByFlespiId } from "../model/usageControl.js";
 import { getDeviceRadiusReport } from "../utils/device.radius.js";
 import { getRealmUsersWithDeviceIds } from "../utils/mqtt.helper.js";
 import dayjs from "dayjs";
+import {
+  getLatestActiveCaseByDeviceId,
+  isInReferenceStageExists,
+  saveInReferenceStage,
+} from "./dispatchService.js";
 
 const deviceNames = {};
 const deviceShiftCache = {};
+const deviceIdCache = {};
 const TIME_FORMAT_12H = "hh:mm:ss A";
 
 export const deviceTopicAinHandler = async (topic, message) => {
@@ -355,6 +362,46 @@ export const handleDeviceLiveLocation = async (topic, message) => {
     longitude: message.longitude,
     topic,
   };
+};
+
+export const handleInReferenceStage = async (topic, message) => {
+  const topicParts = topic.split("/");
+  const deviceIdIndex = topicParts.indexOf("devices") + 1;
+  const flespiDeviceId = parseInt(topicParts[deviceIdIndex]);
+
+  let dbDeviceId = deviceIdCache[flespiDeviceId];
+
+  if (!dbDeviceId) {
+    dbDeviceId = await getDeviceIdByFlespId(flespiDeviceId);
+    if (!dbDeviceId) return;
+    deviceIdCache[flespiDeviceId] = dbDeviceId;
+  }
+
+  const caseData = await getLatestActiveCaseByDeviceId(dbDeviceId);
+  if (!caseData || !caseData.latitude || !caseData.longitude) return;
+
+  const deviceLocation = {
+    latitude: message.latitude,
+    longitude: message.longitude,
+  };
+  const caseLocation = {
+    latitude: caseData.latitude,
+    longitude: caseData.longitude,
+  };
+
+  const isNearby = getDeviceRadiusReport(deviceLocation, caseLocation, 200);
+
+  if (isNearby) {
+    const alreadyRecorded = await isInReferenceStageExists(
+      caseData.dispatch_case_id
+    );
+    if (!alreadyRecorded) {
+      await saveInReferenceStage(caseData.dispatch_case_id);
+      console.log(
+        `Stage 'In Reference' recorded for case ${caseData.dispatch_case_id}`
+      );
+    }
+  }
 };
 
 export const handleDeviceDin = async (topic, message) => {

@@ -10,6 +10,7 @@ import {
   handleDeviceDin,
   handleDeviceIgnition,
   handleDeviceLiveLocation,
+  handleInReferenceStage,
   mqttDoutAlerts,
 } from "../services/topic.handlers.js";
 import { mqttEmitter } from "./mqtt.client.js";
@@ -38,6 +39,7 @@ mqttEmitter.on("mqttMessage", async ({ topic, payload }) => {
       case topic.startsWith("flespi/state/gw/devices/") &&
         topic.endsWith("/telemetry/position"):
         const liveLocation = await handleDeviceLiveLocation(topic, payload);
+        await handleInReferenceStage(topic, payload);
         if (liveLocation) broadcast(liveLocation);
         break;
       case topic.startsWith("flespi/state/gw/devices/") &&

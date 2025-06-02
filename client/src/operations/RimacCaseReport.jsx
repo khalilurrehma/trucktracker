@@ -22,21 +22,10 @@ const RimacCaseReport = () => {
     >
       <Box sx={{ p: 3 }}>
         {/* Header */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography variant="h6" sx={{ color: "#E57373" }}>
-              RIMAC
-            </Typography>
-            <Typography variant="h6">SEV</Typography>
-          </Box>
-          <Typography variant="body2" sx={{ color: "#E57373" }}>
-            ORLANDO MEDINA ESPINOZA - CHONG STUDIO AND ASSOCIATES SAC
-          </Typography>
-        </Box>
 
         {/* Case Code */}
         <Box sx={{ backgroundColor: "#F5F5F5", p: 2, borderRadius: 1, mb: 2 }}>
-          <Typography variant="h6">Details of the Attorney's Case</Typography>
+          <Typography variant="h6">Details of the Rimac Case</Typography>
           <Typography variant="body1" sx={{ color: "#E57373" }}>
             C - 24685
           </Typography>
@@ -120,7 +109,6 @@ const RimacCaseReport = () => {
           </Box>
         </Box>
 
-        {/* Accident Data Section */}
         <Box sx={{ border: "1px solid #E57373", p: 2, borderRadius: 1, mb: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
             <WarningAmberIcon sx={{ color: "#E57373" }} />
@@ -238,88 +226,6 @@ const RimacCaseReport = () => {
             red de talleres (clásico) 15% del monto a indemnizar, mínimo US$
             150, excepto para pérdida parcial, 20% del monto a indemnizar,
             mínimo US$ 150, excepto para pérdida parcial, 20% del monto a
-            indemnizar, mínimo US$ 300, excepto para pérdida total 15%. Por todo
-            evento cada 30% del monto a indemnizar, mínimo US$ 300, excepto para
-            pérdida total 15%. Por todo evento cada 30% del monto a indemnizar,
-            mínimo US$ 300, excepto para pérdida total 15%. Por todo evento cada
-            30% del monto a indemnizar, mínimo US$ 300, excepto para pérdida
-            total 15%. Por todo evento cada 30% del monto a indemnizar, mínimo
-            US$ 300, excepto para pérdida total 15%. Por todo evento cada 30%
-            del monto a indemnizar, mínimo US$ 300, excepto para pérdida total
-            15%. Por todo evento cada 30% del monto a indemnizar, mínimo US$
-            300, excepto para pérdida total 15%. Por todo evento cada 30% del
-            monto a indemnizar, mínimo US$ 300, excepto para pérdida total 15%.
-            Por todo evento cada 30% del monto a indemnizar, mínimo US$ 300,
-            excepto para pérdida total 15%. Por todo evento cada 30% del monto a
-            indemnizar, mínimo US$ 300, excepto para pérdida total 15%. Por todo
-            evento cada 30% del monto a indemnizar, mínimo US$ 300, excepto para
-            pérdida total 15%. Por todo evento cada 30% del monto a indemnizar,
-            mínimo US$ 300, excepto para pérdida total 15%. Por todo evento cada
-            30% del monto a indemnizar, mínimo US$ 300, excepto para pérdida
-            total 15%. Por todo evento cada 30% del monto a indemnizar, mínimo
-            US$ 300, excepto para pérdida total 15%. Por todo evento cada 30%
-            del monto a indemnizar, mínimo US$ 300, excepto para pérdida total
-            15%. Por todo evento cada 30% del monto a indemnizar, mínimo US$
-            300, excepto para pérdida total 15%. Por todo evento cada 30% del
-            monto a indemnizar, mínimo US$ 300, excepto para pérdida total 15%.
-            Por todo evento cada 30% del monto a indemnizar, mínimo US$ 300,
-            excepto para pérdida total 15%. Por todo evento cada 30% del monto a
-            indemnizar, mínimo US$ 300, excepto para pérdida total 15%. Por todo
-            evento cada 30% del monto a indemnizar, mínimo US$ 300, excepto para
-            pérdida total 15%. Por todo evento cada 30% del monto a indemnizar,
-            mínimo US$ 300, excepto para pérdida total 15%. Por todo evento cada
-            30% del monto a indemnizar, mínimo US$ 300, excepto para pérdida
-            total 15%. Por todo evento cada 30% del monto a indemnizar, mínimo
-            US$ 300, excepto para pérdida total 15%. Por todo evento cada 30%
-            del monto a indemnizar, mínimo US$ 300, excepto para pérdida total
-            15%. Por todo evento cada 30% del monto a indemnizar, mínimo US$
-            300, excepto para pérdida total 15%. Por todo evento cada 30% del
-            monto a indemnizar, mínimo US$ 300, excepto para pérdida total 15%.
-            Por todo evento cada 30% del monto a indemnizar, mínimo US$ 300,
-            excepto para pérdida total 15%. Por todo evento cada 30% del monto a
-            indemnizar, mínimo US$ 300, excepto para pérdida total 15%. Por todo
-            evento cada 30% del monto a indemnizar, mínimo US$ 300, excepto para
-            pérdida total 15%. Por todo evento cada 30% del monto a indemnizar,
-            mínimo US$ 300, excepto para pérdida total 15%. Por todo evento cada
-            30% del monto a indemnizar, mínimo US$ 300, excepto para pérdida
-            total 15%. Por todo evento cada 30% del monto a indemnizar, mínimo
-            US$ 300, excepto para pérdida total 15%. Por todo evento cada 30%
-            del monto a indemnizar, mínimo US$ 300, excepto para pérdida total
-            15%. Por todo evento cada 30% del monto a indemnizar, mínimo US$
-            300, excepto para pérdida total 15%. Por todo evento cada 30% del
-            monto a indemnizar, mínimo US$ 300, excepto para pérdida total 15%.
-            Por todo evento cada 30% del monto a indemnizar, mínimo US$ 300,
-            excepto para pérdida total 15%. Por todo evento cada 30% del monto a
-            indemnizar, mínimo US$ 300, excepto para pérdida total 15%. Por todo
-            evento cada 30% del monto a indemnizar, mínimo US$ 300, excepto para
-            pérdida total 15%. Por todo evento cada 30% del monto a indemnizar,
-            mínimo US$ 300, excepto para pérdida total 15%. Por todo evento cada
-            30% del monto a indemnizar, mínimo US$ 300, excepto para pérdida
-            total 15%. Por todo evento cada 30% del monto a indemnizar, mínimo
-            US$ 300, excepto para pérdida total 15%. Por todo evento cada 30%
-            del monto a indemnizar, mínimo US$ 300, excepto para pérdida total
-            15%. Por todo evento cada 30% del monto a indemnizar, mínimo US$
-            300, excepto para pérdida total 15%. Por todo evento cada 30% del
-            monto a indemnizar, mínimo US$ 300, excepto para pérdida total 15%.
-            Por todo evento cada 30% del monto a indemnizar, mínimo US$ 300,
-            excepto para pérdida total 15%. Por todo evento cada 30% del monto a
-            indemnizar, mínimo US$ 300, excepto para pérdida total 15%. Por todo
-            evento cada 30% del monto a indemnizar, mínimo US$ 300, excepto para
-            pérdida total 15%. Por todo evento cada 30% del monto a indemnizar,
-            mínimo US$ 300, excepto para pérdida total 15%. Por todo evento cada
-            30% del monto a indemnizar, mínimo US$ 300, excepto para pérdida
-            total 15%. Por todo evento cada 30% del monto a indemnizar, mínimo
-            US$ 300, excepto para pérdida total 15%. Por todo evento cada 30%
-            del monto a indemnizar, mínimo US$ 300, excepto para pérdida total
-            15%. Por todo evento cada 30% del monto a indemnizar, mínimo US$
-            300, excepto para pérdida total 15%. Por todo evento cada 30% del
-            monto a indemnizar, mínimo US$ 300, excepto para pérdida total 15%.
-            Por todo evento cada 30% del monto a indemnizar, mínimo US$ 300,
-            excepto para pérdida total 15%. Por todo evento cada 30% del monto a
-            indemnizar, mínimo US$ 300, excepto para pérdida total 15%. Por todo
-            evento cada 30% del monto a indemnizar, mínimo US$ 300, excepto para
-            pérdida total 15%. Por todo evento cada 30% del monto a indemnizar,
-            mínimoős
           </Typography>
         </Box>
 

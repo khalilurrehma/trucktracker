@@ -28,6 +28,7 @@ import {
 import {
   findCaseById,
   findCaseByUserIdAndDeviceId,
+  findTodayCasesByUserAndDevices,
 } from "../model/dispatch.js";
 import axios from "axios";
 import { refreshShiftJobs } from "../services/cronJobs.js";
@@ -701,6 +702,46 @@ export const driverForgotPassword = async (req, res) => {
       status: true,
       message: "OTP sent to your email address",
     });
+  } catch (error) {
+    res.status(500).json({ status: false, message: error.message });
+  }
+};
+
+export const dispatchTodayCasesForDriver = async (req, res) => {
+  const { companyId } = req.params;
+  const driverId = req.userId;
+
+  if (!companyId) {
+    return res.status(400).json({
+      status: false,
+      message: "Company Id is required",
+    });
+  }
+
+  try {
+    const driverVehicleIds = await findAssociateVehicleByDriverId(driverId);
+
+    if (!driverVehicleIds) {
+      return res.status(404).json({
+        status: false,
+        message:
+          "Driver has no associated vehicles, Please associate at least one vehicle",
+      });
+    }
+
+    const driverCase = await findTodayCasesByUserAndDevices(
+      companyId,
+      driverVehicleIds
+    );
+
+    if (driverCase.length === 0) {
+      return res.status(404).json({
+        status: false,
+        message: "No cases found for today",
+      });
+    }
+
+    res.status(200).json({ status: true, message: driverCase.length });
   } catch (error) {
     res.status(500).json({ status: false, message: error.message });
   }

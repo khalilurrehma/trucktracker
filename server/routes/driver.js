@@ -3,6 +3,7 @@ import {
   assignDriverToVehicle,
   deleteDriver,
   dispatchCasesForDriver,
+  dispatchTodayCasesForDriver,
   driverAssociateVehicles,
   driverCaseStart,
   driverForgotPassword,
@@ -58,7 +59,7 @@ router.get("/driver/availability/status", authDriver, getDriverStatus);
 
 router.get("/driver/cases/:companyId", authDriver, dispatchCasesForDriver);
 
-router.get("/driver/start/case/:caseId", authDriver, driverCaseStart);
+router.post("/driver/start/case/:caseId", authDriver, driverCaseStart);
 
 router.put("/driver/:id", putDriver);
 
@@ -82,5 +83,13 @@ router.post("/driver/login", driverLogin);
 router.post("/driver/logout", driverLogout);
 
 router.post("/driver/forgot-password", driverForgotPassword);
+
+// Driver Dashboard APIs
+
+router.get(
+  "/driver/dashboard/today/cases/:companyId",
+  authDriver,
+  dispatchTodayCasesForDriver
+);
 
 export default router;

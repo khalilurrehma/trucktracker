@@ -56,7 +56,8 @@ export const saveCaseAssignedDeviceId = async (case_id, device_id) => {
 
     return result.insertId;
   } catch (error) {
-    return error;
+    console.error("Error assigning case to device:", error);
+    throw error;
   }
 };
 
@@ -175,7 +176,7 @@ export const findCaseReportById = async (caseId) => {
   dcr.suggested_services,
   dcr.subservices,
   dcr.additional_information,
-  dcr.photos,
+  dcr.authorized_status,
   dcr.created_at,
   dcr.updated_at
   FROM dispatch_case_reports dcr
@@ -509,6 +510,7 @@ export const initialCaseStageStatus = async ({ caseId }) => {
     const results = await dbQuery(query, values);
     return results;
   } catch (error) {
+    console.error("Error inserting initial case stages:", error);
     throw error;
   }
 };
@@ -568,6 +570,56 @@ export const saveAdminOverrideTemplate = async (body) => {
     const results = await dbQuery(query, values);
     return results;
   } catch (error) {
+    throw error;
+  }
+};
+
+// Dashboard services
+
+export const findTodayCasesByUserAndDevices = async (
+  userId,
+  deviceId,
+  date
+) => {
+  const query = `
+    SELECT 
+      dc.*,
+      JSON_ARRAYAGG(
+        JSON_OBJECT(
+          'device_id', dcd.device_id,
+          'device_name', nsd.name
+        )
+      ) AS assigned_devices
+    FROM 
+      dispatch_cases dc
+    JOIN 
+      dispatch_case_devices dcd ON dc.id = dcd.dispatch_case_id
+    JOIN 
+      new_settings_devices nsd ON dcd.device_id = nsd.id
+    WHERE 
+      dc.user_id = ?
+      AND dcd.device_id = ?
+      AND dc.status IN ('pending', 'in progress')
+      AND DATE(dc.created_at) = CURDATE()
+    GROUP BY 
+      dc.id
+    ORDER BY 
+      dc.created_at DESC
+  `;
+
+  try {
+    const rows = await dbQuery(query, [
+      parseInt(userId),
+      parseInt(deviceId),
+      date,
+    ]);
+    return rows.map((row) => ({
+      ...row,
+      assigned_devices: JSON.parse(row.assigned_devices || "[]"),
+      file_data: JSON.parse(row.file_data || "[]"),
+    }));
+  } catch (error) {
+    console.error("Error fetching today’s dispatch cases:", error);
     throw error;
   }
 };

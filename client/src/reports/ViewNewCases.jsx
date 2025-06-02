@@ -194,28 +194,32 @@ const ViewNewCases = () => {
           {notifications.length === 0 ? (
             <MenuItem disabled>No notifications</MenuItem>
           ) : (
-            notifications.map((note) => (
-              <MenuItem
-                key={note.id}
-                sx={{ bgcolor: note.read ? "white" : "#f0f4ff" }}
-                onClick={async () => {
-                  setCaseDetails({ id: note.report_id });
-                  setOpenAssignModal(true);
+            notifications.map((note) => {
+              console.log(note);
 
-                  await axios.patch(
-                    `${url}/dispatch/update/report/notification/${note.id}`
-                  );
+              return (
+                <MenuItem
+                  key={note.id}
+                  sx={{ bgcolor: note.read ? "white" : "#f0f4ff" }}
+                  onClick={async () => {
+                    setCaseDetails({ id: note.report_id });
+                    setOpenAssignModal(true);
 
-                  setNotifications((prev) =>
-                    prev.map((n) =>
-                      n.id === note.id ? { ...n, read: true } : n
-                    )
-                  );
-                }}
-              >
-                {note.message}
-              </MenuItem>
-            ))
+                    await axios.patch(
+                      `${url}/dispatch/update/report/notification/${note.id}`
+                    );
+
+                    setNotifications((prev) =>
+                      prev.map((n) =>
+                        n.id === note.id ? { ...n, read: true } : n
+                      )
+                    );
+                  }}
+                >
+                  {note.message}
+                </MenuItem>
+              );
+            })
           )}
         </Menu>
       </Box>

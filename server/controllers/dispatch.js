@@ -26,6 +26,7 @@ import {
   updateCaseStatusById,
 } from "../model/dispatch.js";
 import {
+  driverStatusAvailable,
   driverStatusInService,
   getDriverIdsByDeviceIds,
   getFcmTokensByDriverIds,
@@ -38,36 +39,17 @@ import {
   realmUserTraccarIdsByUserId,
 } from "../model/realm.js";
 import {
+  checkAndMarkDelayedCase,
+  checkReportAuthorizedStatus,
   defaultTemplateTime,
   getDispatchCaseAction,
   markCaseStage,
   markCaseStageAsDelayed,
   onTheWayStageStatusCheck,
+  saveAuthorizationRequestStage,
 } from "../services/dispatchService.js";
 
 export const DispatchEmitter = new EventEmitter();
-
-const checkAndMarkDelayedCase = async (caseId) => {
-  try {
-    const stage = await getDispatchCaseAction(caseId);
-
-    if (
-      (stage && stage?.action === "accept") ||
-      (stage && stage?.action === "reject")
-    ) {
-      console.log(`Driver already responded for case ${caseId}`);
-      let status = stage?.action === "accept" ? "accepted" : "rejected";
-
-      markCaseStage(caseId, status);
-      return;
-    }
-
-    await markCaseStageAsDelayed(caseId);
-    console.log(`Case ${caseId} is marked as delayed`);
-  } catch (error) {
-    console.error("Error in delay check:", error.message);
-  }
-};
 
 export const handleNewDispatchCase = async (req, res) => {
   const { userId, caseName, caseAddress, lat, lng, message, devicesMeta } =
@@ -93,7 +75,7 @@ export const handleNewDispatchCase = async (req, res) => {
 
   try {
     const dbBody = {
-      user_id: 180,
+      user_id: userId,
       case_name: caseName,
       case_address: caseAddress,
       position: { lat, lng },
@@ -134,8 +116,6 @@ export const handleNewDispatchCase = async (req, res) => {
     }
 
     const newCase_id = await addNewCase(dbBody);
-
-    console.log(newCase_id);
 
     await Promise.all(
       assignedDeviceIds.map((device_id) =>
@@ -308,7 +288,6 @@ export const handleCaseAction = async (req, res) => {
 
     if (action === "accept") {
       const stage = await defaultTemplateTime("on_the_way");
-      console.log(stage);
 
       let expectedDuration = stage ? stage?.time_sec : 60;
 
@@ -481,6 +460,16 @@ export const dispatchCaseReport = async (req, res) => {
       createdAt: new Date().toISOString(),
     };
 
+    const stage = await defaultTemplateTime("supervisor_approval");
+
+    let expectedDuration = stage ? stage?.time_sec : 60;
+
+    await saveAuthorizationRequestStage(caseId, expectedDuration);
+
+    setTimeout(() => {
+      checkReportAuthorizedStatus(caseId);
+    }, expectedDuration * 1000);
+
     DispatchEmitter.emit("newcase", {
       reportDetails,
     });
@@ -585,12 +574,15 @@ export const dispatchCaseCompleteService = async (req, res) => {
       damage,
       meta_information,
     };
-
     const updateResults = await updateCaseServiceById(fieldsToUpdate, caseId);
 
     if (updateResults.affectedRows === 1) {
-      await updateCaseStatusById(caseId, "completed");
+      await Promise.all([
+        updateCaseStatusById(caseId, "completed"),
+        driverStatusAvailable(driverId),
+      ]);
     } else {
+      console.warn(`Update failed for caseId ${caseId}`);
       return res.status(400).json({
         status: false,
         message: error.message,
