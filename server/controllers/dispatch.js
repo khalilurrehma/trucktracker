@@ -19,6 +19,7 @@ import {
   saveDispatchCaseAction,
   saveDispatchCaseReport,
   saveInvolvedVehicle,
+  saveRimacCase,
   saveVehiclePhoto,
   setNewStatusNotification,
   updateCaseReportStatus,
@@ -123,6 +124,10 @@ export const handleNewDispatchCase = async (req, res) => {
       )
     );
 
+    const stage = await defaultTemplateTime("advisor_assignment");
+
+    let expectedDuration = stage ? stage?.time_sec : 60;
+
     const driverIds = await getDriverIdsByDeviceIds(assignedDeviceIds);
 
     if (driverIds.length > 0) {
@@ -140,6 +145,8 @@ export const handleNewDispatchCase = async (req, res) => {
           status: "pending",
           file_data: dbBody.file_data || [],
           assignedDeviceIds,
+          createdAt: Date.now(),
+          respondWithin: expectedDuration,
         };
 
         const { successCount, failureCount } = await sendPushNotification(
@@ -157,14 +164,6 @@ export const handleNewDispatchCase = async (req, res) => {
     } else {
       console.log("No drivers found for the provided device IDs");
     }
-
-    const defaultTemplate = await processTimeTemplate();
-
-    const initialStage = defaultTemplate.find(
-      (stage) => stage.stage_key === "advisor_assignment"
-    );
-
-    let expectedDuration = initialStage ? initialStage?.time_sec : 60;
 
     await initialCaseStageStatus({ caseId: newCase_id });
 
@@ -521,35 +520,29 @@ export const rimacReport = async (req, res) => {
   try {
     const reportData = req.body;
 
-    if (!reportData.caseId || !reportData.comments || !reportData.state) {
+    if (!reportData || Object.keys(reportData).length === 0) {
       return res.status(400).json({
         success: false,
-        message:
-          "Missing required fields: caseId, comments, and state are mandatory",
+        message: "Request body cannot be empty",
       });
     }
 
-    // Log the report data (replace this with actual HTTP request to Rimac's API)
-    console.log("Investigation Report to Rimac:", reportData);
+    const result = await saveRimacCase(reportData);
 
-    // Simulate sending to Rimac (replace with actual fetch/axios call)
-    // Example:
-    /*
-    const rimacResponse = await axios.post('https://api.rimac.com/case-report', reportData, {
-      headers: { 'Content-Type': 'application/json' }
-    });
-    */
-
-    res.status(200).json({
+    res.status(201).json({
       success: true,
-      message: "Investigation report sent to Rimac successfully",
-      data: reportData,
+      message: "Report received and stored successfully",
+      data: {
+        id: result.insertId,
+        report_data: reportData,
+        created_at: new Date().toISOString(),
+      },
     });
   } catch (error) {
-    console.error("Error sending report to Rimac:", error);
+    console.error("Error processing Rimac report:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to send report to Rimac",
+      message: "Failed to process report",
       error: error.message,
     });
   }

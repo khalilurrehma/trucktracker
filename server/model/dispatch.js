@@ -2,6 +2,22 @@ import pool from "../config/dbConfig.js";
 import util from "util";
 const dbQuery = util.promisify(pool.query).bind(pool);
 
+// RIMAC CASE
+
+export const saveRimacCase = async (body) => {
+  const query = `INSERT INTO rimac_reports (report_data) VALUES (?)`;
+  let values = [JSON.stringify(body)];
+
+  try {
+    const result = await dbQuery(query, values);
+
+    return result;
+  } catch (error) {
+    console.error("Error inserting dispatch case:", error);
+    return error;
+  }
+};
+
 export const addNewCase = async (body) => {
   const {
     user_id,

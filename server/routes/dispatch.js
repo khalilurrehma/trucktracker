@@ -52,7 +52,7 @@ router.post(
 
 router.post("/dispatch/process/template/override", adminOverrideTemplate);
 
-router.post("/dispatch/rimac/send-report", rimacReport);
+router.post("/dispatch/rimac/report", rimacReport);
 
 router.get("/dispatch/notifications/all", allCaseReportsNotifications);
 

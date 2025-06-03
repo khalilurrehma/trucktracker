@@ -67,6 +67,14 @@ export const getDispatchCaseAction = async (case_id) => {
   }
 };
 
+export const defaultTemplateTime = async (key) => {
+  const defaultTemplate = await processTimeTemplate();
+
+  const initialStage = defaultTemplate.find((stage) => stage.stage_key === key);
+
+  return initialStage;
+};
+
 export const markCaseStageAsDelayed = async (caseId) => {
   const query = `UPDATE case_stage_tracking SET status = 'delayed', end_time = ? WHERE case_id = ? AND status = 'pending' AND stage_name = 'Reception Case' LIMIT 1`;
   return await dbQuery(query, [new Date(), caseId]);
@@ -91,14 +99,6 @@ export const driverOnTheWayStage = async (caseId) => {
 export const updateOnTheWayStageStatus = async (caseId, status) => {
   const query = `UPDATE case_stage_tracking SET status = ?, end_time = ? WHERE case_id = ? AND stage_name = 'On the way'`;
   return await dbQuery(query, [status, new Date(), caseId]);
-};
-
-export const defaultTemplateTime = async (key) => {
-  const defaultTemplate = await processTimeTemplate();
-
-  const initialStage = defaultTemplate.find((stage) => stage.stage_key === key);
-
-  return initialStage;
 };
 
 export const getLatestActiveCaseByDeviceId = async (deviceId) => {
