@@ -1,9 +1,11 @@
 import {
   addNewCase,
+  addNewZonePrice,
   caseTrackingById,
   fetchCaseReportById,
   fetchDispatchCases,
   fetchDispatchCasesByUserId,
+  fetchSubserviceLocationData,
   findCaseById,
   findCaseByName,
   findCaseStatusById,
@@ -683,5 +685,70 @@ export const adminProcessTemplate = async (req, res) => {
     });
   } catch (error) {
     res.status(204).send({ status: false, message: error.message });
+  }
+};
+
+export const subservicesLocationData = async (req, res) => {
+  try {
+    const userId = req.query.userId;
+    const page = parseInt(req.query.page) || 1;
+    const limit = 20;
+
+    const { rows, total } = await fetchSubserviceLocationData(
+      userId,
+      page,
+      limit
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: rows,
+      total,
+      page,
+      limit,
+    });
+  } catch (error) {
+    console.error("Error fetching locations:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch locations",
+      error: error.message,
+    });
+  }
+};
+
+export const addNewSubservicePrice = async (req, res) => {
+  try {
+    const { userId, locationId, subserviceType, price } = req.body;
+
+    if (!userId || !locationId || !subserviceType || !price) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing required fields: userId, locationId, subserviceType, and price are mandatory",
+      });
+    }
+
+    if (userId === "1") {
+      return res.status(403).json({
+        success: false,
+        message: "Superadmin cannot add subservice prices",
+      });
+    }
+
+    await addNewZonePrice({ userId, locationId, subserviceType, price });
+
+    res.status(201).json({
+      success: true,
+      message: "Subservice price saved successfully",
+      data: { id: result.insertId, userId, locationId, subserviceType, price },
+    });
+  } catch (error) {
+    console.error("Error saving subservice price:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to save subservice price",
+      error: error.message,
+    });
   }
 };

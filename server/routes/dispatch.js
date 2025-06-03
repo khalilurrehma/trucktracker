@@ -16,6 +16,8 @@ import {
   dispatchCaseSearch,
   getDispatchCaseTracking,
   adminOverrideTemplate,
+  subservicesLocationData,
+  addNewSubservicePrice,
 } from "../controllers/dispatch.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { authDriver } from "../middlewares/auth.middleware.js";
@@ -36,6 +38,8 @@ router.get("/dispatch/process/template", processTemplate);
 
 router.get("/dispatch/process/template/admin/:adminId", adminProcessTemplate);
 
+router.get("/dispatch/subservices/locations", subservicesLocationData);
+
 router.post("/dispatch/case/:caseId/action", authDriver, handleCaseAction);
 
 router.post(
@@ -53,6 +57,8 @@ router.post(
 router.post("/dispatch/process/template/override", adminOverrideTemplate);
 
 router.post("/dispatch/rimac/report", rimacReport);
+
+router.post("/dispatch/subservice-prices", addNewSubservicePrice);
 
 router.get("/dispatch/notifications/all", allCaseReportsNotifications);
 

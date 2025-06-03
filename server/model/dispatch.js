@@ -508,6 +508,57 @@ export const processTemplateForAdmin = async (admin_id) => {
   }
 };
 
+export const fetchSubserviceLocationData = async (userId, page, limit) => {
+  const offset = (page - 1) * limit;
+
+  let query;
+  let queryParams;
+  const countQuery = "SELECT COUNT(*) as total FROM location_data";
+
+  if (userId !== "1") {
+    query = `
+      SELECT l.id, l.code, l.ring_type, l.code_department, l.department,
+             l.code_province, l.province, l.code_district, l.district,
+             sp.subservice_type, sp.price
+      FROM location_data l
+      LEFT JOIN subservice_prices sp ON l.id = sp.location_id AND sp.user_id = ?
+      LIMIT ? OFFSET ?
+    `;
+    queryParams = [userId, limit, offset];
+  } else {
+    query = `
+      SELECT id, code, ring_type, code_department, department,
+             code_province, province, code_district, district
+      FROM location_data
+      LIMIT ? OFFSET ?
+    `;
+    queryParams = [limit, offset];
+  }
+
+  const rows = await dbQuery(query, queryParams);
+  const [countResult] = await dbQuery(countQuery);
+
+  return {
+    rows,
+    total: countResult.total,
+  };
+};
+
+export const addNewZonePrice = async ({
+  userId,
+  locationId,
+  subserviceType,
+  price,
+}) => {
+  const query = `
+    INSERT INTO location_subservice_prices (user_id, location_id, subservice_type, price)
+    VALUES (?, ?, ?, ?)
+  `;
+  const values = [userId, locationId, subserviceType, price];
+
+  return await dbQuery(query, values);
+};
+
 // ------------------------------- DISPATCH CASE TRACKING
 
 export const initialCaseStageStatus = async ({ caseId }) => {

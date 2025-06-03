@@ -7,6 +7,7 @@ import DeviceServiceTypes from "./DeviceServiceTypes";
 import ServiceTypesSubServices from "./ServiceTypesSubServices";
 import AssignedDevicesServices from "./AssignedDevicesServices";
 import CaseStages from "./CaseStages";
+import SubservicePrices from "./SubservicePrices";
 
 const ServiceSettings = () => {
   const t = useTranslation();
@@ -71,12 +72,24 @@ const ServiceSettings = () => {
         >
           {t("operationsSubprocesses")}
         </Button>
+        <Button
+          sx={{
+            fontSize: 16,
+            textTransform: "none",
+            color: component === 5 ? "royalblue" : "text.primary",
+          }}
+          onClick={() => handleComponentChange(5)}
+        >
+          Subservice prices
+          {/* {t("operationsSubprocesses")} */}
+        </Button>
       </Box>
 
       {component === 1 && <DeviceServiceTypes />}
       {component === 2 && <ServiceTypesSubServices />}
       {component === 3 && <AssignedDevicesServices />}
       {component === 4 && <CaseStages />}
+      {component === 5 && <SubservicePrices />}
     </PageLayout>
   );
 };
