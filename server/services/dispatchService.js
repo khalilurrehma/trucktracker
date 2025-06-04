@@ -1,7 +1,10 @@
 import pool from "../config/dbConfig.js";
 import util from "util";
 import { findCaseReportById, processTimeTemplate } from "../model/dispatch.js";
+import { EventEmitter } from "events";
 const dbQuery = util.promisify(pool.query).bind(pool);
+
+export const DispatchEmitter = new EventEmitter();
 
 export const checkAndMarkDelayedCase = async (caseId) => {
   try {
@@ -19,6 +22,11 @@ export const checkAndMarkDelayedCase = async (caseId) => {
     }
 
     await markCaseStageAsDelayed(caseId);
+    DispatchEmitter.emit("subproccesEvent", {
+      caseId,
+      action: "delayed",
+      stage_name: "Reception Case",
+    });
     console.log(`Case ${caseId} is marked as delayed`);
   } catch (error) {
     console.error("Error in delay check:", error.message);
@@ -113,7 +121,7 @@ export const getLatestActiveCaseByDeviceId = async (deviceId) => {
       dispatch_cases dc ON dc.id = dcd.dispatch_case_id
     WHERE 
       dcd.device_id = ?
-      AND dc.status != 'completed'
+      AND dc.status = 'in progress'
     ORDER BY 
       dcd.id DESC
     LIMIT 1
@@ -126,6 +134,15 @@ export const getLatestActiveCaseByDeviceId = async (deviceId) => {
     console.error("Error fetching latest active case by deviceId:", error);
     throw error;
   }
+};
+
+export const isOnTheWayStageExists = async (case_id) => {
+  const sql = `
+    SELECT id FROM case_stage_tracking 
+    WHERE case_id = ? AND stage_name = 'On the way'`;
+
+  const result = await dbQuery(sql, [case_id]);
+  return !!result.length;
 };
 
 export const isInReferenceStageExists = async (case_id) => {

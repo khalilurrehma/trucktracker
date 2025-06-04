@@ -301,7 +301,7 @@ const DispatchResultTable = ({
               deviceInfo.initialBase
             ).toFixed(2)
           : "Not set"
-      ).toLowerCase();
+      )?.toLowerCase();
       const district = (districts[device.id] || "N/A").toLowerCase();
       const initialBase = (
         deviceInfo.initialBase || "Never recorded"

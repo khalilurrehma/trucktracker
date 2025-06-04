@@ -2,6 +2,7 @@ import {
   addNewCase,
   addNewZonePrice,
   caseTrackingById,
+  defaultTemplateTimeForAdmin,
   fetchCaseReportById,
   fetchDispatchCases,
   fetchDispatchCasesByUserId,
@@ -51,12 +52,10 @@ import {
   onTheWayStageStatusCheck,
   saveAuthorizationRequestStage,
 } from "../services/dispatchService.js";
-import dayjs from "dayjs";
 import { validateSubserviceType } from "../model/devices.js";
+import dayjs from "dayjs";
 
 export const DispatchEmitter = new EventEmitter();
-
-const now = dayjs();
 
 export const handleNewDispatchCase = async (req, res) => {
   const { userId, caseName, caseAddress, lat, lng, message, devicesMeta } =
@@ -82,7 +81,7 @@ export const handleNewDispatchCase = async (req, res) => {
 
   try {
     const dbBody = {
-      user_id: userId,
+      user_id: 180,
       case_name: caseName,
       case_address: caseAddress,
       position: { lat, lng },
@@ -130,9 +129,12 @@ export const handleNewDispatchCase = async (req, res) => {
       )
     );
 
-    const stage = await defaultTemplateTime("advisor_assignment");
+    const stage =
+      userId !== "1"
+        ? await defaultTemplateTimeForAdmin("advisor_assignment", userId)
+        : await defaultTemplateTime("advisor_assignment");
 
-    let expectedDuration = stage ? stage?.time_sec : 60;
+    let expectedDuration = stage ? stage?.time_sec : 55;
 
     const driverIds = await getDriverIdsByDeviceIds(assignedDeviceIds);
 
@@ -151,7 +153,7 @@ export const handleNewDispatchCase = async (req, res) => {
           status: "pending",
           file_data: dbBody.file_data || [],
           assignedDeviceIds,
-          createdAt: now.format("HH:mm:ss"),
+          createdAt: dayjs().tz("Asia/Karachi").format("YYYY-MM-DD HH:mm:ss"),
           respondWithin: expectedDuration,
         };
 
@@ -164,6 +166,10 @@ export const handleNewDispatchCase = async (req, res) => {
         console.log(
           `Notifications sent: ${successCount} succeeded, ${failureCount} failed`
         );
+        console.log(
+          "Payload sent to mobile devices:",
+          JSON.stringify(payload, null, 2)
+        );
       } else {
         console.log("No FCM tokens found for drivers");
       }
@@ -171,7 +177,10 @@ export const handleNewDispatchCase = async (req, res) => {
       console.log("No drivers found for the provided device IDs");
     }
 
-    await initialCaseStageStatus({ caseId: newCase_id });
+    await initialCaseStageStatus({
+      caseId: newCase_id,
+      expected_duration: expectedDuration,
+    });
 
     setTimeout(() => {
       checkAndMarkDelayedCase(newCase_id);
@@ -267,7 +276,7 @@ export const getDispatchCaseTracking = async (req, res) => {
 
 export const handleCaseAction = async (req, res) => {
   const driverId = req.userId;
-  const { caseId } = req.params;
+  const { caseId, companyId: userId } = req.params;
   const { action, rejection_reason } = req.body;
 
   if (!caseId) {
@@ -292,7 +301,10 @@ export const handleCaseAction = async (req, res) => {
     await saveDispatchCaseAction(dbBody);
 
     if (action === "accept") {
-      const stage = await defaultTemplateTime("on_the_way");
+      const stage =
+        userId !== "1"
+          ? await defaultTemplateTimeForAdmin("on_the_way", userId)
+          : await defaultTemplateTime("on_the_way");
 
       let expectedDuration = stage ? stage?.time_sec : 60;
 
@@ -465,7 +477,10 @@ export const dispatchCaseReport = async (req, res) => {
       createdAt: new Date().toISOString(),
     };
 
-    const stage = await defaultTemplateTime("supervisor_approval");
+    const stage =
+      companyId !== "1"
+        ? await defaultTemplateTimeForAdmin("supervisor_approval", companyId)
+        : await defaultTemplateTime("supervisor_approval");
 
     let expectedDuration = stage ? stage?.time_sec : 60;
 
@@ -602,7 +617,7 @@ export const allCaseReportsNotifications = async (req, res) => {
     const notifications = await getAllNotifications();
 
     if (!notifications) {
-      res
+      return res
         .status(204)
         .send({ status: false, message: "No notifications found" });
     }
@@ -622,7 +637,9 @@ export const newCaseReportNotifications = async (req, res) => {
   let notifications;
 
   if (!userId) {
-    res.status(204).send({ status: false, message: "Company Id is required" });
+    return res
+      .status(204)
+      .send({ status: false, message: "Company Id is required" });
   }
 
   try {
@@ -636,7 +653,7 @@ export const newCaseReportNotifications = async (req, res) => {
     }
 
     if (!notifications || notifications.length === 0) {
-      res
+      return res
         .status(204)
         .send({ status: false, message: "No notifications found" });
     }

@@ -26,7 +26,9 @@ import dayjs from "dayjs";
 import {
   getLatestActiveCaseByDeviceId,
   isInReferenceStageExists,
+  isOnTheWayStageExists,
   saveInReferenceStage,
+  updateOnTheWayStageStatus,
 } from "./dispatchService.js";
 
 const deviceNames = {};
@@ -379,6 +381,18 @@ export const handleInReferenceStage = async (topic, message) => {
 
   const caseData = await getLatestActiveCaseByDeviceId(dbDeviceId);
   if (!caseData || !caseData.latitude || !caseData.longitude) return;
+
+  if (message.speed && message.speed > 5) {
+    const alreadyStageExist = await isOnTheWayStageExists(
+      caseData.dispatch_case_id
+    );
+    if (!alreadyStageExist) {
+      await updateOnTheWayStageStatus(caseData.dispatch_case_id, "on the way");
+      console.log(
+        `Stage 'On the way' recorded for case ${caseData.dispatch_case_id}`
+      );
+    }
+  }
 
   const deviceLocation = {
     latitude: message.latitude,

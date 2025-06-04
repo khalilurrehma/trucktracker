@@ -79,6 +79,10 @@ const SubSocket = () => {
         try {
           const recievedData = JSON.parse(event.data);
 
+          if (recievedData?.subprocessEvent === "subproccesEvent") {
+            updateMqttMessage(recievedData, "subprocessEvent");
+          }
+
           if (recievedData?.type === "cronLogs") {
             updateMqttMessage(recievedData, "cronLogs");
           }

@@ -98,4 +98,16 @@ DispatchEmitter.on("newcase", async (casedata) => {
   }
 });
 
+DispatchEmitter.on("subproccesEvent", async (subprocessEvent) => {
+  try {
+    let message = {
+      ...subprocessEvent,
+      subprocessEvent: "subproccesEvent",
+    };
+    broadcast(message);
+  } catch (error) {
+    console.error("❌ Error processing dispatch case event:", error.message);
+  }
+});
+
 export { setBroadcast };

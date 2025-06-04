@@ -1,9 +1,11 @@
 import axios from "axios";
-
+import dayjs from "dayjs";
 const traccarBearerToken = process.env.TraccarToken;
 const traccarApiUrl = `http://${process.env.TraccarPort}/api`;
 const flespiToken = process.env.FlespiToken;
 const flespiApiUrl = `https://flespi.io/gw`;
+
+export const dayHelper = dayjs();
 
 export function formatTimeISO(dateString) {
   const date = new Date(dateString);

@@ -26,6 +26,7 @@ import {
   getLatestDriverBehaivorReportsByUserId,
 } from "../model/notifications.js";
 import {
+  defaultTemplateTimeForAdmin,
   findCaseById,
   findCaseByUserIdAndDeviceId,
   findTodayCasesByUserAndDevices,
@@ -45,7 +46,11 @@ import { getDeviceOdometer } from "../services/flespiApis.js";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
 import { messaging } from "../firebase/firebase.js";
-import { updateOnTheWayStageStatus } from "../services/dispatchService.js";
+import {
+  defaultTemplateTime,
+  updateOnTheWayStageStatus,
+} from "../services/dispatchService.js";
+import dayjs from "dayjs";
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -323,7 +328,22 @@ export const dispatchCasesForDriver = async (req, res) => {
       driverVehicleIds
     );
 
-    res.status(200).json({ status: true, message: driverCase });
+    const stage =
+      companyId !== "1"
+        ? await defaultTemplateTimeForAdmin("advisor_assignment", companyId)
+        : await defaultTemplateTime("advisor_assignment");
+
+    let expectedDuration = stage ? stage?.time_sec : 55;
+
+    const formattedData = driverCase.map((item) => {
+      return {
+        ...item,
+        created_at: dayjs(item.created_at).format("YYYY-MM-DD HH:mm:ss"),
+        expected_duration: expectedDuration || 60,
+      };
+    });
+
+    res.status(200).json({ status: true, message: formattedData });
   } catch (error) {
     res.status(500).json({ status: false, message: error.message });
   }

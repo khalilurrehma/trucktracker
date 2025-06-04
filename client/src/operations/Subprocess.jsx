@@ -19,11 +19,11 @@ import { toast, ToastContainer } from "react-toastify";
 import { useAppContext } from "../AppContext";
 
 const Subprocess = () => {
-  const { url } = useAppContext();
+  const { url, subproccessEvents } = useAppContext();
   const [caseName, setCaseName] = useState("");
   const [trackingData, setTrackingData] = useState([]);
 
-  const getStatusChip = (status, delay) => {
+  const getStatusChip = (status) => {
     switch (status) {
       case "pending":
         return (
@@ -50,7 +50,7 @@ const Subprocess = () => {
       case "delayed":
         return (
           <Chip
-            label={`Delayed ${delay}`}
+            label={`Delayed`}
             sx={{
               backgroundColor: "#FFEBEE",
               color: "#C62828",
@@ -152,6 +152,8 @@ const Subprocess = () => {
     }
   };
 
+  console.log(subproccessEvents);
+
   return (
     <PageLayout
       menu={<OperationsMenu />}
@@ -183,22 +185,10 @@ const Subprocess = () => {
             </TableHead>
             <TableBody>
               {trackingData.map((item) => {
-                let delay;
-                // console.log(item);
-                if (item.status === "delayed") {
-                  const delayInMinutes = Math.floor(
-                    (new Date(item.end_time) - new Date(item.start_time)) /
-                      (1000 * 60)
-                  );
-                  // delayInMinutes - 30 secs
-                  delay = ` by ${delayInMinutes} minutes`;
-                } else {
-                  delay = "";
-                }
                 return (
                   <TableRow key={item.id}>
                     <TableCell>{item.stage_name}</TableCell>
-                    <TableCell>{getStatusChip(item.status, delay)}</TableCell>
+                    <TableCell>{getStatusChip(item.status)}</TableCell>
                     <TableCell>
                       {item.start_time
                         ? new Date(item.start_time).toLocaleString()

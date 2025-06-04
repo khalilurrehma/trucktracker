@@ -40,7 +40,11 @@ router.get("/dispatch/process/template/admin/:adminId", adminProcessTemplate);
 
 router.get("/dispatch/subservices/locations", subservicesLocationData);
 
-router.post("/dispatch/case/:caseId/action", authDriver, handleCaseAction);
+router.post(
+  "/dispatch/case/:caseId/action/:companyId",
+  authDriver,
+  handleCaseAction
+);
 
 router.post(
   "/dispatch/case/report/authorize/:reportId/:driverId",

@@ -1,6 +1,7 @@
 import pool from "../config/dbConfig.js";
 import util from "util";
 const dbQuery = util.promisify(pool.query).bind(pool);
+import dayjs from "dayjs";
 
 // RIMAC CASE
 
@@ -37,10 +38,13 @@ export const addNewCase = async (body) => {
       position,
       status,
       message,
+      created_at,
       device_meta,
       file_data
-    ) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?)
   `;
+
+  let now = dayjs().tz("Asia/Karachi").format("YYYY-MM-DD HH:mm:ss");
 
   const values = [
     user_id,
@@ -48,6 +52,7 @@ export const addNewCase = async (body) => {
     case_address,
     JSON.stringify(position),
     message,
+    now,
     devicesMeta,
     JSON.stringify(file_data),
   ];
@@ -508,6 +513,29 @@ export const processTemplateForAdmin = async (admin_id) => {
   }
 };
 
+export const defaultTemplateTimeForAdmin = async (key, userId) => {
+  const query = `
+    SELECT 
+      cst.stage_key, 
+      cst.label, 
+      COALESCE(aso.custom_time_sec, cst.default_time_sec) AS time_sec, 
+      cst.display_order
+    FROM case_stage_templates cst
+    LEFT JOIN admin_stage_overrides aso 
+      ON cst.stage_key = aso.stage_key 
+      AND aso.admin_id = ?
+    WHERE cst.stage_key = ?
+  `;
+
+  try {
+    const results = await dbQuery(query, [userId, key]);
+    return results[0] || null;
+  } catch (error) {
+    console.error("Error fetching stage time for admin:", error);
+    throw error;
+  }
+};
+
 export const fetchSubserviceLocationData = async (userId, page, limit) => {
   const offset = (page - 1) * limit;
 
@@ -586,7 +614,7 @@ export const addNewZonePrice = async ({
 
 // ------------------------------- DISPATCH CASE TRACKING
 
-export const initialCaseStageStatus = async ({ caseId }) => {
+export const initialCaseStageStatus = async ({ caseId, expected_duration }) => {
   const now = new Date();
 
   const query = `
@@ -596,7 +624,7 @@ export const initialCaseStageStatus = async ({ caseId }) => {
       (?, 'Reception Case', 'pending', ?, ?)
   `;
 
-  const values = [caseId, 60, now, caseId, 30, now];
+  const values = [caseId, expected_duration, now, caseId, 30, now];
 
   try {
     const results = await dbQuery(query, values);

@@ -41,7 +41,7 @@ const SubservicePrices = () => {
         `${url}/service-type/subservices/user/${userId}`
       );
       const result = response.data;
-      if (result.success) {
+      if (result.status) {
         setSubserviceTypes(result.message);
       } else {
         console.error("Failed to fetch subservice types:", result.message);
@@ -82,8 +82,23 @@ const SubservicePrices = () => {
     setPage(newPage);
   };
 
-  const handleOpen = (locationId) => {
-    setFormData({ ...formData, locationId });
+  const handleOpen = (locationId, subserviceType, price) => {
+    // Convert comma-separated subservice_type to array of objects for Autocomplete
+    const selectedSubservices = subserviceType
+      ? subserviceType.split(",").map((name) => {
+          const found = subserviceTypes.find(
+            (type) => type.name === name.trim()
+          );
+          return found || { id: null, name: name.trim() };
+        })
+      : [];
+    // Use the first price if available (assuming same price for all subservices)
+    const selectedPrice = price ? price.split(",")[0] : "";
+    setFormData({
+      locationId,
+      subserviceType: selectedSubservices,
+      price: selectedPrice,
+    });
     setOpen(true);
   };
 
@@ -149,14 +164,42 @@ const SubservicePrices = () => {
                 <TableCell>{row.district}</TableCell>
                 {userId !== 1 && (
                   <>
-                    <TableCell>{row.subservice_type || "-"}</TableCell>
-                    <TableCell>{row.price ? `$${row.price}` : "-"}</TableCell>
+                    <TableCell>
+                      {row.subservice_type
+                        ? row.subservice_type
+                            .split(",")
+                            .map((type, index) => (
+                              <Chip
+                                key={index}
+                                label={type.trim()}
+                                size="small"
+                                sx={{ marginRight: 0.5, marginBottom: 0.5 }}
+                              />
+                            ))
+                        : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {row.price
+                        ? row.price
+                            .split(",")
+                            .map((price, index) => (
+                              <Chip
+                                key={index}
+                                label={`$${price.trim()}`}
+                                size="small"
+                                sx={{ marginRight: 0.5, marginBottom: 0.5 }}
+                              />
+                            ))
+                        : "-"}
+                    </TableCell>
                     <TableCell>
                       <Button
                         variant="contained"
                         color="primary"
                         startIcon={<AddIcon />}
-                        onClick={() => handleOpen(row.id)}
+                        onClick={() =>
+                          handleOpen(row.id, row.subservice_type, row.price)
+                        }
                       >
                         Add
                       </Button>
@@ -191,7 +234,7 @@ const SubservicePrices = () => {
               p: 4,
             }}
           >
-            <h2>Add Subservice Price</h2>
+            <h2>Add/Edit Subservice Price</h2>
             <FormControl fullWidth sx={{ mb: 2 }}>
               <Autocomplete
                 multiple
