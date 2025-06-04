@@ -517,11 +517,23 @@ export const fetchSubserviceLocationData = async (userId, page, limit) => {
 
   if (userId !== "1") {
     query = `
-      SELECT l.id, l.code, l.ring_type, l.code_department, l.department,
-             l.code_province, l.province, l.code_district, l.district,
-             sp.subservice_type, sp.price
+      SELECT 
+        l.id, 
+        l.code, 
+        l.ring_type, 
+        l.code_department, 
+        l.department,
+        l.code_province, 
+        l.province, 
+        l.code_district, 
+        l.district,
+        GROUP_CONCAT(sts.name) as subservice_type,
+        GROUP_CONCAT(sp.price) as price
       FROM location_data l
-      LEFT JOIN subservice_prices sp ON l.id = sp.location_id AND sp.user_id = ?
+      LEFT JOIN location_subservice_prices sp ON l.id = sp.location_id AND sp.user_id = ?
+      LEFT JOIN service_type_subservices sts ON sp.subservice_type = sts.id
+      GROUP BY l.id, l.code, l.ring_type, l.code_department, l.department,
+               l.code_province, l.province, l.code_district, l.district
       LIMIT ? OFFSET ?
     `;
     queryParams = [userId, limit, offset];
@@ -552,11 +564,24 @@ export const addNewZonePrice = async ({
 }) => {
   const query = `
     INSERT INTO location_subservice_prices (user_id, location_id, subservice_type, price)
-    VALUES (?, ?, ?, ?)
+    VALUES ?
   `;
-  const values = [userId, locationId, subserviceType, price];
+  const values = subserviceType.map((typeId) => [
+    userId,
+    locationId,
+    typeId,
+    price,
+  ]);
 
-  return await dbQuery(query, values);
+  const result = await dbQuery(query, [values]);
+  const insertedIds = Array.isArray(result.insertId)
+    ? result.insertId
+    : Array.from(
+        { length: subserviceType.length },
+        (_, i) => result.insertId + i
+      );
+
+  return insertedIds;
 };
 
 // ------------------------------- DISPATCH CASE TRACKING

@@ -619,6 +619,19 @@ export const getSubServiceById = async (id) => {
   });
 };
 
+export const validateSubserviceType = async (subserviceTypeId) => {
+  const sql = `
+        SELECT id FROM service_type_subservices WHERE id IN (?)
+    `;
+
+  return new Promise((resolve, reject) => {
+    dbQuery(sql, [subserviceTypeId], (err, results) => {
+      if (err) reject(err);
+      resolve(results);
+    });
+  });
+};
+
 export const modifySubService = async (id, body) => {
   const { name, service_type } = body;
 

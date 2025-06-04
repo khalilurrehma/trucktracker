@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
+import axios from "axios";
 import {
   Table,
   TableBody,
@@ -7,20 +8,17 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
   TablePagination,
   Button,
   Modal,
   Box,
   TextField,
-  MenuItem,
-  Select,
-  InputLabel,
   FormControl,
+  Autocomplete,
+  Chip,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import { useAppContext } from "../AppContext";
-import axios from "axios";
 
 const SubservicePrices = () => {
   const { url } = useAppContext();
@@ -32,14 +30,31 @@ const SubservicePrices = () => {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     locationId: "",
-    subserviceType: "",
+    subserviceType: [],
     price: "",
   });
+  const [subserviceTypes, setSubserviceTypes] = useState([]);
 
-  // Fake subservice types
-  const subserviceTypes = ["Service A", "Service B", "Service C", "Service D"];
+  const fetchSubserviceTypes = async () => {
+    try {
+      const response = await axios.get(
+        `${url}/service-type/subservices/user/${userId}`
+      );
+      const result = response.data;
+      if (result.success) {
+        setSubserviceTypes(result.message);
+      } else {
+        console.error("Failed to fetch subservice types:", result.message);
+      }
+    } catch (error) {
+      console.error("Error fetching subservice types:", error);
+    }
+  };
 
-  // Fetch data
+  useEffect(() => {
+    fetchSubserviceTypes();
+  }, [userId]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -49,7 +64,6 @@ const SubservicePrices = () => {
           }&userId=${userId}`
         );
         const result = response.data;
-        console.log(result);
 
         if (result.success) {
           setData(result.data);
@@ -75,7 +89,7 @@ const SubservicePrices = () => {
 
   const handleClose = () => {
     setOpen(false);
-    setFormData({ locationId: "", subserviceType: "", price: "" });
+    setFormData({ locationId: "", subserviceType: [], price: "" });
   };
 
   const handleSubmit = async () => {
@@ -83,6 +97,7 @@ const SubservicePrices = () => {
       const response = await axios.post(`${url}/dispatch/subservice-prices`, {
         userId,
         ...formData,
+        subserviceType: formData.subserviceType.map((type) => type.id),
       });
       const result = response.data;
       if (result.success) {
@@ -178,19 +193,24 @@ const SubservicePrices = () => {
           >
             <h2>Add Subservice Price</h2>
             <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>Subservice Type</InputLabel>
-              <Select
+              <Autocomplete
+                multiple
+                id="subservice-type"
+                options={subserviceTypes}
+                getOptionLabel={(option) => option.name}
                 value={formData.subserviceType}
-                onChange={(e) =>
-                  setFormData({ ...formData, subserviceType: e.target.value })
+                onChange={(event, newValue) => {
+                  setFormData({ ...formData, subserviceType: newValue });
+                }}
+                renderInput={(params) => (
+                  <TextField {...params} label="Subservice Type" />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip label={option.name} {...getTagProps({ index })} />
+                  ))
                 }
-              >
-                {subserviceTypes.map((type) => (
-                  <MenuItem key={type} value={type}>
-                    {type}
-                  </MenuItem>
-                ))}
-              </Select>
+              />
             </FormControl>
             <TextField
               fullWidth

@@ -51,7 +51,7 @@ const ServiceTypesSubService = () => {
       const { data } =
         userId === 1
           ? await axios.get(`${url}/all/device/service-types`)
-          : await axios.get(`${url}/service-type/subservices/user/${userId}`);
+          : await axios.get(`${url}/all/device/service-types/user/${userId}`);
       if (data.status) {
         setServiceTypes(data.message);
       }

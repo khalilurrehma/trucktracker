@@ -51,8 +51,12 @@ import {
   onTheWayStageStatusCheck,
   saveAuthorizationRequestStage,
 } from "../services/dispatchService.js";
+import dayjs from "dayjs";
+import { validateSubserviceType } from "../model/devices.js";
 
 export const DispatchEmitter = new EventEmitter();
+
+const now = dayjs();
 
 export const handleNewDispatchCase = async (req, res) => {
   const { userId, caseName, caseAddress, lat, lng, message, devicesMeta } =
@@ -147,7 +151,7 @@ export const handleNewDispatchCase = async (req, res) => {
           status: "pending",
           file_data: dbBody.file_data || [],
           assignedDeviceIds,
-          createdAt: Date.now(),
+          createdAt: now.format("HH:mm:ss"),
           respondWithin: expectedDuration,
         };
 
@@ -721,11 +725,17 @@ export const addNewSubservicePrice = async (req, res) => {
   try {
     const { userId, locationId, subserviceType, price } = req.body;
 
-    if (!userId || !locationId || !subserviceType || !price) {
+    if (
+      !userId ||
+      !locationId ||
+      !Array.isArray(subserviceType) ||
+      subserviceType.length === 0 ||
+      !price
+    ) {
       return res.status(400).json({
         success: false,
         message:
-          "Missing required fields: userId, locationId, subserviceType, and price are mandatory",
+          "Missing required fields: userId, locationId, subserviceType (array), and price are mandatory",
       });
     }
 
@@ -736,12 +746,34 @@ export const addNewSubservicePrice = async (req, res) => {
       });
     }
 
-    await addNewZonePrice({ userId, locationId, subserviceType, price });
+    const validSubservices = await validateSubserviceType(subserviceType);
+
+    const validIds = validSubservices?.map((row) => row.id);
+
+    if (validIds.length !== subserviceType.length) {
+      return res.status(400).json({
+        success: false,
+        message: "One or more subserviceType IDs are invalid",
+      });
+    }
+
+    const insertedIds = await addNewZonePrice({
+      userId,
+      locationId,
+      subserviceType,
+      price,
+    });
 
     res.status(201).json({
       success: true,
-      message: "Subservice price saved successfully",
-      data: { id: result.insertId, userId, locationId, subserviceType, price },
+      message: "Subservice prices saved successfully",
+      data: insertedIds.map((id, index) => ({
+        id,
+        userId,
+        locationId,
+        subserviceType: subserviceType[index],
+        price,
+      })),
     });
   } catch (error) {
     console.error("Error saving subservice price:", error);
