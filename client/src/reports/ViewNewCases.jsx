@@ -82,6 +82,28 @@ const ViewNewCases = () => {
             }}
           />
         );
+      case "waiting_approval":
+        return (
+          <Chip
+            label="Waiting Approval"
+            sx={{
+              backgroundColor: "#e3f2fd", // Light Blue
+              color: "#1565c0", // Blue text
+              fontWeight: 500,
+            }}
+          />
+        );
+      case "approved":
+        return (
+          <Chip
+            label="Approved"
+            sx={{
+              backgroundColor: "#e0f7fa", // Light Teal
+              color: "#00838f", // Teal text
+              fontWeight: 500,
+            }}
+          />
+        );
       case "completed":
         return (
           <Chip

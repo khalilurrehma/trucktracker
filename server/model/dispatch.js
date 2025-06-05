@@ -406,6 +406,17 @@ export const fetchCaseReportById = async (case_id) => {
   }
 };
 
+export const fetchCaseIdByReportId = async (report_id) => {
+  const query = `SELECT case_id FROM dispatch_case_reports WHERE id = ?`;
+
+  try {
+    const result = await dbQuery(query, [parseInt(report_id)]);
+    return result[0]?.case_id;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const updateCaseReportStatus = async (report_id, status) => {
   const query = `UPDATE dispatch_case_reports SET authorized_status = ? WHERE id = ?`;
 

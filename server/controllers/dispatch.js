@@ -3,6 +3,7 @@ import {
   addNewZonePrice,
   caseTrackingById,
   defaultTemplateTimeForAdmin,
+  fetchCaseIdByReportId,
   fetchCaseReportById,
   fetchDispatchCases,
   fetchDispatchCasesByUserId,
@@ -340,16 +341,27 @@ export const authorizeCaseReport = async (req, res) => {
   }
 
   try {
-    const result = await updateCaseReportStatus(reportId, true);
+    const caseId = await fetchCaseIdByReportId(reportId);
+
+    if (!caseId) {
+      return res.status(404).json({
+        status: false,
+        message: "Report not found",
+      });
+    }
+
+    const [result, update] = await Promise.all([
+      updateCaseReportStatus(reportId, true),
+      updateCaseStatusById(caseId, "approved"),
+    ]);
+
     if (result.affectedRows === 0) {
       return res.status(404).json({
         status: false,
         message: "Report not found or already authorized",
       });
     }
-
     const fcmToken = await getFcmTokensByDriverIds(driverId);
-
     if (fcmToken.length > 0) {
       const notificationTitle = "Case Report Authorized";
       const notificationBody = `Your case report has been authorized.`;
@@ -364,7 +376,6 @@ export const authorizeCaseReport = async (req, res) => {
     } else {
       console.log("No FCM token found for driver");
     }
-
     return res.status(200).json({
       status: true,
       message: "Report authorized successfully",
@@ -453,51 +464,50 @@ export const dispatchCaseReport = async (req, res) => {
 
     for (const vehicle of vehicles) {
       const vehicleId = await saveInvolvedVehicle(reportId, vehicle);
-      if (vehicle.photos && Array.isArray(vehicle.photos)) {
-        for (const photo of vehicle.photos) {
-          if (!photo.category || !photo.type || !photo.url) {
-            throw new Error(
-              "Invalid photo data: category, type, and url are required"
-            );
-          }
-          await saveVehiclePhoto(vehicleId, photo);
-        }
+      if (Array.isArray(vehicle.photos)) {
+        const validPhotos = vehicle.photos.filter(
+          (photo) => photo.category && photo.type && photo.url
+        );
+        const savePhotos = validPhotos.map((photo) =>
+          saveVehiclePhoto(vehicleId, photo)
+        );
+        await Promise.all(savePhotos);
       }
     }
 
-    const superVisorIds = await realmUserTraccarIdsByUserId(companyId);
-
-    const reportDetails = {
-      reportId,
-      caseId: parseInt(caseId),
-      driverId: parseInt(driverId),
-      companyId: parseInt(companyId),
-      superVisorIds: superVisorIds || null,
-      caseName: caseCheck[0]?.case_name,
-      createdAt: new Date().toISOString(),
-    };
-
-    const stage =
+    const [superVisorIds, stage] = await Promise.all([
+      realmUserTraccarIdsByUserId(companyId),
       companyId !== "1"
-        ? await defaultTemplateTimeForAdmin("supervisor_approval", companyId)
-        : await defaultTemplateTime("supervisor_approval");
+        ? defaultTemplateTimeForAdmin("supervisor_approval", companyId)
+        : defaultTemplateTime("supervisor_approval"),
+    ]);
 
-    let expectedDuration = stage ? stage?.time_sec : 60;
+    const expectedDuration = stage?.time_sec || 60;
 
-    await saveAuthorizationRequestStage(caseId, expectedDuration);
+    await Promise.all([
+      saveAuthorizationRequestStage(caseId, expectedDuration),
+      saveCaseReportNotification({
+        company_id: companyId,
+        report_id: reportId,
+        message: `New case report generated: ${caseCheck[0]?.case_name}`,
+      }),
+      updateCaseStatusById(caseId, "waiting_approval"),
+    ]);
 
     setTimeout(() => {
-      checkReportAuthorizedStatus(caseId);
+      checkReportAuthorizedStatus(caseId).catch(console.error);
     }, expectedDuration * 1000);
 
     DispatchEmitter.emit("newcase", {
-      reportDetails,
-    });
-
-    await saveCaseReportNotification({
-      company_id: companyId,
-      report_id: reportId,
-      message: `New case report generated: ${caseCheck[0]?.case_name}`,
+      reportDetails: {
+        reportId,
+        caseId: parseInt(caseId),
+        driverId,
+        companyId: parseInt(companyId),
+        superVisorIds,
+        caseName: caseCheck[0]?.case_name,
+        createdAt: new Date().toISOString(),
+      },
     });
 
     return res.status(201).json({
