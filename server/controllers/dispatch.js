@@ -26,6 +26,7 @@ import {
   saveRimacCase,
   saveVehiclePhoto,
   setNewStatusNotification,
+  updateCaseCurrentProcess,
   updateCaseReportStatus,
   updateCaseServiceById,
   updateCaseStatusById,
@@ -64,7 +65,13 @@ export const handleNewDispatchCase = async (req, res) => {
   let assignedDeviceIds = req.body.assignedDeviceIds;
   let files;
 
-  assignedDeviceIds = JSON.parse(assignedDeviceIds);
+  try {
+    assignedDeviceIds = JSON.parse(assignedDeviceIds);
+  } catch (err) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Invalid JSON in assignedDeviceIds" });
+  }
 
   // assignedDeviceIds = [assignedDeviceIds];
 
@@ -90,35 +97,27 @@ export const handleNewDispatchCase = async (req, res) => {
       devicesMeta,
     };
 
-    if (req.files && Array.isArray(req.files)) {
-      const uploadedFiles = [];
+    if (req.files?.length) {
+      const uploadedFiles = await Promise.all(
+        req.files.map(async (file) => {
+          const uploadedFile = await s3
+            .upload({
+              Bucket: process.env.CONTABO_BUCKET_NAME,
+              Key: `dispatch-case-image/${Date.now()}-${
+                file.originalname || "no-file"
+              }`,
+              Body: file.buffer,
+              ContentType: file.mimetype,
+              ACL: "public-read",
+            })
+            .promise();
 
-      for (const file of req.files) {
-        const uploadedFile = await s3
-          .upload({
-            Bucket: process.env.CONTABO_BUCKET_NAME,
-            Key: `dispatch-case-image/${Date.now()}-${
-              file.originalname || "no-file"
-            }`,
-            Body: file.buffer,
-            ContentType: file.mimetype,
-            ACL: "public-read",
-          })
-          .promise();
-
-        if (!uploadedFile) {
-          return res.status(500).json({
-            status: false,
-            message: "Failed to upload one or more images",
-          });
-        }
-
-        uploadedFiles.push({
-          filename: file.originalname || "no-file",
-          url: getAuthenticatedS3String(uploadedFile.Location),
-        });
-      }
-
+          return {
+            filename: file.originalname || "no-file",
+            url: getAuthenticatedS3String(uploadedFile.Location),
+          };
+        })
+      );
       dbBody.file_data = uploadedFiles;
     }
 
@@ -167,10 +166,14 @@ export const handleNewDispatchCase = async (req, res) => {
         console.log(
           `Notifications sent: ${successCount} succeeded, ${failureCount} failed`
         );
-        console.log(
-          "Payload sent to mobile devices:",
-          JSON.stringify(payload, null, 2)
-        );
+        if (successCount > 0) {
+          await updateCaseCurrentProcess(newCase_id, "advisor_assignment");
+
+          DispatchEmitter.emit("subprocessEvent", {
+            id: newCase_id,
+            current_subprocess: "advisor_assignment",
+          });
+        }
       } else {
         console.log("No FCM tokens found for drivers");
       }
@@ -320,6 +323,13 @@ export const handleCaseAction = async (req, res) => {
         onTheWayStageStatusCheck(caseId);
       }, expectedDuration * 1000);
     }
+
+    await updateCaseCurrentProcess(caseId, "reception_case");
+
+    DispatchEmitter.emit("subprocessEvent", {
+      id: caseId,
+      current_subprocess: "reception_case",
+    });
 
     res.status(200).json({
       status: true,

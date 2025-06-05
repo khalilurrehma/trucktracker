@@ -67,6 +67,19 @@ export const addNewCase = async (body) => {
   }
 };
 
+export const updateCaseCurrentProcess = async (case_id, status) => {
+  const sql = `UPDATE dispatch_cases SET current_subprocess = ? WHERE id = ?`;
+  const values = [status, case_id];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result;
+  } catch (error) {
+    console.error("Error updating case current process:", error);
+    throw error;
+  }
+};
+
 export const saveCaseAssignedDeviceId = async (case_id, device_id) => {
   const sql = `INSERT INTO dispatch_case_devices (dispatch_case_id, device_id) VALUES (?, ?)`;
 

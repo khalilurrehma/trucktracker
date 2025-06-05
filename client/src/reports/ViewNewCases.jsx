@@ -33,6 +33,7 @@ import axios from "axios";
 import { useSelector } from "react-redux";
 import TableShimmer from "../common/components/TableShimmer";
 import { useSuperVisor } from "../common/util/permissions";
+import { useAppContext } from "../AppContext";
 
 const ViewNewCases = () => {
   let url;
@@ -41,6 +42,7 @@ const ViewNewCases = () => {
   } else {
     url = import.meta.env.VITE_PROD_BACKEND_URL;
   }
+  const { subprocessEvents } = useAppContext();
   const [allCases, setAllCases] = useState([]);
   const [loader, setLoader] = useState(false);
   const [openAssignModal, setOpenAssignModal] = useState(false);
@@ -57,6 +59,24 @@ const ViewNewCases = () => {
   const superVisor = useSuperVisor();
 
   const [anchorEl, setAnchorEl] = useState(null);
+
+  useEffect(() => {
+    if (subprocessEvents.length > 0) {
+      const latestEvent = subprocessEvents[subprocessEvents.length - 1];
+      if (latestEvent.subprocessEvent === "subprocessEvent-update") {
+        setAllCases((prevCases) =>
+          prevCases.map((caseItem) =>
+            caseItem.id === Number(latestEvent.id)
+              ? {
+                  ...caseItem,
+                  current_subprocess: latestEvent.current_subprocess,
+                }
+              : caseItem
+          )
+        );
+      }
+    }
+  }, [subprocessEvents]);
 
   const getStatusChip = (status) => {
     switch (status) {
@@ -87,8 +107,8 @@ const ViewNewCases = () => {
           <Chip
             label="Waiting Approval"
             sx={{
-              backgroundColor: "#e3f2fd", // Light Blue
-              color: "#1565c0", // Blue text
+              backgroundColor: "#e3f2fd",
+              color: "#1565c0",
               fontWeight: 500,
             }}
           />
@@ -98,8 +118,8 @@ const ViewNewCases = () => {
           <Chip
             label="Approved"
             sx={{
-              backgroundColor: "#e0f7fa", // Light Teal
-              color: "#00838f", // Teal text
+              backgroundColor: "#e0f7fa",
+              color: "#00838f",
               fontWeight: 500,
             }}
           />
@@ -119,6 +139,84 @@ const ViewNewCases = () => {
         return (
           <Chip
             label="Unknown"
+            sx={{ backgroundColor: "#e0e0e0", color: "#999", fontWeight: 500 }}
+          />
+        );
+    }
+  };
+
+  const getProcessChip = (status) => {
+    switch (status) {
+      case "advisor_assignment":
+        return (
+          <Chip
+            label="Assignment of the Advisor"
+            sx={{
+              backgroundColor: "#ffdddd",
+              color: "#c62828",
+              fontWeight: 500,
+            }}
+          />
+        );
+      case "reception_case":
+        return (
+          <Chip
+            label="Reception Case"
+            sx={{
+              backgroundColor: "#fff8e1",
+              color: "#f9a825",
+              fontWeight: 500,
+            }}
+          />
+        );
+      case "On the Way":
+        return (
+          <Chip
+            label="On the Way"
+            sx={{
+              backgroundColor: "#bbdefb",
+              color: "#0d47a1",
+              fontWeight: 500,
+            }}
+          />
+        );
+      case "In Reference":
+        return (
+          <Chip
+            label="In Reference"
+            sx={{
+              backgroundColor: "#e0f7fa",
+              color: "#00838f",
+              fontWeight: 500,
+            }}
+          />
+        );
+      case "Authorization Request":
+        return (
+          <Chip
+            label="Sent to the Ministry"
+            sx={{
+              backgroundColor: "#c8e6c9",
+              color: "#388e3c",
+              fontWeight: 500,
+            }}
+          />
+        );
+      case "Supervisor Approval":
+        return (
+          <Chip
+            label="Approved by the Supervisor"
+            sx={{
+              backgroundColor: "#a5d6a7",
+              color: "#1b5e20",
+              fontWeight: 500,
+            }}
+          />
+        );
+      default:
+        return (
+          <Chip
+            label="Yet to start"
             sx={{ backgroundColor: "#e0e0e0", color: "#999", fontWeight: 500 }}
           />
         );
@@ -217,8 +315,6 @@ const ViewNewCases = () => {
             <MenuItem disabled>No notifications</MenuItem>
           ) : (
             notifications.map((note) => {
-              console.log(note);
-
               return (
                 <MenuItem
                   key={note.id}
@@ -258,6 +354,9 @@ const ViewNewCases = () => {
                 </TableCell>
                 <TableCell>
                   <b>Status</b>
+                </TableCell>
+                <TableCell>
+                  <b>Current Process</b>
                 </TableCell>
                 <TableCell>
                   <b>Service Type</b>
@@ -304,6 +403,9 @@ const ViewNewCases = () => {
                           <TableCell>{row.case_name}</TableCell>
                           <TableCell>{row.case_address}</TableCell>
                           <TableCell>{getStatusChip(row.status)}</TableCell>
+                          <TableCell>
+                            {getProcessChip(row?.current_subprocess)}
+                          </TableCell>
                           <TableCell>
                             {device.services?.map((service, index) => (
                               <Chip

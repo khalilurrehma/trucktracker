@@ -22,11 +22,6 @@ export const checkAndMarkDelayedCase = async (caseId) => {
     }
 
     await markCaseStageAsDelayed(caseId);
-    DispatchEmitter.emit("subproccesEvent", {
-      caseId,
-      action: "delayed",
-      stage_name: "Reception Case",
-    });
     console.log(`Case ${caseId} is marked as delayed`);
   } catch (error) {
     console.error("Error in delay check:", error.message);

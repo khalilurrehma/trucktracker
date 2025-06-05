@@ -19,7 +19,7 @@ import { toast, ToastContainer } from "react-toastify";
 import { useAppContext } from "../AppContext";
 
 const Subprocess = () => {
-  const { url, subproccessEvents } = useAppContext();
+  const { url } = useAppContext();
   const [caseName, setCaseName] = useState("");
   const [trackingData, setTrackingData] = useState([]);
 
@@ -151,8 +151,6 @@ const Subprocess = () => {
       toast.error("Error fetching tracking data.");
     }
   };
-
-  console.log(subproccessEvents);
 
   return (
     <PageLayout

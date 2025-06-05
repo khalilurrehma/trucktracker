@@ -98,11 +98,11 @@ DispatchEmitter.on("newcase", async (casedata) => {
   }
 });
 
-DispatchEmitter.on("subproccesEvent", async (subprocessEvent) => {
+DispatchEmitter.on("subprocessEvent", async (subprocessEvent) => {
   try {
     let message = {
       ...subprocessEvent,
-      subprocessEvent: "subproccesEvent",
+      subprocessEvent: "subprocessEvent-update",
     };
     broadcast(message);
   } catch (error) {
