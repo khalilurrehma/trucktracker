@@ -226,6 +226,17 @@ export const findCaseReportById = async (caseId) => {
   }
 };
 
+export const getCaseLastUpdated = async (case_id) => {
+  const sql = `SELECT updated_at FROM dispatch_cases WHERE id = ? AND status = 'approved' LIMIT 1`;
+
+  try {
+    const rows = await dbQuery(sql, [case_id]);
+    return rows[0]?.updated_at;
+  } catch (error) {
+    return error;
+  }
+};
+
 export const updateCaseServiceById = async (fields, case_id) => {
   const sql = `UPDATE dispatch_case_reports SET damage = ?, meta_information = ? WHERE case_id = ? AND authorized_status = true`;
 
@@ -294,6 +305,17 @@ export const saveDispatchCaseAction = async (body) => {
   try {
     const result = await dbQuery(sql, values);
     return result;
+  } catch (error) {
+    return error;
+  }
+};
+
+export const getCaseActionTime = async (case_id) => {
+  const sql = `SELECT created_at FROM dispatch_case_actions WHERE case_id = ?`;
+
+  try {
+    const rows = await dbQuery(sql, [case_id]);
+    return rows[0].created_at;
   } catch (error) {
     return error;
   }
@@ -720,50 +742,36 @@ export const saveAdminOverrideTemplate = async (body) => {
 
 // Dashboard services
 
-export const findTodayCasesByUserAndDevices = async (
-  userId,
-  deviceId,
-  date
-) => {
+export const countTodayCasesByUserAndDevice = async (userId, deviceId) => {
   const query = `
-    SELECT 
-      dc.*,
-      JSON_ARRAYAGG(
-        JSON_OBJECT(
-          'device_id', dcd.device_id,
-          'device_name', nsd.name
-        )
-      ) AS assigned_devices
-    FROM 
-      dispatch_cases dc
-    JOIN 
-      dispatch_case_devices dcd ON dc.id = dcd.dispatch_case_id
-    JOIN 
-      new_settings_devices nsd ON dcd.device_id = nsd.id
+    SELECT COUNT(*) AS total
+    FROM dispatch_cases dc
+    JOIN dispatch_case_devices dcd ON dc.id = dcd.dispatch_case_id
     WHERE 
-      dc.user_id = ?
-      AND dcd.device_id = ?
-      AND dc.status IN ('pending', 'in progress')
+      dc.user_id = ? 
+      AND dcd.device_id = ? 
+      AND dc.status != 'completed'
       AND DATE(dc.created_at) = CURDATE()
-    GROUP BY 
-      dc.id
-    ORDER BY 
-      dc.created_at DESC
   `;
 
   try {
-    const rows = await dbQuery(query, [
+    const [result] = await dbQuery(query, [
       parseInt(userId),
       parseInt(deviceId),
-      date,
     ]);
-    return rows.map((row) => ({
-      ...row,
-      assigned_devices: JSON.parse(row.assigned_devices || "[]"),
-      file_data: JSON.parse(row.file_data || "[]"),
-    }));
+    return result?.total || 0;
   } catch (error) {
-    console.error("Error fetching today’s dispatch cases:", error);
+    console.error("Error counting today’s dispatch cases:", error);
     throw error;
   }
+};
+
+export const insertDriverServiceTime = async (caseId, driverId, seconds) => {
+  const query = `
+    INSERT INTO driver_service_record (case_id, driver_id, service_time_seconds)
+    VALUES (?, ?, ?)
+    ON DUPLICATE KEY UPDATE service_time_seconds = VALUES(service_time_seconds)
+  `;
+
+  await dbQuery(query, [caseId, driverId, seconds]);
 };

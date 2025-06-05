@@ -14,6 +14,7 @@ import {
   getAllNotifications,
   getNotificationsByCompanyId,
   initialCaseStageStatus,
+  insertDriverServiceTime,
   onTheWayCaseStageStatus,
   processTemplateForAdmin,
   processTimeTemplate,
@@ -45,6 +46,7 @@ import {
   realmUserTraccarIdsByUserId,
 } from "../model/realm.js";
 import {
+  calculateDriverServiceTime,
   checkAndMarkDelayedCase,
   checkReportAuthorizedStatus,
   defaultTemplateTime,
@@ -390,11 +392,15 @@ export const authorizeCaseReport = async (req, res) => {
     const fcmToken = await getFcmTokensByDriverIds(driverId);
     if (fcmToken.length > 0) {
       const notificationTitle = "Case Report Authorized";
-      const notificationBody = `Your case report has been authorized.`;
+      const notificationBody = `Your case report has been authorized. Please complete the service.`;
+      const payload = {
+        caseId,
+      };
       const { successCount, failureCount } = await sendPushNotification(
         fcmToken,
         notificationTitle,
-        notificationBody
+        notificationBody,
+        payload
       );
       console.log(
         `Notifications sent: ${successCount} succeeded, ${failureCount} failed`
@@ -623,6 +629,8 @@ export const dispatchCaseCompleteService = async (req, res) => {
   const { caseId } = req.params;
   const { damage, meta_information } = req.body;
 
+  const bothTime = await calculateDriverServiceTime(caseId);
+
   try {
     const caseCheck = await findCaseById(caseId);
 
@@ -630,6 +638,13 @@ export const dispatchCaseCompleteService = async (req, res) => {
       return res.status(400).json({
         status: false,
         message: "Invalid or unaccepted case",
+      });
+    }
+
+    if (caseCheck.status !== "approved") {
+      return res.status(400).json({
+        status: false,
+        message: "Case not approved",
       });
     }
 
@@ -658,6 +673,8 @@ export const dispatchCaseCompleteService = async (req, res) => {
       current_subprocess: "case_completed",
       status: "completed",
     });
+
+    await insertDriverServiceTime(caseId, driverId, bothTime.totalSeconds);
 
     return res.status(200).json({
       status: true,

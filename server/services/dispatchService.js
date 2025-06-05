@@ -1,8 +1,17 @@
 import pool from "../config/dbConfig.js";
 import util from "util";
-import { findCaseReportById, processTimeTemplate } from "../model/dispatch.js";
+import {
+  findCaseReportById,
+  getCaseActionTime,
+  getCaseLastUpdated,
+  processTimeTemplate,
+} from "../model/dispatch.js";
+import dayjs from "dayjs";
+import duration from "dayjs/plugin/duration.js";
 import { EventEmitter } from "events";
 const dbQuery = util.promisify(pool.query).bind(pool);
+
+dayjs.extend(duration);
 
 export const DispatchEmitter = new EventEmitter();
 
@@ -179,4 +188,34 @@ export const adminAuthorizationRequestStage = async (case_id, status) => {
   `;
 
   await dbQuery(sql, [status, case_id]);
+};
+
+export const calculateDriverServiceTime = async (caseId) => {
+  try {
+    const [acceptedTime, completedTime] = await Promise.all([
+      getCaseActionTime(caseId),
+      getCaseLastUpdated(caseId),
+    ]);
+
+    if (!acceptedTime || !completedTime) {
+      throw new Error("Timestamps not found");
+    }
+
+    const start = dayjs(acceptedTime);
+    const end = dayjs(completedTime);
+    const diffInSeconds = end.diff(start, "second");
+
+    const dur = dayjs.duration(diffInSeconds, "seconds");
+
+    const durationText = `${dur.hours()}h ${dur.minutes()}m ${dur.seconds()}s`;
+
+    return {
+      acceptedTime,
+      completedTime,
+      totalSeconds: diffInSeconds,
+      durationText,
+    };
+  } catch (error) {
+    console.error("Error calculating driver service time:", error);
+  }
 };

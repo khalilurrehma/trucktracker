@@ -118,3 +118,19 @@ export const deleteGeofencesFromFlespi = async (geofenceId) => {
     throw error;
   }
 };
+export const getAverageServiceTime = (secondsArray) => {
+  if (!Array.isArray(secondsArray) || secondsArray.length === 0) return null;
+
+  const total = secondsArray.reduce((sum, sec) => sum + sec, 0);
+  const averageSeconds = total / secondsArray.length;
+
+  const minutes = Math.floor(averageSeconds / 60);
+  const hours = Math.floor(averageSeconds / 3600);
+
+  if (hours >= 1) {
+    const remainingMinutes = Math.round((averageSeconds % 3600) / 60);
+    return `${hours}h ${remainingMinutes}m`;
+  } else {
+    return `${minutes}m`;
+  }
+};

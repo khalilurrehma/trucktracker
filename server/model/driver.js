@@ -561,3 +561,14 @@ export const getFcmTokensByDriverIds = async (driver_ids) => {
     });
   });
 };
+
+export const getDriverServiceTime = async (driver_id) => {
+  const sql = `SELECT service_time_seconds FROM driver_service_record WHERE driver_id = ?`;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [parseInt(driver_id)], (err, results) => {
+      if (err) return reject(err);
+      resolve(results.map((row) => row.service_time_seconds));
+    });
+  });
+};

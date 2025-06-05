@@ -11,6 +11,7 @@ import {
   fetchDriversByUserId,
   findAssociateVehicleByDriverId,
   findVehiclesByDriverId,
+  getDriverServiceTime,
   modifyDriverStatus,
   removeDriver,
   removeVehicleAssociation,
@@ -26,10 +27,10 @@ import {
   getLatestDriverBehaivorReportsByUserId,
 } from "../model/notifications.js";
 import {
+  countTodayCasesByUserAndDevice,
   defaultTemplateTimeForAdmin,
   findCaseById,
   findCaseByUserIdAndDeviceId,
-  findTodayCasesByUserAndDevices,
 } from "../model/dispatch.js";
 import axios from "axios";
 import { refreshShiftJobs } from "../services/cronJobs.js";
@@ -51,6 +52,7 @@ import {
   updateOnTheWayStageStatus,
 } from "../services/dispatchService.js";
 import dayjs from "dayjs";
+import { getAverageServiceTime } from "../utils/common.js";
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -739,29 +741,28 @@ export const dispatchTodayCasesForDriver = async (req, res) => {
   }
 
   try {
-    const driverVehicleIds = await findAssociateVehicleByDriverId(driverId);
+    const [driverVehicleIds, driverServiceTime] = await Promise.all([
+      findAssociateVehicleByDriverId(driverId),
+      getDriverServiceTime(driverId),
+    ]);
 
-    if (!driverVehicleIds) {
-      return res.status(404).json({
-        status: false,
-        message:
-          "Driver has no associated vehicles, Please associate at least one vehicle",
-      });
-    }
-
-    const driverCase = await findTodayCasesByUserAndDevices(
+    const casesToday = await countTodayCasesByUserAndDevice(
       companyId,
       driverVehicleIds
     );
 
-    if (driverCase.length === 0) {
-      return res.status(404).json({
-        status: false,
-        message: "No cases found for today",
-      });
-    }
+    const avgTime = getAverageServiceTime(driverServiceTime);
 
-    res.status(200).json({ status: true, message: driverCase.length });
+    let responseBody = {
+      cases: {
+        total: casesToday,
+      },
+      serviceTime: {
+        avgTime,
+      },
+    };
+
+    res.status(200).json({ status: true, message: responseBody });
   } catch (error) {
     res.status(500).json({ status: false, message: error.message });
   }

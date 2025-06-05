@@ -87,7 +87,7 @@ router.post("/driver/forgot-password", driverForgotPassword);
 // Driver Dashboard APIs
 
 router.get(
-  "/driver/dashboard/today/cases/:companyId",
+  "/driver/dashboard/:companyId",
   authDriver,
   dispatchTodayCasesForDriver
 );
