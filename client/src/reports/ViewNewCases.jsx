@@ -24,6 +24,7 @@ import {
   Menu,
   TablePagination,
 } from "@mui/material";
+import { keyframes } from "@mui/system";
 import { styled } from "@mui/material/styles";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
@@ -34,6 +35,12 @@ import { useSelector } from "react-redux";
 import TableShimmer from "../common/components/TableShimmer";
 import { useSuperVisor } from "../common/util/permissions";
 import { useAppContext } from "../AppContext";
+
+const blinkAnimation = keyframes`
+  0% { background-color: #fff3cd; }
+  50% { background-color: #ffeeba; }
+  100% { background-color: transparent; }
+`;
 
 const ViewNewCases = () => {
   let url;
@@ -52,6 +59,7 @@ const ViewNewCases = () => {
     { id: 1, message: "New case assigned", read: false },
     { id: 2, message: "ETA updated", read: false },
   ]);
+  const [highlightedId, setHighlightedId] = useState(null);
   const [rowsPerPage, setRowsPerPage] = useState(15);
   const [page, setPage] = useState(0);
 
@@ -59,6 +67,8 @@ const ViewNewCases = () => {
   const superVisor = useSuperVisor();
 
   const [anchorEl, setAnchorEl] = useState(null);
+
+  // console.log(subprocessEvents);
 
   useEffect(() => {
     if (subprocessEvents.length > 0) {
@@ -70,10 +80,17 @@ const ViewNewCases = () => {
               ? {
                   ...caseItem,
                   current_subprocess: latestEvent.current_subprocess,
+                  status: latestEvent.status || caseItem.status,
                 }
               : caseItem
           )
         );
+
+        setHighlightedId(Number(latestEvent.id));
+
+        setTimeout(() => {
+          setHighlightedId(null);
+        }, 1000);
       }
     }
   }, [subprocessEvents]);
@@ -91,6 +108,19 @@ const ViewNewCases = () => {
             }}
           />
         );
+      case "rejected":
+        return (
+          <Chip
+            label="Rejected"
+            sx={{
+              backgroundColor: "#fdecea",
+              color: "#d32f2f",
+              fontWeight: 500,
+              border: "1px solid #f5c6cb",
+            }}
+          />
+        );
+
       case "in progress":
         return (
           <Chip
@@ -105,7 +135,7 @@ const ViewNewCases = () => {
       case "waiting_approval":
         return (
           <Chip
-            label="Waiting Approval"
+            label="Waiting for Approval"
             sx={{
               backgroundColor: "#e3f2fd",
               color: "#1565c0",
@@ -169,7 +199,7 @@ const ViewNewCases = () => {
             }}
           />
         );
-      case "On the Way":
+      case "on_the_way":
         return (
           <Chip
             label="On the Way"
@@ -180,7 +210,7 @@ const ViewNewCases = () => {
             }}
           />
         );
-      case "In Reference":
+      case "in_reference":
         return (
           <Chip
             label="In Reference"
@@ -191,10 +221,10 @@ const ViewNewCases = () => {
             }}
           />
         );
-      case "Authorization Request":
+      case "authorization_request":
         return (
           <Chip
-            label="Sent to the Ministry"
+            label="Authorization Request"
             sx={{
               backgroundColor: "#c8e6c9",
               color: "#388e3c",
@@ -202,10 +232,21 @@ const ViewNewCases = () => {
             }}
           />
         );
-      case "Supervisor Approval":
+      case "supervisor_approval":
         return (
           <Chip
             label="Approved by the Supervisor"
+            sx={{
+              backgroundColor: "#a5d6a7",
+              color: "#1b5e20",
+              fontWeight: 500,
+            }}
+          />
+        );
+      case "case_completed":
+        return (
+          <Chip
+            label="Case Finished"
             sx={{
               backgroundColor: "#a5d6a7",
               color: "#1b5e20",
@@ -399,7 +440,15 @@ const ViewNewCases = () => {
 
                     return devices.map((device, idx) => {
                       return (
-                        <TableRow key={`${row.id}-${device.id}-${idx}`}>
+                        <TableRow
+                          key={`${row.id}-${device.id}-${idx}`}
+                          sx={{
+                            animation:
+                              row.id === highlightedId
+                                ? `${blinkAnimation} 1s ease-in-out`
+                                : undefined,
+                          }}
+                        >
                           <TableCell>{row.case_name}</TableCell>
                           <TableCell>{row.case_address}</TableCell>
                           <TableCell>{getStatusChip(row.status)}</TableCell>

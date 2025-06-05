@@ -259,7 +259,7 @@ export const findCaseByUserIdAndDeviceId = async (userId, deviceId) => {
     JOIN 
       new_settings_devices nsd ON dcd.device_id = nsd.id
     WHERE 
-      dc.user_id = ? AND dcd.device_id = ? AND dc.status IN ('pending', 'in progress')
+      dc.user_id = ? AND dcd.device_id = ? AND dc.status != 'completed'
     GROUP BY 
       dc.id
     ORDER BY 

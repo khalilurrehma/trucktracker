@@ -148,6 +148,7 @@ export const handleNewDispatchCase = async (req, res) => {
           userId,
           caseName,
           caseAddress,
+          caseId: newCase_id,
           position: { lat, lng },
           message,
           status: "pending",
@@ -287,49 +288,63 @@ export const handleCaseAction = async (req, res) => {
     return res.status(400).json({ error: "Case Id is required" });
   }
 
+  if (action === "reject" && !rejection_reason) {
+    return res.status(400).json({ error: "Rejection reason is required" });
+  }
+
   try {
-    let dbBody = {
+    const dbBody = {
       case_id: caseId,
       driver_id: driverId,
       action,
+      ...(rejection_reason && { rejection_reason }),
     };
 
-    if (action === "reject") {
-      if (!rejection_reason) {
-        return res.status(400).json({ error: "Rejection reason is required" });
-      }
-
-      dbBody.rejection_reason = rejection_reason;
-    }
-
-    await saveDispatchCaseAction(dbBody);
-
-    if (action === "accept") {
-      const stage =
-        userId !== "1"
-          ? await defaultTemplateTimeForAdmin("on_the_way", userId)
-          : await defaultTemplateTime("on_the_way");
-
-      let expectedDuration = stage ? stage?.time_sec : 60;
-
-      await updateCaseStatusById(caseId, "in progress");
-      await driverStatusInService(driverId);
-      await onTheWayCaseStageStatus({
-        caseId,
-        expected_duration: expectedDuration,
-      });
-
-      setTimeout(() => {
-        onTheWayStageStatusCheck(caseId);
-      }, expectedDuration * 1000);
-    }
-
-    await updateCaseCurrentProcess(caseId, "reception_case");
-
-    DispatchEmitter.emit("subprocessEvent", {
+    const event = {
       id: caseId,
       current_subprocess: "reception_case",
-    });
+    };
+
+    switch (action) {
+      case "reject":
+        await updateCaseStatusById(caseId, "rejected");
+        event.status = "rejected";
+        break;
+
+      case "accept":
+        const stage =
+          userId !== "1"
+            ? await defaultTemplateTimeForAdmin("on_the_way", userId)
+            : await defaultTemplateTime("on_the_way");
+
+        const expectedDuration = stage?.time_sec || 60;
+
+        await Promise.all([
+          updateCaseStatusById(caseId, "in progress"),
+          driverStatusInService(driverId),
+          onTheWayCaseStageStatus({
+            caseId,
+            expected_duration: expectedDuration,
+          }),
+        ]);
+
+        event.status = "in progress";
+
+        setTimeout(() => {
+          onTheWayStageStatusCheck(caseId);
+        }, expectedDuration * 1000);
+        break;
+
+      default:
+        return res.status(400).json({ error: "Invalid action" });
+    }
+
+    await Promise.all([
+      saveDispatchCaseAction(dbBody),
+      updateCaseCurrentProcess(caseId, "reception_case"),
+    ]);
+
+    DispatchEmitter.emit("subprocessEvent", event);
 
     res.status(200).json({
       status: true,
@@ -360,9 +375,10 @@ export const authorizeCaseReport = async (req, res) => {
       });
     }
 
-    const [result, update] = await Promise.all([
+    const [result, update, superVisorApproved] = await Promise.all([
       updateCaseReportStatus(reportId, true),
       updateCaseStatusById(caseId, "approved"),
+      updateCaseCurrentProcess(caseId, "supervisor_approval"),
     ]);
 
     if (result.affectedRows === 0) {
@@ -386,6 +402,13 @@ export const authorizeCaseReport = async (req, res) => {
     } else {
       console.log("No FCM token found for driver");
     }
+
+    DispatchEmitter.emit("subprocessEvent", {
+      id: caseId,
+      current_subprocess: "supervisor_approval",
+      status: "approved",
+    });
+
     return res.status(200).json({
       status: true,
       message: "Report authorized successfully",
@@ -502,11 +525,8 @@ export const dispatchCaseReport = async (req, res) => {
         message: `New case report generated: ${caseCheck[0]?.case_name}`,
       }),
       updateCaseStatusById(caseId, "waiting_approval"),
+      updateCaseCurrentProcess(caseId, "authorization_request"),
     ]);
-
-    setTimeout(() => {
-      checkReportAuthorizedStatus(caseId).catch(console.error);
-    }, expectedDuration * 1000);
 
     DispatchEmitter.emit("newcase", {
       reportDetails: {
@@ -519,6 +539,15 @@ export const dispatchCaseReport = async (req, res) => {
         createdAt: new Date().toISOString(),
       },
     });
+    DispatchEmitter.emit("subprocessEvent", {
+      id: caseId,
+      current_subprocess: "authorization_request",
+      status: "waiting_approval",
+    });
+
+    setTimeout(() => {
+      checkReportAuthorizedStatus(caseId).catch(console.error);
+    }, expectedDuration * 1000);
 
     return res.status(201).json({
       status: true,
@@ -613,6 +642,7 @@ export const dispatchCaseCompleteService = async (req, res) => {
     if (updateResults.affectedRows === 1) {
       await Promise.all([
         updateCaseStatusById(caseId, "completed"),
+        updateCaseCurrentProcess(caseId, "case_completed"),
         driverStatusAvailable(driverId),
       ]);
     } else {
@@ -622,6 +652,12 @@ export const dispatchCaseCompleteService = async (req, res) => {
         message: error.message,
       });
     }
+
+    DispatchEmitter.emit("subprocessEvent", {
+      id: caseId,
+      current_subprocess: "case_completed",
+      status: "completed",
+    });
 
     return res.status(200).json({
       status: true,

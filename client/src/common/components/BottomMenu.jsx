@@ -20,13 +20,14 @@ import CrisisAlertIcon from "@mui/icons-material/CrisisAlert";
 
 import { sessionActions } from "../../store";
 import { useTranslation } from "./LocalizationProvider";
-import { useRestriction } from "../util/permissions";
+import { useRestriction, useSuperVisor } from "../util/permissions";
 import { nativePostMessage } from "./NativeInterface";
 
 const BottomMenu = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
+  const superVisor = useSuperVisor();
   const t = useTranslation();
 
   const readonly = useRestriction("readonly");
@@ -95,7 +96,9 @@ const BottomMenu = () => {
         navigate("/");
         break;
       case "operations":
-        navigate("/operations/dispatch");
+        superVisor
+          ? navigate("/operations/cases")
+          : navigate("/operations/dispatch");
         break;
       case "reports":
         navigate("/reports/combined");

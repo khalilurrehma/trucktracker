@@ -30,6 +30,10 @@ import {
   saveInReferenceStage,
   updateOnTheWayStageStatus,
 } from "./dispatchService.js";
+import { updateCaseCurrentProcess } from "../model/dispatch.js";
+import { EventEmitter } from "events";
+
+export const DispatchEmitter = new EventEmitter();
 
 const deviceNames = {};
 const deviceShiftCache = {};
@@ -387,7 +391,14 @@ export const handleInReferenceStage = async (topic, message) => {
       caseData.dispatch_case_id
     );
     if (!alreadyStageExist) {
-      await updateOnTheWayStageStatus(caseData.dispatch_case_id, "on the way");
+      await Promise.all([
+        updateOnTheWayStageStatus(caseData.dispatch_case_id, "on the way"),
+        updateCaseCurrentProcess(caseData.dispatch_case_id, "on_the_way"),
+      ]);
+      DispatchEmitter.emit("subprocessEvent", {
+        id: caseData.dispatch_case_id,
+        current_subprocess: "on_the_way",
+      });
       console.log(
         `Stage 'On the way' recorded for case ${caseData.dispatch_case_id}`
       );
@@ -410,7 +421,14 @@ export const handleInReferenceStage = async (topic, message) => {
       caseData.dispatch_case_id
     );
     if (!alreadyRecorded) {
-      await saveInReferenceStage(caseData.dispatch_case_id);
+      await Promise.all([
+        saveInReferenceStage(caseData.dispatch_case_id),
+        updateCaseCurrentProcess(caseData.dispatch_case_id, "in_reference"),
+      ]),
+        DispatchEmitter.emit("subprocessEvent", {
+          id: caseData.dispatch_case_id,
+          current_subprocess: "in_reference",
+        });
       console.log(
         `Stage 'In Reference' recorded for case ${caseData.dispatch_case_id}`
       );
