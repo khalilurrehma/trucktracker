@@ -128,6 +128,7 @@ import ServiceSettings from "./settings/ServiceSettings";
 import RimacCases from "./operations/RimacCases";
 import RimacCaseReport from "./operations/RimacCaseReport";
 import Subprocess from "./operations/Subprocess";
+import DispatchSearchHistory from "./operations/DispatchSearchHistory";
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -379,6 +380,10 @@ const Navigation = () => {
 
         <Route path="operations">
           <Route path="dispatch" element={<DispatchResult />} />
+          <Route
+            path="dispatch/search-history"
+            element={<DispatchSearchHistory />}
+          />
           <Route path="case" element={<NewDispatchCase />} />
           <Route path="cases" element={<ViewNewCases />} />
           <Route path="subprocesses" element={<Subprocess />} />

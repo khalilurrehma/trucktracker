@@ -1,6 +1,7 @@
 import {
   addDriver,
   checkAlreadyAssociatedVehicle,
+  clearOldSessions,
   driverByEmail,
   driversShiftDetails,
   driverStatus,
@@ -18,6 +19,7 @@ import {
   saveAssociationRelation,
   saveDriverResetToken,
   saveFCMToken,
+  saveNewSession,
   updateDriver,
   updateDriverAvailability,
   updateFCMToken,
@@ -595,7 +597,7 @@ export const getDriverAvailability = async (req, res) => {
 };
 
 export const driverLogin = async (req, res) => {
-  const { email, password, fcmToken } = req.body;
+  const { email, password, fcmToken, deviceId } = req.body;
   let isVehicleAssigned = false;
 
   try {
@@ -627,18 +629,18 @@ export const driverLogin = async (req, res) => {
       }
     }
 
-    const parsedAttributes = JSON.parse(driver.attributes);
+    await clearOldSessions(driver.id);
 
+    const parsedAttributes = JSON.parse(driver.attributes);
     const token = jwt.sign(
       { id: driver.id, email: parsedAttributes.email },
       process.env.ACCESS_TOKEN_SECRET,
-      {
-        expiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN,
-      }
+      { expiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN }
     );
 
-    const driverVehicle = await checkAlreadyAssociatedVehicle(driver.id);
+    await saveNewSession(driver.id, deviceId, token);
 
+    const driverVehicle = await checkAlreadyAssociatedVehicle(driver.id);
     if (driverVehicle) {
       isVehicleAssigned = true;
     }

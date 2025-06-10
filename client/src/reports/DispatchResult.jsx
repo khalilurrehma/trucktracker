@@ -273,6 +273,7 @@ const DispatchResult = () => {
   const handleShowClick = async () => {
     if (
       !address ||
+      !radius ||
       !selectedServiceType.length ||
       !isLoaded ||
       !window.google
@@ -305,7 +306,9 @@ const DispatchResult = () => {
       if (map) map.panTo(newPosition);
 
       const currentDate = dayjs().format("YYYY-MM-DD");
-      const apiUrl = `${url}/new-devices?date=${currentDate}&deviceLocation=true`;
+      const encodedAddress = encodeURIComponent(address);
+      // const lat = `lat()${lng()}`;
+      const apiUrl = `${url}/new-devices?date=${currentDate}&deviceLocation=true&address=${encodedAddress}&radius=${radius}&lat=${lat()}&lng=${lng()}&userId=${userId}`;
       const res = await axios.get(apiUrl);
 
       if (res.status !== 200) {
@@ -364,7 +367,7 @@ const DispatchResult = () => {
         }))
         .filter((device) => device.distance <= radius)
         .sort((a, b) => a.distance - b.distance)
-        .slice(0, 10);
+        .slice(0, 3);
 
       setDevicesInRadius(filteredDevices);
     } catch (error) {

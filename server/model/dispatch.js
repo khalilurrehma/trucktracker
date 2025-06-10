@@ -775,3 +775,44 @@ export const insertDriverServiceTime = async (caseId, driverId, seconds) => {
 
   await dbQuery(query, [caseId, driverId, seconds]);
 };
+
+export const saveSearchHistory = async ({
+  userId,
+  address,
+  radius,
+  lat,
+  lng,
+}) => {
+  const query = `
+    INSERT INTO dispatch_search_history (userId, address, latitude, longitude, radius) VALUES (?, ?, ?, ?, ?)
+  `;
+
+  const values = [userId, address, lat, lng, radius];
+
+  await dbQuery(query, values);
+};
+
+export const allSearchHistory = async () => {
+  const query = `
+    SELECT * FROM dispatch_search_history
+  `;
+
+  try {
+    const rows = await dbQuery(query);
+    return rows;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const allSearchHistoryByUserId = async (userId) => {
+  const query = `
+    SELECT * FROM dispatch_search_history WHERE userId = ?
+  `;
+  try {
+    const rows = await dbQuery(query, [userId]);
+    return rows;
+  } catch (error) {
+    throw error;
+  }
+};

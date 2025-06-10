@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
+import { checkSessionInDB } from "../model/driver.js";
 
-export const authDriver = (req, res, next) => {
+export const authDriver = async (req, res, next) => {
   const authHeader = req.headers["authorization"];
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -19,14 +20,24 @@ export const authDriver = (req, res, next) => {
     });
   }
 
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-    if (err) {
+  try {
+    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+
+    const isSessionValid = await checkSessionInDB(decoded.id, token);
+    if (!isSessionValid) {
       return res.status(401).json({
         status: false,
-        message: "Unauthorized",
+        message: "Session expired or logged out from another device",
       });
     }
+
     req.userId = decoded.id;
+    req.email = decoded.email;
     next();
-  });
+  } catch (err) {
+    return res.status(401).json({
+      status: false,
+      message: "Unauthorized",
+    });
+  }
 };

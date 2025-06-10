@@ -1,6 +1,8 @@
 import {
   addNewCase,
   addNewZonePrice,
+  allSearchHistory,
+  allSearchHistoryByUserId,
   caseTrackingById,
   defaultTemplateTimeForAdmin,
   fetchCaseIdByReportId,
@@ -807,6 +809,39 @@ export const subservicesLocationData = async (req, res) => {
       success: false,
       message: "Failed to fetch locations",
       error: error.message,
+    });
+  }
+};
+
+export const fetchSearchHistory = async (req, res) => {
+  try {
+    const history = await allSearchHistory();
+
+    return res.status(200).json({
+      success: true,
+      data: history,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+export const fetchSearchHistoryByUserId = async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const history = await allSearchHistoryByUserId(userId);
+
+    return res.status(200).json({
+      success: true,
+      data: history,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
     });
   }
 };

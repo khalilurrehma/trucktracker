@@ -18,6 +18,8 @@ import {
   adminOverrideTemplate,
   subservicesLocationData,
   addNewSubservicePrice,
+  fetchSearchHistory,
+  fetchSearchHistoryByUserId,
 } from "../controllers/dispatch.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { authDriver } from "../middlewares/auth.middleware.js";
@@ -39,6 +41,10 @@ router.get("/dispatch/process/template", processTemplate);
 router.get("/dispatch/process/template/admin/:adminId", adminProcessTemplate);
 
 router.get("/dispatch/subservices/locations", subservicesLocationData);
+
+router.get("/dispatch/search/history", fetchSearchHistory);
+
+router.get("/dispatch/search/history/:userId", fetchSearchHistoryByUserId);
 
 router.post(
   "/dispatch/case/:caseId/action/:companyId",

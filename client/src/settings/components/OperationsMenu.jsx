@@ -13,6 +13,7 @@ import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import BusinessIcon from "@mui/icons-material/Business";
 import CasesIcon from "@mui/icons-material/Cases";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
+import HistoryIcon from "@mui/icons-material/History";
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "../../common/components/LocalizationProvider";
 import MenuItem from "../../common/components/MenuItem";
@@ -80,6 +81,12 @@ const OperationsMenu = () => {
             selected={location.pathname === "/operations/dispatch"}
           />
         )}
+        <MenuItem
+          title={t("operationsSearchHistory")}
+          link="/operations/dispatch/search-history"
+          icon={<HistoryIcon />}
+          selected={location.pathname === "/operations/dispatch/search-history"}
+        />
         <MenuItem
           title={t("operationsCases")}
           link="/operations/cases"

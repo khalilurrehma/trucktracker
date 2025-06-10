@@ -41,6 +41,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
 import timezone from "dayjs/plugin/timezone.js";
 import { driverNameByDeviceId, driverStatus } from "../model/driver.js";
+import { saveSearchHistory } from "../model/dispatch.js";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -424,6 +425,22 @@ export const allNewDevices = async (req, res) => {
     const deviceIds = await devices.map((device) => device.id);
 
     const services = await getDeviceServices(deviceIds);
+
+    if (
+      query?.address &&
+      query?.radius &&
+      query?.lat &&
+      query?.lng &&
+      query?.userId
+    ) {
+      await saveSearchHistory({
+        userId: query.userId,
+        address: query.address,
+        radius: query.radius,
+        lat: query.lat,
+        lng: query.lng,
+      });
+    }
 
     if (query?.date) {
       currentDate = query?.date;
