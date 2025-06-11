@@ -3,9 +3,9 @@ import {
   assignDriverToVehicle,
   deleteDriver,
   dispatchCasesForDriver,
-  dispatchTodayCasesForDriver,
   driverAssociateVehicles,
   driverCaseStart,
+  driverDashboard,
   driverForgotPassword,
   driverLogin,
   driverLogout,
@@ -86,10 +86,6 @@ router.post("/driver/forgot-password", driverForgotPassword);
 
 // Driver Dashboard APIs
 
-router.get(
-  "/driver/dashboard/:companyId",
-  authDriver,
-  dispatchTodayCasesForDriver
-);
+router.get("/driver/dashboard/:companyId", authDriver, driverDashboard);
 
 export default router;

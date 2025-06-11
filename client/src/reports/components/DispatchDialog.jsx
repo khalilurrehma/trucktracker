@@ -129,14 +129,6 @@ const DispatchDialog = ({
           <Typography sx={{ ml: 2, flex: 1 }} variant="h6" component="div">
             Confirmation
           </Typography>
-          <Button
-            autoFocus
-            onClick={handleAssignTasks}
-            variant="outlined"
-            style={{ maxWidth: "320px", color: "white", borderColor: "white" }}
-          >
-            {loader ? "Loading..." : "Assign Task"}
-          </Button>
         </Toolbar>
       </AppBar>
       <Box sx={{ maxWidth: 600, mx: "auto", mt: 4 }}>
@@ -213,7 +205,7 @@ const DispatchDialog = ({
         >
           <input {...getInputProps()} />
           <UploadFileIcon fontSize="large" color="action" />
-          <Typography variant="body1" sx={{ mt: 1 }}>
+          <Typography variant="body1" sx={{ mt: 1, mb: 6 }}>
             {isDragActive
               ? "Drop the files here ..."
               : "Drag & drop files here, or click to select files"}
@@ -224,6 +216,17 @@ const DispatchDialog = ({
             </Typography>
           )}
         </Paper>
+
+        <Box>
+          <Button
+          autoFocus
+          onClick={handleAssignTasks}
+          variant="contained"
+          style={{ width: "100%" }}
+        >
+          {loader ? "Loading..." : "Assign Task"}
+        </Button>
+        </Box>
       </Box>
     </Dialog>
   );

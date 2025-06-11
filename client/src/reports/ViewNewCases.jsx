@@ -51,7 +51,7 @@ const ViewNewCases = () => {
   } else {
     url = import.meta.env.VITE_PROD_BACKEND_URL;
   }
-  const { subprocessEvents } = useAppContext();
+  const { subprocessEvents, liveSuggestedServices } = useAppContext();
   const [allCases, setAllCases] = useState([]);
   const [totalCases, setTotalCases] = useState(0);
   const [loader, setLoader] = useState(false);
@@ -73,6 +73,7 @@ const ViewNewCases = () => {
   const [suggestedServices, setSuggestedServices] = useState({});
   const [openServicesModal, setOpenServicesModal] = useState(false);
   const [selectedCase, setSelectedCase] = useState(null);
+  const [rejectedServiceIds, setRejectedServiceIds] = useState([]);
 
   useEffect(() => {
     if (subprocessEvents.length > 0) {
@@ -98,6 +99,26 @@ const ViewNewCases = () => {
       }
     }
   }, [subprocessEvents]);
+
+  useEffect(() => {
+    if (liveSuggestedServices.length > 0) {
+      const latest = liveSuggestedServices[liveSuggestedServices.length - 1];
+      const { caseId } = latest;
+
+      setHighlightedId(Number(caseId));
+
+      fetchSuggestedServices(caseId).then((newSuggestions) => {
+        setSuggestedServices((prev) => ({
+          ...prev,
+          [caseId]: newSuggestions,
+        }));
+      });
+
+      setTimeout(() => {
+        setHighlightedId(null);
+      }, 1000);
+    }
+  }, [liveSuggestedServices]);
 
   const getStatusChip = (status) => {
     switch (status) {
@@ -510,7 +531,10 @@ const ViewNewCases = () => {
                                   (service, index) => (
                                     <Chip
                                       key={index}
-                                      label={service.serviceName || "N/A"}
+                                      label={
+                                        service.suggested_services.join(", ") ||
+                                        "N/A"
+                                      }
                                       sx={{ mr: 1, mb: 1 }}
                                     />
                                   )
@@ -601,6 +625,7 @@ const ViewNewCases = () => {
           caseName={selectedCase?.name}
           services={suggestedServices[selectedCase?.id] || []}
           userId={userId}
+          onReject={(id) => setRejectedServiceIds((prev) => [...prev, id])}
         />
       </Box>
     </PageLayout>

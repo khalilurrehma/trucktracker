@@ -49,6 +49,7 @@ const AppContextProvider = ({ children }) => {
   const [mqttDeviceDin, setDeviceDin] = useState([]);
   const [updateCronLogs, setUpdateCronLogs] = useState([]);
   const [subprocessEvents, setSubprocessEvents] = useState([]);
+  const [liveSuggestedServices, setLiveSuggestedServices] = useState([]);
 
   const user = useSelector((state) => state.session.user);
 
@@ -93,6 +94,8 @@ const AppContextProvider = ({ children }) => {
       setUpdateCronLogs((prev) => [...prev, newMessage]);
     } else if (stateType === "subprocessEvent-update") {
       setSubprocessEvents((prev) => [...prev, newMessage]);
+    } else if (stateType === "suggestedServices") {
+      setLiveSuggestedServices((prev) => [...prev, newMessage]);
     }
   };
 
@@ -440,6 +443,7 @@ const AppContextProvider = ({ children }) => {
         mqttDeviceConnected,
         updateCronLogs,
         subprocessEvents,
+        liveSuggestedServices,
       }}
     >
       {children}

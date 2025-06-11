@@ -109,5 +109,20 @@ DispatchEmitter.on("subprocessEvent", async (subprocessEvent) => {
     console.error("❌ Error processing dispatch case event:", error.message);
   }
 });
+DispatchEmitter.on("suggestedServices", async (suggestedServices) => {
+  try {
+    let message = {
+      ...suggestedServices,
+      suggestedServices: "suggestedServices-notification",
+    };
+
+    broadcast(message);
+  } catch (error) {
+    console.error(
+      "❌ Error processing suggestedServices event:",
+      error.message
+    );
+  }
+});
 
 export { setBroadcast };

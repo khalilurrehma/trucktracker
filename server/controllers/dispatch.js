@@ -163,7 +163,7 @@ export const handleNewDispatchCase = async (req, res) => {
           status: "pending",
           file_data: dbBody.file_data || [],
           assignedDeviceIds,
-          createdAt: dayjs().tz("Asia/Karachi").format("YYYY-MM-DD HH:mm:ss"),
+          createdAt: dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss"),
           respondWithin: expectedDuration,
         };
 
@@ -466,8 +466,8 @@ export const suggestedServicesApproval = async (req, res) => {
 
   let missingRequiredFields = [];
 
-  if (!caseId) missingRequiredFields.push("caseId");
-  if (!companyId) missingRequiredFields.push("companyId");
+  if (!caseId || caseId === "") missingRequiredFields.push("caseId");
+  if (!companyId || companyId === "") missingRequiredFields.push("companyId");
   if (!suggested_services) missingRequiredFields.push("suggested_services");
 
   if (missingRequiredFields.length > 0) {
@@ -490,6 +490,18 @@ export const suggestedServicesApproval = async (req, res) => {
     };
 
     await saveRequestedSuggestedService(dbBody);
+
+    const [caseData, superVisorIds] = await Promise.all([
+      findCaseById(caseId),
+      realmUserTraccarIdsByUserId(companyId),
+    ]);
+
+    DispatchEmitter.emit("suggestedServices", {
+      companyId,
+      caseId,
+      superVisorIds,
+      message: `New suggested services request for case ${caseData.case_name}`,
+    });
 
     return res.status(200).json({
       status: true,

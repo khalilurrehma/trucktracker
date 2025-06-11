@@ -28,22 +28,31 @@ const SuggestedServicesModal = ({
   services,
 }) => {
   const { url } = useAppContext();
-
   const [loading, setLoading] = useState({});
+  const [localServices, setLocalServices] = useState(services || []);
+
+  React.useEffect(() => {
+    if (open) setLocalServices(services || []);
+  }, [open, services]);
 
   const handleAction = async (serviceId, action) => {
-    setLoading((prev) => ({ ...prev, [serviceId]: true }));
+    setLoading((prev) => ({ ...prev, [`${serviceId}_${action}`]: true }));
+
     try {
       const { data } = await axios.patch(
         `${url}/dispatch/service-approvals/${serviceId}?action=${action}`
       );
+
       if (data.status) {
         toast.success(data.message);
+        setLocalServices((prev) =>
+          prev.filter((item) => item.id !== serviceId)
+        );
       }
     } catch (error) {
       toast.error(`Failed to ${action} service: ${error.message}`);
     } finally {
-      setLoading((prev) => ({ ...prev, [serviceId]: false }));
+      setLoading((prev) => ({ ...prev, [`${serviceId}_${action}`]: false }));
     }
   };
 
@@ -55,7 +64,7 @@ const SuggestedServicesModal = ({
           Pending Suggested Services for Case: {caseName} (ID: {caseId})
         </DialogTitle>
         <DialogContent>
-          {services.length === 0 ? (
+          {localServices.length === 0 ? (
             <Typography>No pending services found.</Typography>
           ) : (
             <Table>
@@ -68,7 +77,7 @@ const SuggestedServicesModal = ({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {services.map((service) => (
+                {localServices.map((service) => (
                   <TableRow key={service.id}>
                     <TableCell>
                       {service.suggested_services.join(", ") || "N/A"}
@@ -79,9 +88,9 @@ const SuggestedServicesModal = ({
                       <IconButton
                         color="success"
                         onClick={() => handleAction(service.id, "approved")}
-                        disabled={loading[service.id]}
+                        disabled={loading[`${service.id}_approved`]}
                       >
-                        {loading[service.id] ? (
+                        {loading[`${service.id}_approved`] ? (
                           <CircularProgress size={24} />
                         ) : (
                           <CheckCircleIcon />
@@ -90,9 +99,9 @@ const SuggestedServicesModal = ({
                       <IconButton
                         color="error"
                         onClick={() => handleAction(service.id, "rejected")}
-                        disabled={loading[service.id]}
+                        disabled={loading[`${service.id}_rejected`]}
                       >
-                        {loading[service.id] ? (
+                        {loading[`${service.id}_rejected`] ? (
                           <CircularProgress size={24} />
                         ) : (
                           <CancelIcon />

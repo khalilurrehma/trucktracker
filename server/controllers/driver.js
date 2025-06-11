@@ -12,6 +12,7 @@ import {
   fetchDriversByUserId,
   findAssociateVehicleByDriverId,
   findVehiclesByDriverId,
+  getDriverCompletedCases,
   getDriverServiceTime,
   modifyDriverStatus,
   removeDriver,
@@ -54,7 +55,16 @@ import {
   updateOnTheWayStageStatus,
 } from "../services/dispatchService.js";
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc.js";
+import timezone from "dayjs/plugin/timezone.js";
+import weekday from "dayjs/plugin/weekday.js";
+import advancedFormat from "dayjs/plugin/advancedFormat.js";
 import { getAverageServiceTime } from "../utils/common.js";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.extend(weekday);
+dayjs.extend(advancedFormat);
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -746,7 +756,7 @@ export const driverForgotPassword = async (req, res) => {
   }
 };
 
-export const dispatchTodayCasesForDriver = async (req, res) => {
+export const driverDashboard = async (req, res) => {
   const { companyId } = req.params;
   const driverId = req.userId;
 
@@ -758,10 +768,12 @@ export const dispatchTodayCasesForDriver = async (req, res) => {
   }
 
   try {
-    const [driverVehicleIds, driverServiceTime] = await Promise.all([
-      findAssociateVehicleByDriverId(driverId),
-      getDriverServiceTime(driverId),
-    ]);
+    const [driverVehicleIds, driverServiceTime, routineCases] =
+      await Promise.all([
+        findAssociateVehicleByDriverId(driverId),
+        getDriverServiceTime(driverId),
+        getDriverCompletedCases(driverId),
+      ]);
 
     const casesToday = await countTodayCasesByUserAndDevice(
       companyId,
@@ -770,6 +782,28 @@ export const dispatchTodayCasesForDriver = async (req, res) => {
 
     const avgTime = getAverageServiceTime(driverServiceTime);
 
+    const weeklyCounts = {
+      Monday: 0,
+      Tuesday: 0,
+      Wednesday: 0,
+      Thursday: 0,
+      Friday: 0,
+      Saturday: 0,
+      Sunday: 0,
+    };
+
+    for (const record of routineCases) {
+      const dayName = dayjs(record.completed_day)
+        .tz("America/Lima")
+        .format("dddd");
+      weeklyCounts[dayName] = (weeklyCounts[dayName] || 0) + 1;
+    }
+
+    const graphData = Object.keys(weeklyCounts).map((day) => ({
+      day,
+      completed: weeklyCounts[day],
+    }));
+
     let responseBody = {
       cases: {
         total: casesToday,
@@ -777,6 +811,7 @@ export const dispatchTodayCasesForDriver = async (req, res) => {
       serviceTime: {
         avgTime,
       },
+      routineCases: graphData,
     };
 
     res.status(200).json({ status: true, message: responseBody });

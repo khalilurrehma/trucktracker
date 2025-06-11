@@ -24,7 +24,8 @@ export const authDriver = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
     const isSessionValid = await checkSessionInDB(decoded.id, token);
-    if (!isSessionValid) {
+
+    if (isSessionValid.length === 0) {
       return res.status(401).json({
         status: false,
         message: "Session expired or logged out from another device",

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { useAppContext } from "./AppContext";
 import { Snackbar, Alert, Slide } from "@mui/material";
-import alertSound from "./resources/new-alert.mp3";
+import alertSound from "./resources/echong-notification-official.wav";
 import { useSelector } from "react-redux";
 import { getAuthenticatedAudioUrl } from "./settings/common/New.Helper";
 
@@ -80,8 +80,6 @@ const SubSocket = () => {
           const recievedData = JSON.parse(event.data);
 
           if (recievedData?.subprocessEvent === "subprocessEvent-update") {
-            console.log(recievedData, "subprocessEvent-update");
-
             updateMqttMessage(recievedData, "subprocessEvent-update");
           }
 
@@ -114,6 +112,18 @@ const SubSocket = () => {
           }
           if (recievedData?.topic?.includes("calcs/1742077")) {
             updateMqttMessage(recievedData, "Behaivor");
+          }
+
+          if (
+            (recievedData.suggestedServices ===
+              "suggestedServices-notification" &&
+              (recievedData?.companyId === sessionUserId ||
+                sessionUserId === 1)) ||
+            (Array.isArray(recievedData?.superVisorIds) &&
+              recievedData.superVisorIds.includes(sessionUserId))
+          ) {
+            updateMqttMessage(recievedData, "suggestedServices");
+            addNotification(recievedData.message);
           }
 
           if (

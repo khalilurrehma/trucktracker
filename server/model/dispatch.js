@@ -44,7 +44,7 @@ export const addNewCase = async (body) => {
     ) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?)
   `;
 
-  let now = dayjs().tz("Asia/Karachi").format("YYYY-MM-DD HH:mm:ss");
+  let now = dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss");
 
   const values = [
     user_id,
@@ -387,7 +387,7 @@ export const allPendingSuggestedServicesByUserId = async (case_id, user_id) => {
       d.name AS driver_name 
     FROM dispatch_case_service_approvals a
     JOIN drivers d ON a.driver_id = d.id
-    WHERE a.case_id = ? a.user_id = ? AND a.status = 'pending'
+    WHERE a.case_id = ? AND a.user_id = ? AND a.status = 'pending'
 `;
 
   try {
