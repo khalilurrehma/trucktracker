@@ -497,7 +497,7 @@ export const driverStatusAvailable = async (driver_id) => {
 };
 
 export const clearOldSessions = async (driver_id) => {
-  const sql = `DELETE FROM user_sessions WHERE driver_id = ?`;
+  const sql = `DELETE FROM driver_sessions WHERE driver_id = ?`;
 
   return new Promise((resolve, reject) => {
     pool.query(sql, [driver_id], (err, results) => {
@@ -508,7 +508,7 @@ export const clearOldSessions = async (driver_id) => {
 };
 
 export const checkSessionInDB = async (driver_id, token) => {
-  const sql = `SELECT * FROM user_sessions WHERE user_id = ? AND token = ?`;
+  const sql = `SELECT * FROM driver_sessions WHERE driver_id = ? AND token = ?`;
 
   return new Promise((resolve, reject) => {
     pool.query(sql, [driver_id, token], (err, results) => {
@@ -519,7 +519,7 @@ export const checkSessionInDB = async (driver_id, token) => {
 };
 
 export const saveNewSession = async (driver_id, device_id, token) => {
-  const sql = `INSERT INTO user_sessions (driver_id, device_id, token) VALUES (?, ?, ?)`;
+  const sql = `INSERT INTO driver_sessions (driver_id, device_id, token) VALUES (?, ?, ?)`;
 
   return new Promise((resolve, reject) => {
     pool.query(sql, [driver_id, device_id, token], (err, results) => {

@@ -28,6 +28,7 @@ import { keyframes } from "@mui/system";
 import { styled } from "@mui/material/styles";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
+import RuleIcon from "@mui/icons-material/Rule";
 import { getAllNewCases } from "../apis/api";
 import CaseReportDialog from "./components/CaseReportDialog";
 import axios from "axios";
@@ -35,6 +36,7 @@ import { useSelector } from "react-redux";
 import TableShimmer from "../common/components/TableShimmer";
 import { useSuperVisor } from "../common/util/permissions";
 import { useAppContext } from "../AppContext";
+import SuggestedServicesModal from "../operations/components/SuggestedServicesModal";
 
 const blinkAnimation = keyframes`
   0% { background-color: #fff3cd; }
@@ -51,6 +53,7 @@ const ViewNewCases = () => {
   }
   const { subprocessEvents } = useAppContext();
   const [allCases, setAllCases] = useState([]);
+  const [totalCases, setTotalCases] = useState(0);
   const [loader, setLoader] = useState(false);
   const [openAssignModal, setOpenAssignModal] = useState(false);
   const [caseDetails, setCaseDetails] = useState({});
@@ -67,8 +70,9 @@ const ViewNewCases = () => {
   const superVisor = useSuperVisor();
 
   const [anchorEl, setAnchorEl] = useState(null);
-
-  // console.log(subprocessEvents);
+  const [suggestedServices, setSuggestedServices] = useState({});
+  const [openServicesModal, setOpenServicesModal] = useState(false);
+  const [selectedCase, setSelectedCase] = useState(null);
 
   useEffect(() => {
     if (subprocessEvents.length > 0) {
@@ -273,9 +277,22 @@ const ViewNewCases = () => {
             ? await getAllNewCases()
             : await getAllNewCases(userId, superVisor);
 
-        if (data.status) setAllCases(data.data), setLoader(false);
+        if (data.status) {
+          setAllCases(data.data);
+          const servicesPromises = data.data.map((caseItem) =>
+            fetchSuggestedServices(caseItem.id)
+          );
+          const servicesResults = await Promise.all(servicesPromises);
+          const servicesMap = {};
+          data.data.forEach((caseItem, index) => {
+            servicesMap[caseItem.id] = servicesResults[index] || [];
+          });
+          setSuggestedServices(servicesMap);
+        }
       } catch (error) {
         console.error("Error fetching cases:", error);
+      } finally {
+        setLoader(false);
       }
     }
 
@@ -298,6 +315,24 @@ const ViewNewCases = () => {
     fetchCases();
     getNotifications();
   }, []);
+
+  const fetchSuggestedServices = async (caseId) => {
+    try {
+      const { data } = await axios.get(
+        `${url}/dispatch/case/${caseId}/suggestedservices/approvals?status=pending&userId=${userId}`
+      );
+      if (data.success) {
+        return data.message;
+      }
+      return [];
+    } catch (error) {
+      console.error(
+        `Error fetching suggested services for case ${caseId}:`,
+        error
+      );
+      return [];
+    }
+  };
 
   const filteredCases = allCases.filter((item) => {
     const devices = item.assigned_devices.map((device) => device.device_name);
@@ -403,6 +438,9 @@ const ViewNewCases = () => {
                   <b>Service Type</b>
                 </TableCell>
                 <TableCell>
+                  <b>Suggested Services</b>
+                </TableCell>
+                <TableCell>
                   <b>Driver</b>
                 </TableCell>
                 <TableCell>
@@ -421,7 +459,7 @@ const ViewNewCases = () => {
                   <b>Initial Base</b>
                 </TableCell>
                 <TableCell>
-                  <b>Report</b>
+                  <b>Actions</b>
                 </TableCell>
               </TableRow>
             </TableHead>
@@ -466,6 +504,19 @@ const ViewNewCases = () => {
                               />
                             )) || "N/A"}
                           </TableCell>
+                          <TableCell>
+                            {(suggestedServices[row.id] || []).length > 0
+                              ? suggestedServices[row.id].map(
+                                  (service, index) => (
+                                    <Chip
+                                      key={index}
+                                      label={service.serviceName || "N/A"}
+                                      sx={{ mr: 1, mb: 1 }}
+                                    />
+                                  )
+                                )
+                              : "None"}
+                          </TableCell>
                           <TableCell>{device.drivername || "N/A"}</TableCell>
                           <TableCell>{device.name || "N/A"}</TableCell>
                           <TableCell>
@@ -477,25 +528,45 @@ const ViewNewCases = () => {
                           <TableCell>{device.district || "N/A"}</TableCell>
                           <TableCell>{device.initialBase || "N/A"}</TableCell>
                           <TableCell>
-                            <IconButton
-                              onClick={() => {
-                                setOpenAssignModal(true);
-                                setCaseDetails({
-                                  id: row.id,
-                                  name: row.case_name,
-                                });
-                              }}
-                              disabled={row.status === "pending"}
-                            >
-                              <FullscreenIcon />
-                            </IconButton>
+                            <Box sx={{ display: "flex" }}>
+                              <IconButton
+                                onClick={() => {
+                                  setOpenAssignModal(true);
+                                  setCaseDetails({
+                                    id: row.id,
+                                    name: row.case_name,
+                                  });
+                                }}
+                                disabled={row.status === "pending"}
+                              >
+                                <FullscreenIcon />
+                              </IconButton>
+                              <IconButton
+                                onClick={() => {
+                                  setSelectedCase({
+                                    id: row.id,
+                                    name: row.case_name,
+                                  });
+                                  setOpenServicesModal(true);
+                                }}
+                              >
+                                <Badge
+                                  badgeContent={
+                                    (suggestedServices[row.id] || []).length
+                                  }
+                                  color="error"
+                                >
+                                  <RuleIcon />
+                                </Badge>
+                              </IconButton>
+                            </Box>
                           </TableCell>
                         </TableRow>
                       );
                     });
                   })
               ) : (
-                <TableShimmer columns={11} />
+                <TableShimmer columns={13} />
               )}
             </TableBody>
           </Table>
@@ -518,6 +589,18 @@ const ViewNewCases = () => {
           openAssignModal={openAssignModal}
           setOpenAssignModal={setOpenAssignModal}
           caseDetails={caseDetails}
+        />
+
+        <SuggestedServicesModal
+          open={openServicesModal}
+          onClose={() => {
+            setOpenServicesModal(false);
+            setSelectedCase(null);
+          }}
+          caseId={selectedCase?.id}
+          caseName={selectedCase?.name}
+          services={suggestedServices[selectedCase?.id] || []}
+          userId={userId}
         />
       </Box>
     </PageLayout>

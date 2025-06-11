@@ -332,6 +332,103 @@ export const updateCaseStatusById = async (case_id, action) => {
   }
 };
 
+export const saveRequestedSuggestedService = async (request) => {
+  const { user_id, case_id, driver_id, suggested_services } = request;
+
+  const sql = `INSERT INTO dispatch_case_service_approvals (user_id, case_id, driver_id, suggested_services) 
+      VALUES (?, ?, ?, ?)`;
+
+  const values = [
+    user_id,
+    case_id,
+    driver_id,
+    JSON.stringify(suggested_services),
+  ];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result;
+  } catch (error) {
+    return error;
+  }
+};
+
+export const allPendingSuggestedServices = async (case_id) => {
+  const sql = `
+    SELECT 
+      a.*, 
+      d.name AS driver_name 
+    FROM dispatch_case_service_approvals a
+    JOIN drivers d ON a.driver_id = d.id
+    WHERE a.case_id = ? AND a.status = 'pending'
+  `;
+
+  try {
+    const rows = await dbQuery(sql, [case_id]);
+
+    const parsedRows = rows.map((row) => ({
+      ...row,
+      suggested_services:
+        typeof row.suggested_services === "string"
+          ? JSON.parse(row.suggested_services)
+          : row.suggested_services,
+    }));
+
+    return parsedRows;
+  } catch (error) {
+    return error;
+  }
+};
+
+export const allPendingSuggestedServicesByUserId = async (case_id, user_id) => {
+  const sql = `
+    SELECT 
+      a.*, 
+      d.name AS driver_name 
+    FROM dispatch_case_service_approvals a
+    JOIN drivers d ON a.driver_id = d.id
+    WHERE a.case_id = ? a.user_id = ? AND a.status = 'pending'
+`;
+
+  try {
+    const rows = await dbQuery(sql, [case_id, user_id]);
+
+    const parsedRows = rows.map((row) => ({
+      ...row,
+      suggested_services:
+        typeof row.suggested_services === "string"
+          ? JSON.parse(row.suggested_services)
+          : row.suggested_services,
+    }));
+
+    return parsedRows;
+  } catch (error) {
+    return error;
+  }
+};
+
+export const findPendingApprovalSuggestedService = async (id) => {
+  const sql = `SELECT * FROM dispatch_case_service_approvals WHERE id = ? AND status = 'pending'`;
+
+  try {
+    const rows = await dbQuery(sql, [id]);
+    return rows[0];
+  } catch (error) {
+    return error;
+  }
+};
+
+export const actionSuggestionService = async (id, action) => {
+  const sql = `UPDATE dispatch_case_service_approvals SET status = ? WHERE id = ?`;
+
+  try {
+    const result = await dbQuery(sql, [action, id]);
+    return result;
+  } catch (error) {
+    return error;
+  }
+};
+
 export const saveDispatchCaseReport = async (reportData) => {
   const query = `
       INSERT INTO dispatch_case_reports (

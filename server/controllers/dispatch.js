@@ -1,6 +1,9 @@
 import {
+  actionSuggestionService,
   addNewCase,
   addNewZonePrice,
+  allPendingSuggestedServices,
+  allPendingSuggestedServicesByUserId,
   allSearchHistory,
   allSearchHistoryByUserId,
   caseTrackingById,
@@ -13,6 +16,7 @@ import {
   findCaseById,
   findCaseByName,
   findCaseStatusById,
+  findPendingApprovalSuggestedService,
   getAllNotifications,
   getNotificationsByCompanyId,
   initialCaseStageStatus,
@@ -26,6 +30,7 @@ import {
   saveDispatchCaseAction,
   saveDispatchCaseReport,
   saveInvolvedVehicle,
+  saveRequestedSuggestedService,
   saveRimacCase,
   saveVehiclePhoto,
   setNewStatusNotification,
@@ -454,6 +459,50 @@ export const getDispatchCaseReport = async (req, res) => {
   }
 };
 
+export const suggestedServicesApproval = async (req, res) => {
+  const driverId = req.userId;
+  const { caseId, companyId } = req.params;
+  const { suggested_services } = req.body;
+
+  let missingRequiredFields = [];
+
+  if (!caseId) missingRequiredFields.push("caseId");
+  if (!companyId) missingRequiredFields.push("companyId");
+  if (!suggested_services) missingRequiredFields.push("suggested_services");
+
+  if (missingRequiredFields.length > 0) {
+    return res.status(400).json({
+      status: false,
+      message: `Missing required fields: ${missingRequiredFields.join(", ")}`,
+    });
+  }
+
+  if (!Array.isArray(suggested_services) || suggested_services.length === 0) {
+    missingRequiredFields.push("Suggested Services (array)");
+  }
+
+  try {
+    let dbBody = {
+      user_id: companyId,
+      case_id: caseId,
+      driver_id: driverId,
+      suggested_services,
+    };
+
+    await saveRequestedSuggestedService(dbBody);
+
+    return res.status(200).json({
+      status: true,
+      message: "Approval request sent.",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
 export const dispatchCaseReport = async (req, res) => {
   const driverId = req.userId;
   const { caseId, companyId } = req.params;
@@ -757,6 +806,36 @@ export const notificationStatusUpdate = async (req, res) => {
   }
 };
 
+export const responseSuggestedService = async (req, res) => {
+  const { action } = req.query;
+  const { id } = req.params;
+
+  try {
+    const sgService = await findPendingApprovalSuggestedService(id);
+
+    if (!sgService) {
+      return res.status(400).json({
+        status: false,
+        message: "Suggested service not found",
+      });
+    }
+
+    if (action === "approved") {
+      await actionSuggestionService(id, action);
+    }
+    if (action === "rejected") {
+      await actionSuggestionService(id, action);
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: `Suggested service ${action} successfully`,
+    });
+  } catch (error) {
+    res.status(204).send({ status: false, message: error.message });
+  }
+};
+
 export const processTemplate = async (req, res) => {
   try {
     const template = await processTimeTemplate();
@@ -837,6 +916,47 @@ export const fetchSearchHistoryByUserId = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: history,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+export const getSuggestedServiceApprovals = async (req, res) => {
+  const { status, userId } = req.query;
+  const { caseId } = req.params;
+  let awaitingApprovals;
+
+  if (!status) {
+    return res.status(400).json({
+      success: false,
+      message: "Status is required",
+    });
+  }
+
+  try {
+    if (parseInt(userId) === 1) {
+      awaitingApprovals = await allPendingSuggestedServices(caseId);
+    } else {
+      awaitingApprovals = await allPendingSuggestedServicesByUserId(
+        caseId,
+        userId
+      );
+    }
+
+    if (!awaitingApprovals || awaitingApprovals.length === 0) {
+      return res.status(204).json({
+        success: false,
+        message: "No pending approvals found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: awaitingApprovals,
     });
   } catch (error) {
     return res.status(500).json({

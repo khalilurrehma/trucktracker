@@ -20,6 +20,9 @@ import {
   addNewSubservicePrice,
   fetchSearchHistory,
   fetchSearchHistoryByUserId,
+  suggestedServicesApproval,
+  getSuggestedServiceApprovals,
+  responseSuggestedService,
 } from "../controllers/dispatch.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { authDriver } from "../middlewares/auth.middleware.js";
@@ -46,6 +49,11 @@ router.get("/dispatch/search/history", fetchSearchHistory);
 
 router.get("/dispatch/search/history/:userId", fetchSearchHistoryByUserId);
 
+router.get(
+  "/dispatch/case/:caseId/suggestedservices/approvals",
+  getSuggestedServiceApprovals
+);
+
 router.post(
   "/dispatch/case/:caseId/action/:companyId",
   authDriver,
@@ -55,6 +63,12 @@ router.post(
 router.post(
   "/dispatch/case/report/authorize/:reportId/:driverId",
   authorizeCaseReport
+);
+
+router.post(
+  "/dispatch/:companyId/case/:caseId/suggestedservice-approvals/request",
+  authDriver,
+  suggestedServicesApproval
 );
 
 router.post(
@@ -84,4 +98,6 @@ router.patch(
   "/dispatch/update/report/notification/:id",
   notificationStatusUpdate
 );
+
+router.patch("/dispatch/service-approvals/:id", responseSuggestedService);
 export default router;

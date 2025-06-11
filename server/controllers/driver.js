@@ -600,6 +600,19 @@ export const driverLogin = async (req, res) => {
   const { email, password, fcmToken, deviceId } = req.body;
   let isVehicleAssigned = false;
 
+  const missingFields = [];
+
+  if (!email) missingFields.push("email");
+  if (!password) missingFields.push("password");
+  if (!deviceId) missingFields.push("deviceId");
+
+  if (missingFields.length > 0) {
+    return res.status(400).json({
+      status: false,
+      message: `Missing required fields: ${missingFields.join(", ")}`,
+    });
+  }
+
   try {
     const driver = await driverByEmail(email);
 
@@ -638,7 +651,9 @@ export const driverLogin = async (req, res) => {
       { expiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN }
     );
 
-    await saveNewSession(driver.id, deviceId, token);
+    if (deviceId) {
+      await saveNewSession(driver.id, deviceId, token);
+    }
 
     const driverVehicle = await checkAlreadyAssociatedVehicle(driver.id);
     if (driverVehicle) {
