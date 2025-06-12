@@ -608,21 +608,43 @@ export const getDriverServiceTime = async (driver_id) => {
 
 export const getDriverCompletedCases = async (driver_id) => {
   const sql = `
-    SELECT case_id, completed_day, completed_time 
-    FROM dispatch_complete_cases 
-    WHERE driver_id = ?
+    SELECT 
+      dcc.case_id, 
+      dcc.completed_day, 
+      dcc.completed_time,
+      dc.device_meta
+    FROM dispatch_complete_cases dcc
+    JOIN dispatch_cases dc ON dcc.case_id = dc.id
+    WHERE dcc.driver_id = ?
   `;
 
   return new Promise((resolve, reject) => {
     pool.query(sql, [parseInt(driver_id)], (err, results) => {
       if (err) return reject(err);
-      resolve(
-        results.map((row) => ({
+
+      const formattedResult = results.map((row) => {
+        let deviceData = JSON.parse(row.device_meta);
+
+        return {
           case_id: row.case_id,
           completed_day: row.completed_day,
           completed_time: row.completed_time,
-        }))
-      );
+          case_service_type: deviceData[0]?.services[0]?.serviceName,
+        };
+      });
+
+      resolve(formattedResult);
+    });
+  });
+};
+
+export const getDriverReportAuthStatus = async (driver_id) => {
+  const sql = `SELECT authorized_status FROM dispatch_case_reports WHERE driver_id = ?`;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [parseInt(driver_id)], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
     });
   });
 };

@@ -292,6 +292,7 @@ export const handleCaseAction = async (req, res) => {
   const driverId = req.userId;
   const { caseId, companyId: userId } = req.params;
   const { action, rejection_reason } = req.body;
+  let nextTimer;
 
   if (!caseId) {
     return res.status(400).json({ error: "Case Id is required" });
@@ -342,6 +343,8 @@ export const handleCaseAction = async (req, res) => {
         setTimeout(() => {
           onTheWayStageStatusCheck(caseId);
         }, expectedDuration * 1000);
+
+        nextTimer = expectedDuration;
         break;
 
       default:
@@ -358,6 +361,10 @@ export const handleCaseAction = async (req, res) => {
     res.status(200).json({
       status: true,
       message: "Case action saved successfully",
+      data: {
+        stage: "on the way",
+        timer: nextTimer,
+      },
     });
   } catch (error) {
     res.status(500).send({ status: false, message: error.message });
@@ -621,6 +628,10 @@ export const dispatchCaseReport = async (req, res) => {
     return res.status(201).json({
       status: true,
       message: "Report created successfully",
+      data: {
+        stage: "Send for Authorization",
+        timer: expectedDuration,
+      },
       reportId,
     });
   } catch (error) {

@@ -13,6 +13,7 @@ import {
   findAssociateVehicleByDriverId,
   findVehiclesByDriverId,
   getDriverCompletedCases,
+  getDriverReportAuthStatus,
   getDriverServiceTime,
   modifyDriverStatus,
   removeDriver,
@@ -759,6 +760,7 @@ export const driverForgotPassword = async (req, res) => {
 export const driverDashboard = async (req, res) => {
   const { companyId } = req.params;
   const driverId = req.userId;
+  const serviceTypeCounts = {};
 
   if (!companyId) {
     return res.status(400).json({
@@ -768,12 +770,17 @@ export const driverDashboard = async (req, res) => {
   }
 
   try {
-    const [driverVehicleIds, driverServiceTime, routineCases] =
-      await Promise.all([
-        findAssociateVehicleByDriverId(driverId),
-        getDriverServiceTime(driverId),
-        getDriverCompletedCases(driverId),
-      ]);
+    const [
+      driverVehicleIds,
+      driverServiceTime,
+      routineCasesWithDeviceMeta,
+      reportAuthStatus,
+    ] = await Promise.all([
+      findAssociateVehicleByDriverId(driverId),
+      getDriverServiceTime(driverId),
+      getDriverCompletedCases(driverId),
+      getDriverReportAuthStatus(driverId),
+    ]);
 
     const casesToday = await countTodayCasesByUserAndDevice(
       companyId,
@@ -792,7 +799,7 @@ export const driverDashboard = async (req, res) => {
       Sunday: 0,
     };
 
-    for (const record of routineCases) {
+    for (const record of routineCasesWithDeviceMeta) {
       const dayName = dayjs(record.completed_day)
         .tz("America/Lima")
         .format("dddd");
@@ -804,6 +811,25 @@ export const driverDashboard = async (req, res) => {
       completed: weeklyCounts[day],
     }));
 
+    for (const record of routineCasesWithDeviceMeta) {
+      const type = record.case_service_type || "UNKNOWN";
+
+      serviceTypeCounts[type] = (serviceTypeCounts[type] || 0) + 1;
+    }
+
+    const serviceCases = Object.keys(serviceTypeCounts).map((type) => ({
+      service_type: type,
+      count: serviceTypeCounts[type],
+    }));
+
+    const approvedCount = reportAuthStatus?.filter(
+      (r) => r.authorized_status === 1
+    ).length;
+
+    const rejectedCount = reportAuthStatus?.filter(
+      (r) => r.authorized_status === 0
+    ).length;
+
     let responseBody = {
       cases: {
         total: casesToday,
@@ -812,6 +838,12 @@ export const driverDashboard = async (req, res) => {
         avgTime,
       },
       routineCases: graphData,
+      serviceCases: serviceCases,
+      reportAuthorization: {
+        total: reportAuthStatus?.length,
+        approved: approvedCount,
+        rejected: rejectedCount,
+      },
     };
 
     res.status(200).json({ status: true, message: responseBody });
