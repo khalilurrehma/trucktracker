@@ -612,7 +612,7 @@ export const getDriverCompletedCases = async (driver_id) => {
       dcc.case_id, 
       dcc.completed_day, 
       dcc.completed_time,
-      dc.device_meta
+      dc.*
     FROM dispatch_complete_cases dcc
     JOIN dispatch_cases dc ON dcc.case_id = dc.id
     WHERE dcc.driver_id = ?
@@ -630,6 +630,13 @@ export const getDriverCompletedCases = async (driver_id) => {
           completed_day: row.completed_day,
           completed_time: row.completed_time,
           case_service_type: deviceData[0]?.services[0]?.serviceName,
+          recent_case_data: {
+            case_id: row.case_id,
+            case_name: row.case_name,
+            case_address: row.case_address,
+            status: row.status,
+            current_subprocess: row.current_subprocess,
+          },
         };
       });
 

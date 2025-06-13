@@ -830,6 +830,10 @@ export const driverDashboard = async (req, res) => {
       (r) => r.authorized_status === 0
     ).length;
 
+    const recent_cases = routineCasesWithDeviceMeta?.map(
+      (cases) => cases.recent_case_data
+    );
+
     let responseBody = {
       cases: {
         total: casesToday,
@@ -844,6 +848,7 @@ export const driverDashboard = async (req, res) => {
         approved: approvedCount,
         rejected: rejectedCount,
       },
+      recent_cases: recent_cases || [],
     };
 
     res.status(200).json({ status: true, message: responseBody });

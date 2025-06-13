@@ -846,8 +846,7 @@ export const countTodayCasesByUserAndDevice = async (userId, deviceId) => {
     JOIN dispatch_case_devices dcd ON dc.id = dcd.dispatch_case_id
     WHERE 
       dc.user_id = ? 
-      AND dcd.device_id = ? 
-      AND dc.status != 'completed'
+      AND dcd.device_id = ?
       AND DATE(dc.created_at) = CURDATE()
   `;
 
