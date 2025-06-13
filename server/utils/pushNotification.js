@@ -6,7 +6,7 @@ export const sendPushNotification = async (
   body,
   data = {}
 ) => {
-  if (!fcmTokens || fcmTokens.length === 0) {
+  if (!fcmTokens?.length) {
     console.log("No FCM tokens provided for notification");
     return { successCount: 0, failureCount: 0 };
   }
@@ -14,16 +14,14 @@ export const sendPushNotification = async (
   try {
     const message = {
       tokens: fcmTokens,
-      notification: {
-        title,
-        body,
-      },
+      notification: { title, body },
       data: Object.fromEntries(
         Object.entries(data).map(([key, value]) => [
           key,
           typeof value === "object" ? JSON.stringify(value) : String(value),
         ])
       ),
+      priority: "high",
       android: {
         priority: "high",
         notification: {
@@ -35,10 +33,8 @@ export const sendPushNotification = async (
         payload: {
           aps: {
             sound: "default",
-            alert: {
-              title,
-              body,
-            },
+            alert: { title, body },
+            contentAvailable: true,
           },
         },
       },

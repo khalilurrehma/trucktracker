@@ -35,12 +35,12 @@ const SuggestedServicesModal = ({
     if (open) setLocalServices(services || []);
   }, [open, services]);
 
-  const handleAction = async (serviceId, action) => {
+  const handleAction = async (serviceId, action, driver_id) => {
     setLoading((prev) => ({ ...prev, [`${serviceId}_${action}`]: true }));
 
     try {
       const { data } = await axios.patch(
-        `${url}/dispatch/service-approvals/${serviceId}?action=${action}`
+        `${url}/dispatch/service-approvals/${serviceId}?action=${action}&driver_id=${driver_id}`
       );
 
       if (data.status) {
@@ -87,7 +87,13 @@ const SuggestedServicesModal = ({
                     <TableCell>
                       <IconButton
                         color="success"
-                        onClick={() => handleAction(service.id, "approved")}
+                        onClick={() =>
+                          handleAction(
+                            service.id,
+                            "approved",
+                            service.driver_id
+                          )
+                        }
                         disabled={loading[`${service.id}_approved`]}
                       >
                         {loading[`${service.id}_approved`] ? (
@@ -98,7 +104,13 @@ const SuggestedServicesModal = ({
                       </IconButton>
                       <IconButton
                         color="error"
-                        onClick={() => handleAction(service.id, "rejected")}
+                        onClick={() =>
+                          handleAction(
+                            service.id,
+                            "rejected",
+                            service.driver_id
+                          )
+                        }
                         disabled={loading[`${service.id}_rejected`]}
                       >
                         {loading[`${service.id}_rejected`] ? (

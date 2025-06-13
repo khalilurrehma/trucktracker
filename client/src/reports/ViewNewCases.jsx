@@ -293,13 +293,17 @@ const ViewNewCases = () => {
     async function fetchCases() {
       setLoader(true);
       try {
-        const { data } =
-          userId === 1
-            ? await getAllNewCases()
-            : await getAllNewCases(userId, superVisor);
+        const { data } = await getAllNewCases(
+          userId,
+          superVisor,
+          page,
+          rowsPerPage
+        );
 
         if (data.status) {
           setAllCases(data.data);
+          setTotalCases(data.pagination?.total || 0);
+
           const servicesPromises = data.data.map((caseItem) =>
             fetchSuggestedServices(caseItem.id)
           );
@@ -335,7 +339,7 @@ const ViewNewCases = () => {
     }
     fetchCases();
     getNotifications();
-  }, []);
+  }, [userId, superVisor, page, rowsPerPage]);
 
   const fetchSuggestedServices = async (caseId) => {
     try {
@@ -354,20 +358,6 @@ const ViewNewCases = () => {
       return [];
     }
   };
-
-  const filteredCases = allCases.filter((item) => {
-    const devices = item.assigned_devices.map((device) => device.device_name);
-
-    const searchMatch = searchTerm
-      ? item.case_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.case_address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.status?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        devices.some((name) =>
-          name?.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-      : true;
-    return searchMatch;
-  });
 
   const handleNotificationClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -417,7 +407,7 @@ const ViewNewCases = () => {
                   key={note.id}
                   sx={{ bgcolor: note.read ? "white" : "#f0f4ff" }}
                   onClick={async () => {
-                    setCaseDetails({ id: note.report_id });
+                    setCaseDetails({ id: note?.case_id });
                     setOpenAssignModal(true);
 
                     await axios.patch(
@@ -485,110 +475,108 @@ const ViewNewCases = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredCases.length === 0 ? (
+              {allCases.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={11} align="center">
                     No cases found
                   </TableCell>
                 </TableRow>
               ) : !loader ? (
-                filteredCases
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((row) => {
-                    const devices = JSON.parse(row.device_meta || "[]");
+                allCases.map((row) => {
+                  const devices = JSON.parse(row.device_meta || "[]");
 
-                    return devices.map((device, idx) => {
-                      return (
-                        <TableRow
-                          key={`${row.id}-${device.id}-${idx}`}
-                          sx={{
-                            animation:
-                              row.id === highlightedId
-                                ? `${blinkAnimation} 1s ease-in-out`
-                                : undefined,
-                          }}
-                        >
-                          <TableCell>{row.case_name}</TableCell>
-                          <TableCell>{row.case_address}</TableCell>
-                          <TableCell>{getStatusChip(row.status)}</TableCell>
-                          <TableCell>
-                            {getProcessChip(row?.current_subprocess)}
-                          </TableCell>
-                          <TableCell>
-                            {device.services?.map((service, index) => (
-                              <Chip
-                                key={index}
-                                label={
-                                  service.serviceName || service.name || "N/A"
-                                }
-                                sx={{ mr: 1, mb: 1 }}
-                              />
-                            )) || "N/A"}
-                          </TableCell>
-                          <TableCell>
-                            {(suggestedServices[row.id] || []).length > 0
-                              ? suggestedServices[row.id].map(
-                                  (service, index) => (
-                                    <Chip
-                                      key={index}
-                                      label={
-                                        service.suggested_services.join(", ") ||
-                                        "N/A"
-                                      }
-                                      sx={{ mr: 1, mb: 1 }}
-                                    />
-                                  )
+                  return devices.map((device, idx) => {
+                    return (
+                      <TableRow
+                        key={`${row.id}-${device.id}-${idx}`}
+                        sx={{
+                          animation:
+                            row.id === highlightedId
+                              ? `${blinkAnimation} 1s ease-in-out`
+                              : undefined,
+                        }}
+                      >
+                        <TableCell>{row.case_name}</TableCell>
+                        <TableCell>{row.case_address}</TableCell>
+                        <TableCell>{getStatusChip(row.status)}</TableCell>
+                        <TableCell>
+                          {getProcessChip(row?.current_subprocess)}
+                        </TableCell>
+                        <TableCell>
+                          {device.services?.map((service, index) => (
+                            <Chip
+                              key={index}
+                              label={
+                                service.serviceName || service.name || "N/A"
+                              }
+                              sx={{ mr: 1, mb: 1 }}
+                            />
+                          )) || "N/A"}
+                        </TableCell>
+                        <TableCell>
+                          {(suggestedServices[row.id] || []).length > 0
+                            ? suggestedServices[row.id].map(
+                                (service, index) => (
+                                  <Chip
+                                    key={index}
+                                    label={
+                                      service.suggested_services.join(", ") ||
+                                      "N/A"
+                                    }
+                                    sx={{ mr: 1, mb: 1 }}
+                                  />
                                 )
-                              : "None"}
-                          </TableCell>
-                          <TableCell>{device.drivername || "N/A"}</TableCell>
-                          <TableCell>{device.name || "N/A"}</TableCell>
-                          <TableCell>
-                            {device.eta ? `${device.eta} min` : "N/A"}
-                          </TableCell>
-                          <TableCell>
-                            {device.distance ? `${device.distance} km` : "N/A"}
-                          </TableCell>
-                          <TableCell>{device.district || "N/A"}</TableCell>
-                          <TableCell>{device.initialBase || "N/A"}</TableCell>
-                          <TableCell>
-                            <Box sx={{ display: "flex" }}>
-                              <IconButton
-                                onClick={() => {
-                                  setOpenAssignModal(true);
-                                  setCaseDetails({
-                                    id: row.id,
-                                    name: row.case_name,
-                                  });
-                                }}
-                                disabled={row.status === "pending"}
+                              )
+                            : "None"}
+                        </TableCell>
+                        <TableCell>{device.drivername || "N/A"}</TableCell>
+                        <TableCell>{device.name || "N/A"}</TableCell>
+                        <TableCell>
+                          {device.eta ? `${device.eta} min` : "N/A"}
+                        </TableCell>
+                        <TableCell>
+                          {device.distance ? `${device.distance} km` : "N/A"}
+                        </TableCell>
+                        <TableCell>{device.district || "N/A"}</TableCell>
+                        <TableCell>{device.initialBase || "N/A"}</TableCell>
+                        <TableCell>
+                          <Box sx={{ display: "flex" }}>
+                            <IconButton
+                              onClick={() => {
+                                setOpenAssignModal(true);
+                                setCaseDetails({
+                                  id: row.id,
+                                  name: row.case_name,
+                                });
+                              }}
+                              disabled={row.status === "pending"}
+                            >
+                              <FullscreenIcon />
+                            </IconButton>
+                            <IconButton
+                              onClick={() => {
+                                setSelectedCase({
+                                  id: row.id,
+                                  name: row.case_name,
+                                });
+                                setOpenServicesModal(true);
+                              }}
+                            >
+                              <Badge
+                                badgeContent={
+                                  (suggestedServices[row.id] || []).length
+                                }
+                                color="error"
                               >
-                                <FullscreenIcon />
-                              </IconButton>
-                              <IconButton
-                                onClick={() => {
-                                  setSelectedCase({
-                                    id: row.id,
-                                    name: row.case_name,
-                                  });
-                                  setOpenServicesModal(true);
-                                }}
-                              >
-                                <Badge
-                                  badgeContent={
-                                    (suggestedServices[row.id] || []).length
-                                  }
-                                  color="error"
-                                >
-                                  <RuleIcon />
-                                </Badge>
-                              </IconButton>
-                            </Box>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    });
-                  })
+                                <RuleIcon />
+                              </Badge>
+                            </IconButton>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  });
+                })
               ) : (
                 <TableShimmer columns={13} />
               )}
@@ -599,7 +587,7 @@ const ViewNewCases = () => {
         <TablePagination
           rowsPerPageOptions={[15, 25, 35]}
           component="div"
-          count={filteredCases.length}
+          count={totalCases}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={(_, newPage) => setPage(newPage)}

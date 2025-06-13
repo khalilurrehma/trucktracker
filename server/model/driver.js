@@ -612,9 +612,11 @@ export const getDriverCompletedCases = async (driver_id) => {
       dcc.case_id, 
       dcc.completed_day, 
       dcc.completed_time,
-      dc.*
+      dc.*, 
+      dsr.service_time_seconds
     FROM dispatch_complete_cases dcc
     JOIN dispatch_cases dc ON dcc.case_id = dc.id
+    LEFT JOIN driver_service_record dsr ON dsr.case_id = dcc.case_id
     WHERE dcc.driver_id = ?
   `;
 
@@ -624,6 +626,8 @@ export const getDriverCompletedCases = async (driver_id) => {
 
       const formattedResult = results.map((row) => {
         let deviceData = JSON.parse(row.device_meta);
+
+        const seconds = row.service_time_seconds || 0;
 
         return {
           case_id: row.case_id,
@@ -636,6 +640,8 @@ export const getDriverCompletedCases = async (driver_id) => {
             case_address: row.case_address,
             status: row.status,
             current_subprocess: row.current_subprocess,
+            service_time_seconds: `${Math.round(seconds / 60)}min`,
+            completed_at: row.completed_day,
           },
         };
       });

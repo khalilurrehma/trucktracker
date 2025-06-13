@@ -29,11 +29,21 @@ export const addNewCase = async (newCaseData) => {
   }
 };
 
-export const getAllNewCases = async (userId = 1, superVisor = false) => {
+export const getAllNewCases = async (
+  userId = 1,
+  superVisor = false,
+  page = 0,
+  limit = 15
+) => {
   try {
-    const data = await axios.get(
-      `${apiUrl}/dispatch/cases?userId=${userId}&superVisor=${superVisor}`
-    );
+    const data = await axios.get(`${apiUrl}/dispatch/cases`, {
+      params: {
+        userId,
+        superVisor,
+        page: page + 1,
+        limit,
+      },
+    });
 
     return data;
   } catch (error) {

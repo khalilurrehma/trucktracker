@@ -2,6 +2,11 @@ import pool from "../config/dbConfig.js";
 import util from "util";
 const dbQuery = util.promisify(pool.query).bind(pool);
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc.js";
+import timezone from "dayjs/plugin/timezone.js";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 // RIMAC CASE
 
@@ -95,8 +100,8 @@ export const saveCaseAssignedDeviceId = async (case_id, device_id) => {
   }
 };
 
-export const fetchDispatchCases = async () => {
-  const query = `
+export const fetchDispatchCases = async (offset, limit) => {
+  const baseQuery = `
     SELECT 
       dc.*,
       JSON_ARRAYAGG(
@@ -105,32 +110,35 @@ export const fetchDispatchCases = async () => {
           'device_name', nsd.name
         )
       ) AS assigned_devices
-    FROM 
-      dispatch_cases dc
-    LEFT JOIN 
-      dispatch_case_devices dcd ON dc.id = dcd.dispatch_case_id
-    LEFT JOIN 
-      new_settings_devices nsd ON dcd.device_id = nsd.id
-    GROUP BY 
-      dc.id
-    ORDER BY 
-      dc.created_at DESC
+    FROM dispatch_cases dc
+    LEFT JOIN dispatch_case_devices dcd ON dc.id = dcd.dispatch_case_id
+    LEFT JOIN new_settings_devices nsd ON dcd.device_id = nsd.id
+    GROUP BY dc.id
+    ORDER BY dc.created_at DESC
+    LIMIT ? OFFSET ?
   `;
 
+  const countQuery = `SELECT COUNT(*) as total FROM dispatch_cases`;
+
   try {
-    const rows = await dbQuery(query);
-    return rows.map((row) => ({
-      ...row,
-      assigned_devices: JSON.parse(row.assigned_devices || "[]"),
-      file_data: JSON.parse(row.file_data || "[]"),
-    }));
+    const rows = await dbQuery(baseQuery, [limit, offset]);
+    const [{ total }] = await dbQuery(countQuery);
+
+    return {
+      rows: rows.map((row) => ({
+        ...row,
+        assigned_devices: JSON.parse(row.assigned_devices || "[]"),
+        file_data: JSON.parse(row.file_data || "[]"),
+      })),
+      total,
+    };
   } catch (error) {
     console.error("Error fetching dispatch cases:", error);
     throw error;
   }
 };
 
-export const fetchDispatchCasesByUserId = async (user_id) => {
+export const fetchDispatchCasesByUserId = async (user_id, offset, limit) => {
   const query = `
     SELECT 
       dc.*,
@@ -140,28 +148,33 @@ export const fetchDispatchCasesByUserId = async (user_id) => {
           'device_name', nsd.name
         )
       ) AS assigned_devices
-    FROM 
-      dispatch_cases dc
-    LEFT JOIN 
-      dispatch_case_devices dcd ON dc.id = dcd.dispatch_case_id
-    LEFT JOIN 
-      new_settings_devices nsd ON dcd.device_id = nsd.id
-      WHERE user_id = ?
-    GROUP BY 
-      dc.id
-    ORDER BY 
-      dc.created_at DESC
+    FROM dispatch_cases dc
+    LEFT JOIN dispatch_case_devices dcd ON dc.id = dcd.dispatch_case_id
+    LEFT JOIN new_settings_devices nsd ON dcd.device_id = nsd.id
+    WHERE dc.user_id = ?
+    GROUP BY dc.id
+    ORDER BY dc.created_at DESC
+    LIMIT ? OFFSET ?
+  `;
+
+  const countQuery = `
+    SELECT COUNT(*) as total FROM dispatch_cases WHERE user_id = ?
   `;
 
   try {
-    const rows = await dbQuery(query, [user_id]);
-    return rows.map((row) => ({
-      ...row,
-      assigned_devices: JSON.parse(row.assigned_devices || "[]"),
-      file_data: JSON.parse(row.file_data || "[]"),
-    }));
+    const rows = await dbQuery(query, [user_id, limit, offset]);
+    const [{ total }] = await dbQuery(countQuery, [user_id]);
+
+    return {
+      rows: rows.map((row) => ({
+        ...row,
+        assigned_devices: JSON.parse(row.assigned_devices || "[]"),
+        file_data: JSON.parse(row.file_data || "[]"),
+      })),
+      total,
+    };
   } catch (error) {
-    console.error("Error fetching dispatch cases:", error);
+    console.error("Error fetching dispatch cases by user:", error);
     throw error;
   }
 };
@@ -238,12 +251,13 @@ export const getCaseLastUpdated = async (case_id) => {
 };
 
 export const updateCaseServiceById = async (fields, case_id) => {
-  const sql = `UPDATE dispatch_case_reports SET damage = ?, meta_information = ? WHERE case_id = ? AND authorized_status = true`;
+  const sql = `UPDATE dispatch_case_reports SET damage = ?, meta_information = ?, meta_data = ? WHERE case_id = ? AND authorized_status = true`;
 
   try {
     const rows = await dbQuery(sql, [
       fields.damage,
       fields.meta_information,
+      JSON.stringify(fields.meta_data),
       case_id,
     ]);
     return rows;
@@ -870,6 +884,31 @@ export const insertDriverServiceTime = async (caseId, driverId, seconds) => {
   `;
 
   await dbQuery(query, [caseId, driverId, seconds]);
+};
+
+export const insertDispatchCompleteCase = async (caseId, driverId) => {
+  const limaTime = dayjs().tz("America/Lima");
+
+  const completedDay = limaTime.format("YYYY-MM-DD");
+  const completedTime = limaTime.format("HH:mm:ss");
+  const createdAt = limaTime.format("YYYY-MM-DD HH:mm:ss");
+
+  const query = `
+    INSERT INTO dispatch_complete_cases (case_id, driver_id, completed_day, completed_time, created_at)
+    VALUES (?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE 
+      completed_day = VALUES(completed_day),
+      completed_time = VALUES(completed_time),
+      created_at = VALUES(created_at)
+  `;
+
+  await dbQuery(query, [
+    caseId,
+    driverId,
+    completedDay,
+    completedTime,
+    createdAt,
+  ]);
 };
 
 export const saveSearchHistory = async ({

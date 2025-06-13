@@ -351,10 +351,12 @@ export const dispatchCasesForDriver = async (req, res) => {
     let expectedDuration = stage ? stage?.time_sec : 55;
 
     const formattedData = driverCase.map((item) => {
+      const { current_subprocess, ...restFields } = item;
       return {
-        ...item,
+        ...restFields,
         created_at: dayjs(item.created_at).format("YYYY-MM-DD HH:mm:ss"),
         expected_duration: expectedDuration || 60,
+        subprocess: item.current_subprocess,
       };
     });
 

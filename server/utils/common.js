@@ -129,8 +129,8 @@ export const getAverageServiceTime = (secondsArray) => {
 
   if (hours >= 1) {
     const remainingMinutes = Math.round((averageSeconds % 3600) / 60);
-    return `${hours}h ${remainingMinutes}m`;
+    return `${hours}hr ${remainingMinutes}min`;
   } else {
-    return `${minutes}m`;
+    return `${minutes}min`;
   }
 };

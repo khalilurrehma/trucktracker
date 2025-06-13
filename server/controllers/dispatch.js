@@ -20,6 +20,7 @@ import {
   getAllNotifications,
   getNotificationsByCompanyId,
   initialCaseStageStatus,
+  insertDispatchCompleteCase,
   insertDriverServiceTime,
   onTheWayCaseStageStatus,
   processTemplateForAdmin,
@@ -210,28 +211,50 @@ export const handleNewDispatchCase = async (req, res) => {
 };
 
 export const fetchAllDispatchCases = async (req, res) => {
-  const { userId } = req.query;
+  const { userId, page = 1, limit = 10 } = req.query;
   const superVisor = JSON.parse(req.query.superVisor || "false");
+
+  const pageInt = parseInt(page);
+  const limitInt = parseInt(limit);
+  const offset = (pageInt - 1) * limitInt;
 
   try {
     let dispatchCases;
+    let total;
 
     if (!superVisor) {
       if (parseInt(userId) === 1) {
-        dispatchCases = await fetchDispatchCases();
+        ({ rows: dispatchCases, total } = await fetchDispatchCases(
+          offset,
+          limitInt
+        ));
       } else {
-        dispatchCases = await fetchDispatchCasesByUserId(userId);
+        ({ rows: dispatchCases, total } = await fetchDispatchCasesByUserId(
+          userId,
+          offset,
+          limitInt
+        ));
       }
     } else {
       const fetchSuperVisorCompanyId = await realmUserByTraccarId(userId);
       const companyId = fetchSuperVisorCompanyId[0].userId;
 
-      dispatchCases = await fetchDispatchCasesByUserId(companyId);
+      ({ rows: dispatchCases, total } = await fetchDispatchCasesByUserId(
+        companyId,
+        offset,
+        limitInt
+      ));
     }
 
     res.status(200).json({
       status: true,
       data: dispatchCases,
+      pagination: {
+        page: pageInt,
+        limit: limitInt,
+        total,
+        totalPages: Math.ceil(total / limitInt),
+      },
     });
   } catch (error) {
     res.status(500).send({ status: false, message: error.message });
@@ -701,7 +724,19 @@ export const rimacReport = async (req, res) => {
 export const dispatchCaseCompleteService = async (req, res) => {
   const driverId = req.userId;
   const { caseId } = req.params;
-  const { damage, meta_information } = req.body;
+  const { damage, meta_information, meta_data } = req.body;
+
+  let missingFields = [];
+
+  if (!damage) missingFields.push("damage");
+  if (!meta_information) missingFields.push("meta_information");
+
+  if (missingFields.length > 0) {
+    return res.status(400).json({
+      status: false,
+      message: `Missing required fields: ${missingFields.join(", ")}`,
+    });
+  }
 
   const bothTime = await calculateDriverServiceTime(caseId);
 
@@ -725,6 +760,7 @@ export const dispatchCaseCompleteService = async (req, res) => {
     const fieldsToUpdate = {
       damage,
       meta_information,
+      meta_data,
     };
     const updateResults = await updateCaseServiceById(fieldsToUpdate, caseId);
 
@@ -748,7 +784,10 @@ export const dispatchCaseCompleteService = async (req, res) => {
       status: "completed",
     });
 
-    await insertDriverServiceTime(caseId, driverId, bothTime.totalSeconds);
+    await Promise.all([
+      insertDriverServiceTime(caseId, driverId, bothTime.totalSeconds),
+      insertDispatchCompleteCase(caseId, driverId),
+    ]);
 
     return res.status(200).json({
       status: true,
@@ -830,8 +869,10 @@ export const notificationStatusUpdate = async (req, res) => {
 };
 
 export const responseSuggestedService = async (req, res) => {
-  const { action } = req.query;
+  const { action, driver_id } = req.query;
   const { id } = req.params;
+
+  console.log(driver_id);
 
   try {
     const sgService = await findPendingApprovalSuggestedService(id);
@@ -848,6 +889,24 @@ export const responseSuggestedService = async (req, res) => {
     }
     if (action === "rejected") {
       await actionSuggestionService(id, action);
+    }
+
+    const fcmToken = await getFcmTokensByDriverIds(driver_id);
+    if (fcmToken.length > 0) {
+      const notificationTitle = `Suggested Services ${action}`;
+      const notificationBody = `Supervisor has ${action} you suggested services.`;
+
+      const { successCount, failureCount } = await sendPushNotification(
+        fcmToken,
+        notificationTitle,
+        notificationBody
+        // payload
+      );
+      console.log(
+        `Notifications sent: ${successCount} succeeded, ${failureCount} failed`
+      );
+    } else {
+      console.log("No FCM token found for driver");
     }
 
     return res.status(200).json({

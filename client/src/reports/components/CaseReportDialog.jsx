@@ -241,6 +241,20 @@ const CaseReportDialog = ({
                     {formatDate(report.report_updated_at)}
                   </Typography>
                 </Grid>
+                {report.damage && report.meta_information && (
+                  <Grid item xs={12}>
+                    <Divider sx={{ my: 2, borderBottomWidth: 2 }} />
+                  </Grid>
+                )}
+                <Grid item xs={12}>
+                  <Typography variant="subtitle1">
+                    <strong>Damage:</strong> {report.damage || "Not specified"}
+                  </Typography>
+                  <Typography variant="subtitle1">
+                    <strong>Meta Information:</strong>
+                    {report.meta_information || "Not specified"}
+                  </Typography>
+                </Grid>
               </Grid>
             </Paper>
 
