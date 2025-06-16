@@ -80,6 +80,7 @@ const SubSocket = () => {
           const recievedData = JSON.parse(event.data);
 
           if (recievedData?.subprocessEvent === "subprocessEvent-update") {
+            console.log("Subprocess Event Update:", recievedData);
             updateMqttMessage(recievedData, "subprocessEvent-update");
           }
 

@@ -66,6 +66,7 @@ import {
 } from "../services/dispatchService.js";
 import { validateSubserviceType } from "../model/devices.js";
 import dayjs from "dayjs";
+import { rimacBodyValidFields } from "../utils/rimacBody.js";
 
 export const DispatchEmitter = new EventEmitter();
 
@@ -182,7 +183,11 @@ export const handleNewDispatchCase = async (req, res) => {
 
           DispatchEmitter.emit("subprocessEvent", {
             id: newCase_id,
+            driverId: driverIds[0],
             current_subprocess: "advisor_assignment",
+            created_at: dayjs()
+              .tz("America/Lima")
+              .format("YYYY-MM-DD HH:mm:ss"),
           });
         }
       } else {
@@ -335,7 +340,9 @@ export const handleCaseAction = async (req, res) => {
 
     const event = {
       id: caseId,
+      driverId,
       current_subprocess: "reception_case",
+      created_at: dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss"),
     };
 
     switch (action) {
@@ -448,7 +455,9 @@ export const authorizeCaseReport = async (req, res) => {
 
     DispatchEmitter.emit("subprocessEvent", {
       id: caseId,
+      driverId,
       current_subprocess: "supervisor_approval",
+      created_at: dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss"),
       status: "approved",
     });
 
@@ -640,7 +649,9 @@ export const dispatchCaseReport = async (req, res) => {
     });
     DispatchEmitter.emit("subprocessEvent", {
       id: caseId,
+      driverId,
       current_subprocess: "authorization_request",
+      created_at: dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss"),
       status: "waiting_approval",
     });
 
@@ -697,6 +708,17 @@ export const rimacReport = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Request body cannot be empty",
+      });
+    }
+
+    const invalidFields = Object.keys(reportData).filter(
+      (key) => !rimacBodyValidFields.includes(key)
+    );
+
+    if (invalidFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid field(s): ${invalidFields.join(", ")}`,
       });
     }
 
@@ -780,7 +802,9 @@ export const dispatchCaseCompleteService = async (req, res) => {
 
     DispatchEmitter.emit("subprocessEvent", {
       id: caseId,
+      driverId,
       current_subprocess: "case_completed",
+      created_at: dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss"),
       status: "completed",
     });
 
