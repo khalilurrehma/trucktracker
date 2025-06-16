@@ -24,6 +24,41 @@ export const saveRimacCase = async (body) => {
   }
 };
 
+export const allRimacCases = async (offset, limit) => {
+  const query = `
+    SELECT 
+      *, 
+      (SELECT COUNT(*) FROM rimac_reports) AS total
+    FROM rimac_reports
+    LIMIT ? OFFSET ?
+  `;
+
+  try {
+    const rows = await dbQuery(query, [limit, offset]);
+
+    const total = rows.length > 0 ? rows[0].total : 0;
+    const cleanRows = rows.map(({ total, ...rest }) => rest);
+
+    return { data: cleanRows, total };
+  } catch (error) {
+    console.error("Error fetching Rimac cases:", error);
+    throw error;
+  }
+};
+
+export const findRimacReportById = async (report_id) => {
+  const sql = `SELECT * FROM rimac_reports WHERE id = ?`;
+  const values = [report_id];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result[0];
+  } catch (error) {
+    console.error("Error fetching Rimac report by ID:", error);
+    throw error;
+  }
+};
+
 export const addNewCase = async (body) => {
   const {
     user_id,
@@ -769,6 +804,96 @@ export const addNewZonePrice = async ({
   return insertedIds;
 };
 
+export const addNewTowCarServicePrice = async ({
+  userId,
+  locationId,
+  providers,
+}) => {
+  const query = `
+    INSERT INTO location_towcarservice_prices (user_id, location_id, provider, price)
+    VALUES ?
+  `;
+
+  const values = providers.map((providerData) => [
+    userId,
+    locationId,
+    providerData.provider,
+    providerData.price,
+  ]);
+
+  const result = await dbQuery(query, [values]);
+
+  const insertedIds = Array.isArray(result.insertId)
+    ? result.insertId
+    : Array.from({ length: providers.length }, (_, i) => result.insertId + i);
+
+  return insertedIds;
+};
+
+export const fetchTowCarServiceLocationData = async (userId, page, limit) => {
+  const offset = (page - 1) * limit;
+
+  let query;
+  let queryParams;
+  const countQuery = "SELECT COUNT(*) as total FROM location_data";
+
+  if (userId !== "1") {
+    query = `
+      SELECT 
+        l.id, 
+        l.code, 
+        l.ring_type, 
+        l.code_department, 
+        l.department,
+        l.code_province, 
+        l.province, 
+        l.code_district, 
+        l.district,
+        GROUP_CONCAT(tcs.provider) as provider,
+        GROUP_CONCAT(tcs.price) as price
+      FROM location_data l
+      LEFT JOIN location_towcarservice_prices tcs ON l.id = tcs.location_id AND tcs.user_id = ?
+      GROUP BY l.id, l.code, l.ring_type, l.code_department, l.department,
+               l.code_province, l.province, l.code_district, l.district
+      LIMIT ? OFFSET ?
+    `;
+    queryParams = [userId, limit, offset];
+  } else {
+    query = `
+      SELECT id, code, ring_type, code_department, department,
+             code_province, province, code_district, district
+      FROM location_data
+      LIMIT ? OFFSET ?
+    `;
+    queryParams = [limit, offset];
+  }
+
+  const rows = await dbQuery(query, queryParams);
+  const [countResult] = await dbQuery(countQuery);
+
+  return {
+    rows,
+    total: countResult.total,
+  };
+};
+
+export const updateProviderPriceInDb = async ({
+  providerId,
+  userId,
+  locationId,
+  provider,
+  price,
+}) => {
+  const query = `
+    UPDATE location_towcarservice_prices
+    SET provider = ?, price = ?
+    WHERE id = ? AND user_id = ? AND location_id = ?
+  `;
+  const queryParams = [provider, price, providerId, userId, locationId];
+
+  await dbQuery(query, queryParams);
+};
+
 // ------------------------------- DISPATCH CASE TRACKING
 
 export const initialCaseStageStatus = async ({ caseId, expected_duration }) => {
@@ -924,12 +1049,14 @@ export const saveSearchHistory = async ({
 
   const values = [userId, address, lat, lng, radius];
 
-  await dbQuery(query, values);
+  const result = await dbQuery(query, values);
+
+  return result.insertId || result[0]?.insertId || null;
 };
 
 export const allSearchHistory = async () => {
   const query = `
-    SELECT * FROM dispatch_search_history
+    SELECT * FROM dispatch_search_history ORDER BY time DESC
   `;
 
   try {
@@ -947,6 +1074,15 @@ export const allSearchHistoryByUserId = async (userId) => {
   try {
     const rows = await dbQuery(query, [userId]);
     return rows;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const updateSearchHistory = async (search_id) => {
+  const sql = `UPDATE dispatch_search_history SET case_assigned = ? WHERE id = ?`;
+  try {
+    await dbQuery(sql, [true, search_id]);
   } catch (error) {
     throw error;
   }

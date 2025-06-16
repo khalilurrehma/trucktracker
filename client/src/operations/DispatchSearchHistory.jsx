@@ -44,6 +44,7 @@ const DispatchSearchHistory = () => {
           ? `${url}/dispatch/search/history`
           : `${url}/dispatch/search/history/${userId}`
       );
+
       setHistoryData(Array.isArray(data.data) ? data.data : [data.data]);
       setLoading(false);
     } catch (error) {
@@ -266,6 +267,9 @@ const DispatchSearchHistory = () => {
                   <TableCell sx={{ fontWeight: "bold" }}>Latitude</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>Longitude</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>Radius (m)</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>
+                    Case Assigned
+                  </TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>Time</TableCell>
                 </TableRow>
               </TableHead>
@@ -278,6 +282,7 @@ const DispatchSearchHistory = () => {
                       <TableCell>{row.latitude.toFixed(6)}</TableCell>
                       <TableCell>{row.longitude.toFixed(6)}</TableCell>
                       <TableCell>{casesRadius(row.radius)}</TableCell>
+                      <TableCell>{row.case_assigned ? "Yes" : "No"}</TableCell>
                       <TableCell>
                         {new Date(row.time).toLocaleString()}
                       </TableCell>

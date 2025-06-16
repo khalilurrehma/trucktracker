@@ -409,6 +409,7 @@ export const addNewDevice = async (req, res) => {
 
 export const allNewDevices = async (req, res) => {
   const query = req.query;
+  let searchId;
   let currentDate;
   try {
     const devices = await getAllDevices();
@@ -433,7 +434,7 @@ export const allNewDevices = async (req, res) => {
       query?.lng &&
       query?.userId
     ) {
-      await saveSearchHistory({
+      searchId = await saveSearchHistory({
         userId: query.userId,
         address: query.address,
         radius: query.radius,
@@ -532,6 +533,7 @@ export const allNewDevices = async (req, res) => {
     res.status(200).json({
       status: true,
       data: enrichedDevices,
+      searchId: searchId || null,
     });
   } catch (error) {
     console.error(error);

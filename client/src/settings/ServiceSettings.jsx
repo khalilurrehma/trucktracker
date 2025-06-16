@@ -8,6 +8,7 @@ import ServiceTypesSubServices from "./ServiceTypesSubServices";
 import AssignedDevicesServices from "./AssignedDevicesServices";
 import CaseStages from "./CaseStages";
 import SubservicePrices from "./SubservicePrices";
+import TowcarServicePrices from "./TowCarServicePrices";
 
 const ServiceSettings = () => {
   const t = useTranslation();
@@ -83,6 +84,17 @@ const ServiceSettings = () => {
           Subservice prices
           {/* {t("operationsSubprocesses")} */}
         </Button>
+        <Button
+          sx={{
+            fontSize: 16,
+            textTransform: "none",
+            color: component === 6 ? "royalblue" : "text.primary",
+          }}
+          onClick={() => handleComponentChange(6)}
+        >
+          Towcar service prices
+          {/* {t("operationsSubprocesses")} */}
+        </Button>
       </Box>
 
       {component === 1 && <DeviceServiceTypes />}
@@ -90,6 +102,7 @@ const ServiceSettings = () => {
       {component === 3 && <AssignedDevicesServices />}
       {component === 4 && <CaseStages />}
       {component === 5 && <SubservicePrices />}
+      {component === 6 && <TowcarServicePrices />}
     </PageLayout>
   );
 };

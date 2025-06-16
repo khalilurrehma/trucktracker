@@ -23,6 +23,11 @@ import {
   suggestedServicesApproval,
   getSuggestedServiceApprovals,
   responseSuggestedService,
+  fetchAllRimacCases,
+  getRimacReportById,
+  towcarServiceLocationData,
+  addTowCarServicePrice,
+  updateTowCarServicePrice,
 } from "../controllers/dispatch.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { authDriver } from "../middlewares/auth.middleware.js";
@@ -45,6 +50,8 @@ router.get("/dispatch/process/template/admin/:adminId", adminProcessTemplate);
 
 router.get("/dispatch/subservices/locations", subservicesLocationData);
 
+router.get("/dispatch/towcarservice/locations", towcarServiceLocationData);
+
 router.get("/dispatch/search/history", fetchSearchHistory);
 
 router.get("/dispatch/search/history/:userId", fetchSearchHistoryByUserId);
@@ -53,6 +60,10 @@ router.get(
   "/dispatch/case/:caseId/suggestedservices/approvals",
   getSuggestedServiceApprovals
 );
+
+router.get("/rimac/cases", fetchAllRimacCases);
+
+router.get("/rimac/case/report/:id", getRimacReportById);
 
 router.post(
   "/dispatch/case/:caseId/action/:companyId",
@@ -84,6 +95,8 @@ router.post("/dispatch/rimac/report", rimacReport);
 
 router.post("/dispatch/subservice-prices", addNewSubservicePrice);
 
+router.post("/dispatch/towcarservice/price", addTowCarServicePrice);
+
 router.get("/dispatch/notifications/all", allCaseReportsNotifications);
 
 router.get("/dispatch/notifications/:userId", newCaseReportNotifications);
@@ -93,6 +106,8 @@ router.put(
   authDriver,
   dispatchCaseCompleteService
 );
+
+router.put("/dispatch/towcarservice/price", updateTowCarServicePrice);
 
 router.patch(
   "/dispatch/update/report/notification/:id",

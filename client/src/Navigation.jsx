@@ -390,7 +390,7 @@ const Navigation = () => {
           <Route path="control-usage" element={<ControlUsage />} />
           <Route path="alerts" element={<MqttAlerts />} />
           <Route path="rimac/cases" element={<RimacCases />} />
-          <Route path="rimac/case/report" element={<RimacCaseReport />} />
+          <Route path="rimac/case/report/:id" element={<RimacCaseReport />} />
         </Route>
 
         <Route path="reports">

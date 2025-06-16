@@ -1,9 +1,11 @@
 import {
   actionSuggestionService,
   addNewCase,
+  addNewTowCarServicePrice,
   addNewZonePrice,
   allPendingSuggestedServices,
   allPendingSuggestedServicesByUserId,
+  allRimacCases,
   allSearchHistory,
   allSearchHistoryByUserId,
   caseTrackingById,
@@ -13,10 +15,12 @@ import {
   fetchDispatchCases,
   fetchDispatchCasesByUserId,
   fetchSubserviceLocationData,
+  fetchTowCarServiceLocationData,
   findCaseById,
   findCaseByName,
   findCaseStatusById,
   findPendingApprovalSuggestedService,
+  findRimacReportById,
   getAllNotifications,
   getNotificationsByCompanyId,
   initialCaseStageStatus,
@@ -39,6 +43,8 @@ import {
   updateCaseReportStatus,
   updateCaseServiceById,
   updateCaseStatusById,
+  updateProviderPriceInDb,
+  updateSearchHistory,
 } from "../model/dispatch.js";
 import {
   driverStatusAvailable,
@@ -71,8 +77,16 @@ import { rimacBodyValidFields } from "../utils/rimacBody.js";
 export const DispatchEmitter = new EventEmitter();
 
 export const handleNewDispatchCase = async (req, res) => {
-  const { userId, caseName, caseAddress, lat, lng, message, devicesMeta } =
-    req.body;
+  const {
+    userId,
+    searchId,
+    caseName,
+    caseAddress,
+    lat,
+    lng,
+    message,
+    devicesMeta,
+  } = req.body;
   let assignedDeviceIds = req.body.assignedDeviceIds;
   let files;
 
@@ -96,6 +110,12 @@ export const handleNewDispatchCase = async (req, res) => {
     return res
       .status(400)
       .json({ success: false, message: `Missing required fields` });
+  }
+
+  if (!searchId) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Missing search ID" });
   }
 
   try {
@@ -201,6 +221,8 @@ export const handleNewDispatchCase = async (req, res) => {
       caseId: newCase_id,
       expected_duration: expectedDuration,
     });
+
+    await updateSearchHistory(searchId);
 
     setTimeout(() => {
       checkAndMarkDelayedCase(newCase_id);
@@ -743,6 +765,60 @@ export const rimacReport = async (req, res) => {
   }
 };
 
+export const fetchAllRimacCases = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    const { data, total } = await allRimacCases(offset, limit);
+
+    res.status(200).json({
+      success: true,
+      message: "Rimac cases fetched successfully",
+      data,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+export const getRimacReportById = async (req, res) => {
+  const { id } = req.params;
+
+  if (!id || id === "") {
+    return res
+      .status(404)
+      .send({ status: false, message: "Invalid report ID" });
+  }
+
+  try {
+    const report = await findRimacReportById(id);
+
+    if (!report) {
+      return res
+        .status(404)
+        .send({ status: false, message: "Report not found" });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: report,
+    });
+  } catch (error) {
+    res.status(204).send({ status: false, message: error.message });
+  }
+};
+
 export const dispatchCaseCompleteService = async (req, res) => {
   const driverId = req.userId;
   const { caseId } = req.params;
@@ -896,8 +972,6 @@ export const responseSuggestedService = async (req, res) => {
   const { action, driver_id } = req.query;
   const { id } = req.params;
 
-  console.log(driver_id);
-
   try {
     const sgService = await findPendingApprovalSuggestedService(id);
 
@@ -993,6 +1067,89 @@ export const subservicesLocationData = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch locations",
+      error: error.message,
+    });
+  }
+};
+
+export const towcarServiceLocationData = async (req, res) => {
+  try {
+    const userId = req.query.userId;
+    const page = parseInt(req.query.page) || 1;
+    const limit = 20;
+
+    const { rows, total } = await fetchTowCarServiceLocationData(
+      userId,
+      page,
+      limit
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: rows,
+      total,
+      page,
+      limit,
+    });
+  } catch (error) {
+    console.error("Error fetching locations:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch locations",
+      error: error.message,
+    });
+  }
+};
+
+export const updateTowCarServicePrice = async (req, res) => {
+  try {
+    const { userId, locationId, providers } = req.body;
+
+    if (
+      !userId ||
+      !locationId ||
+      !Array.isArray(providers) ||
+      providers.length === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing required fields: userId, locationId, and providers are mandatory",
+      });
+    }
+
+    if (userId === "1") {
+      return res.status(403).json({
+        success: false,
+        message: "Superadmin cannot update tow car service prices",
+      });
+    }
+
+    for (let providerData of providers) {
+      if (!providerData.providerId) {
+        return res.status(400).json({
+          success: false,
+          message: "Each provider must have a providerId to update",
+        });
+      }
+      await updateProviderPriceInDb({
+        providerId: providerData.providerId,
+        userId,
+        locationId,
+        provider: providerData.provider,
+        price: providerData.price,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Tow car service prices updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating tow car service price:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update tow car service price",
       error: error.message,
     });
   }
@@ -1131,6 +1288,66 @@ export const addNewSubservicePrice = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to save subservice price",
+      error: error.message,
+    });
+  }
+};
+
+export const addTowCarServicePrice = async (req, res) => {
+  try {
+    const { userId, locationId, providers } = req.body;
+
+    if (
+      !userId ||
+      !locationId ||
+      !Array.isArray(providers) ||
+      providers.length === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing required fields: userId, locationId, and providers are mandatory",
+      });
+    }
+
+    // if (userId === "1") {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "Superadmin cannot add tow car service prices",
+    //   });
+    // }
+
+    for (let providerData of providers) {
+      if (!providerData.provider || !providerData.price) {
+        return res.status(400).json({
+          success: false,
+          message: "Each provider must have both a provider name and price",
+        });
+      }
+    }
+
+    const insertedIds = await addNewTowCarServicePrice({
+      userId,
+      locationId,
+      providers,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Tow car service prices saved successfully",
+      data: insertedIds.map((id, index) => ({
+        id,
+        userId,
+        locationId,
+        provider: providers[index].provider,
+        price: providers[index].price,
+      })),
+    });
+  } catch (error) {
+    console.error("Error saving tow car service price:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to save tow car service price",
       error: error.message,
     });
   }

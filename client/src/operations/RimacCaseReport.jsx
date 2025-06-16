@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import PageLayout from "../common/components/PageLayout";
 import OperationsMenu from "../settings/components/OperationsMenu";
 import {
@@ -13,25 +13,73 @@ import {
 } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import { useParams } from "react-router-dom";
+import { useAppContext } from "../AppContext";
+import axios from "axios";
 
 const RimacCaseReport = () => {
+  const { id } = useParams();
+  const { url } = useAppContext();
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchReport = async () => {
+    try {
+      setLoading(true);
+      const { data } = await axios.get(`${url}/rimac/case/report/${id}`);
+
+      if (data.status) {
+        let parsedReportData = JSON.parse(data.message.report_data);
+        setReport(parsedReportData);
+      }
+    } catch (error) {
+      console.error("Error fetching report:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (id) {
+      fetchReport();
+    }
+  }, [id]);
+
+  if (loading) {
+    return (
+      <PageLayout
+        menu={<OperationsMenu />}
+        breadcrumbs2={["Operations", "Rimac Cases Report"]}
+      >
+        <Box sx={{ p: 3 }}>Loading...</Box>
+      </PageLayout>
+    );
+  }
+
+  if (!report) {
+    return (
+      <PageLayout
+        menu={<OperationsMenu />}
+        breadcrumbs2={["Operations", "Rimac Cases Report"]}
+      >
+        <Box sx={{ p: 3 }}>No report data found</Box>
+      </PageLayout>
+    );
+  }
+
   return (
     <PageLayout
       menu={<OperationsMenu />}
       breadcrumbs2={["Operations", "Rimac Cases Report"]}
     >
       <Box sx={{ p: 3 }}>
-        {/* Header */}
-
-        {/* Case Code */}
         <Box sx={{ backgroundColor: "#F5F5F5", p: 2, borderRadius: 1, mb: 2 }}>
           <Typography variant="h6">Details of the Rimac Case</Typography>
           <Typography variant="body1" sx={{ color: "#E57373" }}>
-            C - 24685
+            C - {report.Caso || "N/A"}
           </Typography>
         </Box>
 
-        {/* General Information Section */}
         <Box sx={{ border: "1px solid #E57373", p: 2, borderRadius: 1, mb: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
             <WarningAmberIcon sx={{ color: "#E57373" }} />
@@ -40,14 +88,18 @@ const RimacCaseReport = () => {
           <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
             <TextField
               label="Insured"
-              value="LUIS ENRIQUE GOMEZ LOPEZ"
+              value={
+                `${report.NomTit || ""} ${report.ApPatTit || ""} ${
+                  report.ApMatTit || ""
+                }`.trim() || "N/A"
+              }
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
             <TextField
               label="Product"
-              value="2101"
+              value={report.CodProd || "N/A"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
@@ -55,7 +107,6 @@ const RimacCaseReport = () => {
           </Box>
         </Box>
 
-        {/* Vehicle Data Section */}
         <Box sx={{ border: "1px solid #E57373", p: 2, borderRadius: 1, mb: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
             <WarningAmberIcon sx={{ color: "#E57373" }} />
@@ -64,28 +115,30 @@ const RimacCaseReport = () => {
           <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
             <TextField
               label="Plate"
-              value="AKN268"
+              value={report.NroPlaca || "N/A"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
             <TextField
-              label="Automovil"
-              value="AUTOMOVIL"
+              label="Vehicle Type"
+              value={report.TipVehic || "N/A"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
             <TextField
-              label="Make/model"
-              value="MAZDA/MAZDA3"
+              label="Make/Model"
+              value={
+                `${report.Marca || ""}/${report.Modelo || ""}`.trim() || "N/A"
+              }
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
             <TextField
               label="Year"
-              value="2015"
+              value={report.AnioVehic || "N/A"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
@@ -94,14 +147,14 @@ const RimacCaseReport = () => {
           <Box sx={{ display: "flex", gap: 2 }}>
             <TextField
               label="Color"
-              value=""
+              value={report.Color || "N/A"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
             <TextField
               label="Engine"
-              value="PE4031052"
+              value={report.Motor || "N/A"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
@@ -117,7 +170,7 @@ const RimacCaseReport = () => {
           <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
             <TextField
               label="Assistance number"
-              value="0025400921"
+              value={report.Caso || "N/A"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
@@ -131,14 +184,14 @@ const RimacCaseReport = () => {
             />
             <TextField
               label="Type care"
-              value="CHOQUE Y FUGA CIRCULANDO"
+              value={report.DescEnvio || "N/A"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
             <TextField
               label="Subtopic"
-              value="Pérdida Parcial"
+              value={report.DatosDeduc ? "Pérdida Parcial" : "N/A"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
@@ -147,28 +200,35 @@ const RimacCaseReport = () => {
           <Box sx={{ display: "flex", gap: 2 }}>
             <TextField
               label="Opening date and time"
-              value="29/05/2025 10:35"
+              value={
+                `${report.FecOcurr || ""} ${report.HorOcurr || ""}`.trim() ||
+                "N/A"
+              }
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
             <TextField
               label="Date and time of assignment"
-              value=""
+              value={
+                `${report.FecLlamada || ""} ${
+                  report.HorLlamada || ""
+                }`.trim() || "N/A"
+              }
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
             <TextField
               label="Programming date and time"
-              value=""
+              value="N/A"
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
             <TextField
               label="Mode"
-              value="Subasta"
+              value={report.LMDM === "S" ? "Subasta" : "Standard"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
@@ -176,22 +236,25 @@ const RimacCaseReport = () => {
           </Box>
         </Box>
 
-        {/* Driver Section */}
         <Box sx={{ border: "1px solid #E57373", p: 2, borderRadius: 1, mb: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
             <Typography variant="h6">Driver</Typography>
           </Box>
           <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
             <TextField
-              label=""
-              value="LUIS ENRIQUE GOMEZ LOPEZ"
+              label="Driver Name"
+              value={
+                `${report.NomCond || ""} ${report.ApPatCond || ""} ${
+                  report.ApMatCond || ""
+                }`.trim() || "N/A"
+              }
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
             <TextField
               label="Telephones"
-              value="984123168"
+              value={report.TelfCont || "N/A"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
@@ -199,7 +262,6 @@ const RimacCaseReport = () => {
           </Box>
         </Box>
 
-        {/* Simple Event Section */}
         <Box sx={{ border: "1px solid #E57373", p: 2, borderRadius: 1, mb: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
             <Typography variant="h6">For event</Typography>
@@ -207,14 +269,14 @@ const RimacCaseReport = () => {
           <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
             <TextField
               label="Type care"
-              value=""
+              value={report.DescEnvio || "N/A"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
             <TextField
               label="Procurator"
-              value="ANR"
+              value={report.Proveedor ? report.Proveedor.split(" ")[0] : "ANR"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
@@ -229,7 +291,6 @@ const RimacCaseReport = () => {
           </Typography>
         </Box>
 
-        {/* Origin Address Section */}
         <Box sx={{ border: "1px solid #E57373", p: 2, borderRadius: 1, mb: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
             <Typography variant="h6" sx={{ color: "#E57373" }}>
@@ -239,21 +300,21 @@ const RimacCaseReport = () => {
           <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
             <TextField
               label="Province of origin"
-              value="LIMA"
+              value={report.Prov || "N/A"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
             <TextField
               label="District of origin"
-              value="LIMA"
+              value={report.Dist || "N/A"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
             <TextField
-              label=""
-              value="PUENTE PIEDRA"
+              label="Department"
+              value={report.Dpto || "N/A"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
@@ -262,27 +323,28 @@ const RimacCaseReport = () => {
           <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
             <TextField
               label="Origin address"
-              value="PANAMERICANA NORTE"
+              value={report.DirSin || "N/A"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
             <TextField
               label="Reference source"
-              value="ANTES DE LLEGAR A GAMBER - SENTIDO AL NORTE"
+              value={report.RefSin || "N/A"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
           </Box>
           <Typography variant="body2" sx={{ mb: 2 }}>
-            10/06/2025 EVENTO Siniestros atendidos solo en red de talleres
+            {`${
+              report.FecOcurr || "N/A"
+            } EVENTO Siniestros atendidos solo en red de talleres
             (clásico) 15% del monto a indemnizar, mínimo US$ 300, excepto para
-            pérdida parcial, 20% del monto a indemnizar, mínimo US$ 150, excepto
+            pérdida parcial, 20% del monto a indemnizar, mínimo US$ 150, excepto`}
           </Typography>
         </Box>
 
-        {/* Comments Section */}
         <Box sx={{ border: "1px solid #E57373", p: 2, borderRadius: 1, mb: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
             <ChatBubbleOutlineIcon sx={{ color: "#E57373" }} />
@@ -302,7 +364,6 @@ const RimacCaseReport = () => {
           </Box>
         </Box>
 
-        {/* Supplier Section */}
         <Box sx={{ border: "1px solid #E57373", p: 2, borderRadius: 1, mb: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
             <WarningAmberIcon sx={{ color: "#E57373" }} />
@@ -311,14 +372,19 @@ const RimacCaseReport = () => {
           <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
             <TextField
               label="Assigned Supplier"
-              value="ESTUDIO CHONG Y ASOCIADOS S.A.C."
+              value={report.Proveedor || "N/A"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
             <TextField
               label="State"
-              value="CULMINATION"
+              value={
+                report.EstadoPoliza === "VIGENTE" ||
+                report.EstadoPoliza === "ACTIVA"
+                  ? "CULMINATION"
+                  : "N/A"
+              }
               variant="outlined"
               fullWidth
               InputProps={{
@@ -334,14 +400,22 @@ const RimacCaseReport = () => {
           <Box sx={{ display: "flex", gap: 2 }}>
             <TextField
               label="Unit 1"
-              value="EDGAR JUNIOR SANCHEZ PEREZ"
+              value={
+                `${report.NomCont || ""} ${report.ApPatCont || ""} ${
+                  report.ApMatCont || ""
+                }`.trim() || "N/A"
+              }
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
             <TextField
               label="Unit 1 assignment date"
-              value="29/05/2025 10:38"
+              value={
+                `${report.FecLlamada || ""} ${
+                  report.HorLlamada || ""
+                }`.trim() || "N/A"
+              }
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
@@ -349,7 +423,6 @@ const RimacCaseReport = () => {
           </Box>
         </Box>
 
-        {/* Footer Buttons */}
         <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
           <Button
             variant="outlined"
@@ -371,13 +444,6 @@ const RimacCaseReport = () => {
           >
             SAVE CHANGES
           </Button>
-        </Box>
-
-        {/* Footer */}
-        <Box sx={{ mt: 2, textAlign: "center" }}>
-          <Typography variant="body2" sx={{ color: "#757575" }}>
-            © 2025 - Powered by IOTECNOVA
-          </Typography>
         </Box>
       </Box>
     </PageLayout>

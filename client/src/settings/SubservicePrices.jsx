@@ -83,7 +83,6 @@ const SubservicePrices = () => {
   };
 
   const handleOpen = (locationId, subserviceType, price) => {
-    // Convert comma-separated subservice_type to array of objects for Autocomplete
     const selectedSubservices = subserviceType
       ? subserviceType.split(",").map((name) => {
           const found = subserviceTypes.find(
@@ -92,7 +91,6 @@ const SubservicePrices = () => {
           return found || { id: null, name: name.trim() };
         })
       : [];
-    // Use the first price if available (assuming same price for all subservices)
     const selectedPrice = price ? price.split(",")[0] : "";
     setFormData({
       locationId,

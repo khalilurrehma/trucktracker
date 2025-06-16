@@ -81,6 +81,7 @@ const DispatchResult = () => {
   const [loading, setLoading] = useState(false);
   const [sessionToken, setSessionToken] = useState(null);
   const [selectedRowData, setSelectedRowData] = useState([]);
+  const [searchId, setSearchId] = useState(0);
 
   const resetStates = () => {
     setSelectedServiceType([]);
@@ -160,7 +161,7 @@ const DispatchResult = () => {
     try {
       const response = await autocompleteService.getPlacePredictions({
         input: cleanedInput,
-        componentRestrictions: { country: "PE" },
+        componentRestrictions: { country: ["PE", "PT"] },
         types: ["geocode", "establishment"],
         sessionToken,
         location: new window.google.maps.LatLng(-12.0464, -77.0428),
@@ -176,7 +177,10 @@ const DispatchResult = () => {
       if (predictions.length === 0 && cleanedInput) {
         const geocoder = new window.google.maps.Geocoder();
         geocoder.geocode(
-          { address: cleanedInput, componentRestrictions: { country: "PE" } },
+          {
+            address: cleanedInput,
+            componentRestrictions: { country: ["PE", "PT"] },
+          },
           (results, status) => {
             if (status === "OK" && results[0]) {
               setPlaceOptions([
@@ -249,7 +253,7 @@ const DispatchResult = () => {
           geocoder.geocode(
             {
               address: newValue.label,
-              componentRestrictions: { country: "PE" },
+              componentRestrictions: { country: ["PE", "PT"] },
             },
             (results, status) => {
               if (status === "OK" && results[0]) {
@@ -286,11 +290,13 @@ const DispatchResult = () => {
     try {
       const geocoder = new window.google.maps.Geocoder();
       const cleanedAddress = preprocessAddress(address);
+      const countryCode = cleanedAddress.includes("Peru") ? "PE" : "PT";
+
       const geocodeResults = await new Promise((resolve, reject) => {
         geocoder.geocode(
           {
             address: cleanedAddress,
-            componentRestrictions: { country: "PE" },
+            componentRestrictions: { country: countryCode },
           },
           (results, status) => {
             if (status === "OK") resolve(results);
@@ -307,12 +313,15 @@ const DispatchResult = () => {
 
       const currentDate = dayjs().format("YYYY-MM-DD");
       const encodedAddress = encodeURIComponent(address);
-      // const lat = `lat()${lng()}`;
       const apiUrl = `${url}/new-devices?date=${currentDate}&deviceLocation=true&address=${encodedAddress}&radius=${radius}&lat=${lat()}&lng=${lng()}&userId=${userId}`;
       const res = await axios.get(apiUrl);
 
       if (res.status !== 200) {
         throw new Error("Failed to fetch devices");
+      }
+
+      if (res.status === 200 && res.data.searchId) {
+        setSearchId(res.data.searchId || null);
       }
 
       const formattedDevice = res.data.data.map((device) => {
@@ -508,6 +517,47 @@ const DispatchResult = () => {
               )}
             />
           </Grid>
+
+          {selectedServiceType[0]?.name === "GRUA" && (
+            <Grid item xs={12} sm={7}>
+              <Autocomplete
+                id="address-autocomplete"
+                options={placeOptions}
+                getOptionLabel={(option) => option.label || ""}
+                value={
+                  placeOptions.find((option) => option.label === address) || {
+                    label: address,
+                    placeId: null,
+                  }
+                }
+                onChange={(event, newValue) => handlePlaceSelect(newValue)}
+                onInputChange={handleAddressChange}
+                freeSolo
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Destination Address"
+                    fullWidth
+                    variant="outlined"
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {loading ? <CircularProgress size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+                isOptionEqualToValue={(option, value) =>
+                  option.placeId === value.placeId ||
+                  option.label === value.label
+                }
+              />
+            </Grid>
+          )}
+
           <Grid item xs={12} sm={2}>
             <Button
               variant="outlined"
@@ -667,6 +717,7 @@ const DispatchResult = () => {
             selectedRowData={selectedRowData}
             markerPosition={markerPosition}
             resetStates={resetStates}
+            searchId={searchId}
           />
         )}
       </Box>
