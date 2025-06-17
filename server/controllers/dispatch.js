@@ -2,7 +2,6 @@ import {
   actionSuggestionService,
   addNewCase,
   addNewTowCarServicePrice,
-  addNewZonePrice,
   allPendingSuggestedServices,
   allPendingSuggestedServicesByUserId,
   allRimacCases,
@@ -10,6 +9,8 @@ import {
   allSearchHistoryByUserId,
   caseTrackingById,
   defaultTemplateTimeForAdmin,
+  deleteProviderPrice,
+  existingProviderPrice,
   fetchCaseIdByReportId,
   fetchCaseReportById,
   fetchDispatchCases,
@@ -35,6 +36,7 @@ import {
   saveDispatchCaseAction,
   saveDispatchCaseReport,
   saveInvolvedVehicle,
+  saveOrUpdateZonePrices,
   saveRequestedSuggestedService,
   saveRimacCase,
   saveVehiclePhoto,
@@ -1102,36 +1104,62 @@ export const towcarServiceLocationData = async (req, res) => {
 };
 
 export const updateTowCarServicePrice = async (req, res) => {
+  const { userId, locationId, providers } = req.body;
+  const newProviders = [];
+  const existingProviders = [];
+
+  if (
+    !userId ||
+    !locationId ||
+    !Array.isArray(providers) ||
+    providers.length === 0
+  ) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "Missing required fields: userId, locationId, and providers are mandatory",
+    });
+  }
+
+  if (userId === "1") {
+    return res.status(403).json({
+      success: false,
+      message: "Superadmin cannot update tow car service prices",
+    });
+  }
+
   try {
-    const { userId, locationId, providers } = req.body;
+    const existing = await existingProviderPrice({ locationId, userId });
 
-    if (
-      !userId ||
-      !locationId ||
-      !Array.isArray(providers) ||
-      providers.length === 0
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Missing required fields: userId, locationId, and providers are mandatory",
-      });
-    }
+    const existingIds = existing.map((row) => row.id);
+    const incomingIds = providers.map((p) => p.providerId).filter(Boolean);
 
-    if (userId === "1") {
-      return res.status(403).json({
-        success: false,
-        message: "Superadmin cannot update tow car service prices",
-      });
+    const toDelete = existingIds.filter((id) => !incomingIds.includes(id));
+
+    if (toDelete.length > 0) {
+      await deleteProviderPrice({ userId, locationId, toDeleteIds: toDelete });
     }
 
     for (let providerData of providers) {
       if (!providerData.providerId) {
-        return res.status(400).json({
-          success: false,
-          message: "Each provider must have a providerId to update",
+        newProviders.push({
+          provider: providerData.provider,
+          price: providerData.price,
         });
+      } else {
+        existingProviders.push(providerData);
       }
+    }
+
+    if (newProviders.length > 0) {
+      await addNewTowCarServicePrice({
+        userId,
+        locationId,
+        providers: newProviders,
+      });
+    }
+
+    for (let providerData of existingProviders) {
       await updateProviderPriceInDb({
         providerId: providerData.providerId,
         userId,
@@ -1229,65 +1257,52 @@ export const getSuggestedServiceApprovals = async (req, res) => {
   }
 };
 
-export const addNewSubservicePrice = async (req, res) => {
+export const saveSubservicePrices = async (req, res) => {
   try {
-    const { userId, locationId, subserviceType, price } = req.body;
+    const { userId, locationId, subservices } = req.body;
 
-    if (
-      !userId ||
-      !locationId ||
-      !Array.isArray(subserviceType) ||
-      subserviceType.length === 0 ||
-      !price
-    ) {
+    if (!userId || !locationId || !Array.isArray(subservices)) {
       return res.status(400).json({
         success: false,
         message:
-          "Missing required fields: userId, locationId, subserviceType (array), and price are mandatory",
+          "Missing required fields: userId, locationId, and subservices[]",
       });
     }
 
     if (userId === "1") {
       return res.status(403).json({
         success: false,
-        message: "Superadmin cannot add subservice prices",
+        message: "Superadmin cannot modify subservice prices",
       });
     }
 
-    const validSubservices = await validateSubserviceType(subserviceType);
+    const allIds = subservices.map((s) => s.subserviceType);
+    const validSubservices = await validateSubserviceType(allIds);
 
-    const validIds = validSubservices?.map((row) => row.id);
-
-    if (validIds.length !== subserviceType.length) {
+    const validIds = validSubservices.map((row) => row.id);
+    if (validIds.length !== allIds.length) {
       return res.status(400).json({
         success: false,
         message: "One or more subserviceType IDs are invalid",
       });
     }
 
-    const insertedIds = await addNewZonePrice({
+    const result = await saveOrUpdateZonePrices({
       userId,
       locationId,
-      subserviceType,
-      price,
+      subservices,
     });
 
-    res.status(201).json({
+    res.status(200).json({
       success: true,
-      message: "Subservice prices saved successfully",
-      data: insertedIds.map((id, index) => ({
-        id,
-        userId,
-        locationId,
-        subserviceType: subserviceType[index],
-        price,
-      })),
+      message: "Subservice prices synced successfully",
+      data: result,
     });
   } catch (error) {
     console.error("Error saving subservice price:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to save subservice price",
+      message: "Internal server error",
       error: error.message,
     });
   }
@@ -1310,12 +1325,12 @@ export const addTowCarServicePrice = async (req, res) => {
       });
     }
 
-    // if (userId === "1") {
-    //   return res.status(403).json({
-    //     success: false,
-    //     message: "Superadmin cannot add tow car service prices",
-    //   });
-    // }
+    if (userId === "1") {
+      return res.status(403).json({
+        success: false,
+        message: "Superadmin cannot add tow car service prices",
+      });
+    }
 
     for (let providerData of providers) {
       if (!providerData.provider || !providerData.price) {

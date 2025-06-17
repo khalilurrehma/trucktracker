@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { useSelector } from "react-redux";
 import axios from "axios";
 import {
   Table,
@@ -16,13 +15,16 @@ import {
   FormControl,
   Autocomplete,
   Chip,
+  IconButton,
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
 import { useAppContext } from "../AppContext";
+import { toast, ToastContainer } from "react-toastify";
 
 const SubservicePrices = () => {
   const { url } = useAppContext();
-  const userId = useSelector((state) => state.session.user.id);
+  // const userId = useSelector((state) => state.session.user.id);
+  const userId = 180;
   const [data, setData] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -30,8 +32,7 @@ const SubservicePrices = () => {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     locationId: "",
-    subserviceType: [],
-    price: "",
+    subservices: [{ subserviceType: null, price: "" }],
   });
   const [subserviceTypes, setSubserviceTypes] = useState([]);
 
@@ -82,46 +83,61 @@ const SubservicePrices = () => {
     setPage(newPage);
   };
 
-  const handleOpen = (locationId, subserviceType, price) => {
-    const selectedSubservices = subserviceType
-      ? subserviceType.split(",").map((name) => {
-          const found = subserviceTypes.find(
-            (type) => type.name === name.trim()
-          );
-          return found || { id: null, name: name.trim() };
-        })
-      : [];
-    const selectedPrice = price ? price.split(",")[0] : "";
+  const handleOpen = (locationId, subservices = []) => {
+    const parsedSubservices = subservices.map((item) => ({
+      subserviceType:
+        subserviceTypes.find((s) => s.name === item.subserviceType) || null,
+      price: item.price || "",
+    }));
     setFormData({
       locationId,
-      subserviceType: selectedSubservices,
-      price: selectedPrice,
+      subservices:
+        parsedSubservices.length > 0
+          ? parsedSubservices
+          : [{ subserviceType: null, price: "" }],
     });
     setOpen(true);
   };
 
   const handleClose = () => {
     setOpen(false);
-    setFormData({ locationId: "", subserviceType: [], price: "" });
+    // setFormData({ locationId: "", subserviceType: [], price: "" });
   };
 
   const handleSubmit = async () => {
     try {
-      const response = await axios.post(`${url}/dispatch/subservice-prices`, {
+      const payload = {
         userId,
-        ...formData,
-        subserviceType: formData.subserviceType.map((type) => type.id),
-      });
+        locationId: formData.locationId,
+        subservices: formData.subservices.map((entry) => ({
+          subserviceType: entry?.subserviceType?.id,
+          price: entry?.price,
+        })),
+      };
+
+      const response = await axios.post(
+        `${url}/dispatch/subservice-prices`,
+        payload
+      );
       const result = response.data;
+
       if (result.success) {
-        const updatedResponse = await axios.get(
+        toast.success(result.message, {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+        });
+        const updated = await axios.get(
           `${url}/dispatch/subservices/locations?page=${
             page + 1
           }&userId=${userId}`
         );
-        const updatedResult = updatedResponse.data;
-        if (updatedResult.success) {
-          setData(updatedResult.data);
+        if (updated.data.success) {
+          setData(updated.data.data);
         }
         handleClose();
       } else {
@@ -134,6 +150,7 @@ const SubservicePrices = () => {
 
   return (
     <div style={{ padding: "20px" }}>
+      <ToastContainer />
       <TableContainer>
         <Table>
           <TableHead>
@@ -153,59 +170,60 @@ const SubservicePrices = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {data.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell>{row.code}</TableCell>
-                <TableCell>{row.ring_type}</TableCell>
-                <TableCell>{row.department}</TableCell>
-                <TableCell>{row.province}</TableCell>
-                <TableCell>{row.district}</TableCell>
-                {userId !== 1 && (
-                  <>
-                    <TableCell>
-                      {row.subservice_type
-                        ? row.subservice_type
-                            .split(",")
-                            .map((type, index) => (
-                              <Chip
-                                key={index}
-                                label={type.trim()}
-                                size="small"
-                                sx={{ marginRight: 0.5, marginBottom: 0.5 }}
-                              />
-                            ))
-                        : "-"}
-                    </TableCell>
-                    <TableCell>
-                      {row.price
-                        ? row.price
-                            .split(",")
-                            .map((price, index) => (
-                              <Chip
-                                key={index}
-                                label={`$${price.trim()}`}
-                                size="small"
-                                sx={{ marginRight: 0.5, marginBottom: 0.5 }}
-                              />
-                            ))
-                        : "-"}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        startIcon={<AddIcon />}
-                        onClick={() =>
-                          handleOpen(row.id, row.subservice_type, row.price)
-                        }
-                      >
-                        Add
-                      </Button>
-                    </TableCell>
-                  </>
-                )}
-              </TableRow>
-            ))}
+            {data.map((row) => {
+              let ParsedSubservices = row.subservices
+                ? JSON.parse(row.subservices)
+                : [];
+
+              return (
+                <TableRow key={row.id}>
+                  <TableCell>{row.code}</TableCell>
+                  <TableCell>{row.ring_type}</TableCell>
+                  <TableCell>{row.department}</TableCell>
+                  <TableCell>{row.province}</TableCell>
+                  <TableCell>{row.district}</TableCell>
+                  {userId !== 1 && (
+                    <>
+                      <TableCell>
+                        {ParsedSubservices.length > 0
+                          ? ParsedSubservices.map((item, index) =>
+                              item.subserviceType ? (
+                                <Chip
+                                  key={index}
+                                  label={item.subserviceType}
+                                  size="small"
+                                  sx={{ mr: 0.5, mb: 0.5 }}
+                                />
+                              ) : null
+                            )
+                          : "-"}
+                      </TableCell>
+                      <TableCell>
+                        {ParsedSubservices.length > 0
+                          ? ParsedSubservices.map((item, index) =>
+                              item.price ? (
+                                <Chip
+                                  key={index}
+                                  label={`$${item.price}`}
+                                  size="small"
+                                  sx={{ mr: 0.5, mb: 0.5 }}
+                                />
+                              ) : null
+                            )
+                          : "-"}
+                      </TableCell>
+                      <TableCell>
+                        <IconButton
+                          onClick={() => handleOpen(row.id, ParsedSubservices)}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                      </TableCell>
+                    </>
+                  )}
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
         <TablePagination
@@ -226,49 +244,84 @@ const SubservicePrices = () => {
               top: "50%",
               left: "50%",
               transform: "translate(-50%, -50%)",
-              width: 400,
+              width: 500,
               bgcolor: "background.paper",
               boxShadow: 24,
               p: 4,
             }}
           >
-            <h2>Add/Edit Subservice Price</h2>
-            <FormControl fullWidth sx={{ mb: 2 }}>
-              <Autocomplete
-                multiple
-                id="subservice-type"
-                options={subserviceTypes}
-                getOptionLabel={(option) => option.name}
-                value={formData.subserviceType}
-                onChange={(event, newValue) => {
-                  setFormData({ ...formData, subserviceType: newValue });
-                }}
-                renderInput={(params) => (
-                  <TextField {...params} label="Subservice Type" />
+            <h2>Edit Subservice Prices</h2>
+            {formData.subservices.map((entry, index) => (
+              <Box
+                key={index}
+                display="flex"
+                gap={1}
+                mb={2}
+                alignItems="center"
+              >
+                <Autocomplete
+                  sx={{ flex: 2 }}
+                  options={subserviceTypes}
+                  getOptionLabel={(option) => option.name}
+                  value={entry.subserviceType}
+                  onChange={(event, newValue) => {
+                    const updated = [...formData.subservices];
+                    updated[index].subserviceType = newValue;
+                    setFormData({ ...formData, subservices: updated });
+                  }}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Subservice Type" />
+                  )}
+                />
+                <TextField
+                  sx={{ flex: 1 }}
+                  label="Price"
+                  type="number"
+                  value={entry.price}
+                  onChange={(e) => {
+                    const updated = [...formData.subservices];
+                    updated[index].price = e.target.value;
+                    setFormData({ ...formData, subservices: updated });
+                  }}
+                />
+                {formData.subservices.length > 1 && (
+                  <Button
+                    onClick={() => {
+                      const updated = formData.subservices.filter(
+                        (_, i) => i !== index
+                      );
+                      setFormData({ ...formData, subservices: updated });
+                    }}
+                    color="error"
+                  >
+                    Remove
+                  </Button>
                 )}
-                renderTags={(value, getTagProps) =>
-                  value.map((option, index) => (
-                    <Chip label={option.name} {...getTagProps({ index })} />
-                  ))
-                }
-              />
-            </FormControl>
-            <TextField
-              fullWidth
-              label="Price"
-              type="number"
-              value={formData.price}
-              onChange={(e) =>
-                setFormData({ ...formData, price: e.target.value })
+              </Box>
+            ))}
+            <Button
+              variant="outlined"
+              onClick={() =>
+                setFormData({
+                  ...formData,
+                  subservices: [
+                    ...formData.subservices,
+                    { subserviceType: null, price: "" },
+                  ],
+                })
               }
               sx={{ mb: 2 }}
-            />
-            <Button variant="contained" onClick={handleSubmit}>
-              Save
+            >
+              Add More
             </Button>
-            <Button variant="outlined" onClick={handleClose} sx={{ ml: 2 }}>
-              Cancel
-            </Button>
+            <Box display="flex" justifyContent="flex-end" gap={2}>
+              <Button variant="contained" onClick={handleSubmit}>
+                Save
+              </Button>
+              <Button variant="outlined" onClick={handleClose}>
+                Cancel
+              </Button>
+            </Box>
           </Box>
         </Modal>
       )}

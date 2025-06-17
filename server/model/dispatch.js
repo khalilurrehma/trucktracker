@@ -747,11 +747,19 @@ export const fetchSubserviceLocationData = async (userId, page, limit) => {
         l.province, 
         l.code_district, 
         l.district,
-        GROUP_CONCAT(sts.name) as subservice_type,
-        GROUP_CONCAT(sp.price) as price
+        JSON_ARRAYAGG(
+          JSON_OBJECT(
+            'subserviceId', sp.id,
+            'subserviceType', sts.name,
+            'subserviceTypeId', sts.id,
+            'price', sp.price
+          )
+        ) as subservices
       FROM location_data l
-      LEFT JOIN location_subservice_prices sp ON l.id = sp.location_id AND sp.user_id = ?
-      LEFT JOIN service_type_subservices sts ON sp.subservice_type = sts.id
+      LEFT JOIN location_subservice_prices sp 
+        ON l.id = sp.location_id AND sp.user_id = ?
+      LEFT JOIN service_type_subservices sts 
+        ON sp.subservice_type = sts.id
       GROUP BY l.id, l.code, l.ring_type, l.code_department, l.department,
                l.code_province, l.province, l.code_district, l.district
       LIMIT ? OFFSET ?
@@ -776,32 +784,73 @@ export const fetchSubserviceLocationData = async (userId, page, limit) => {
   };
 };
 
-export const addNewZonePrice = async ({
+export const saveOrUpdateZonePrices = async ({
   userId,
   locationId,
-  subserviceType,
-  price,
+  subservices,
 }) => {
-  const query = `
-    INSERT INTO location_subservice_prices (user_id, location_id, subservice_type, price)
-    VALUES ?
+  // 1. Get existing subservice prices for this location
+  const existingQuery = `
+    SELECT id, subservice_type AS subserviceType, price 
+    FROM location_subservice_prices 
+    WHERE user_id = ? AND location_id = ?
   `;
-  const values = subserviceType.map((typeId) => [
-    userId,
-    locationId,
-    typeId,
-    price,
-  ]);
+  const existingRows = await dbQuery(existingQuery, [userId, locationId]);
 
-  const result = await dbQuery(query, [values]);
-  const insertedIds = Array.isArray(result.insertId)
-    ? result.insertId
-    : Array.from(
-        { length: subserviceType.length },
-        (_, i) => result.insertId + i
-      );
+  const toInsert = [];
+  const toUpdate = [];
+  const incomingTypeIds = subservices.map((s) => s.subserviceType);
 
-  return insertedIds;
+  // 2. Map existing rows for quick lookup
+  const existingMap = new Map();
+  for (const row of existingRows) {
+    existingMap.set(row.subserviceType, row);
+  }
+
+  // 3. Determine what to insert or update
+  for (const item of subservices) {
+    const found = existingMap.get(item.subserviceType);
+    if (!found) {
+      toInsert.push([userId, locationId, item.subserviceType, item.price]);
+    } else if (found.price !== item.price) {
+      toUpdate.push({ id: found.id, price: item.price });
+    }
+    existingMap.delete(item.subserviceType); // Remaining = to delete
+  }
+
+  // 4. Remaining in map are to be deleted
+  const toDeleteIds = Array.from(existingMap.values()).map((r) => r.id);
+
+  // Execute Inserts
+  if (toInsert.length > 0) {
+    const insertQuery = `
+      INSERT INTO location_subservice_prices (user_id, location_id, subservice_type, price)
+      VALUES ?
+    `;
+    await dbQuery(insertQuery, [toInsert]);
+  }
+
+  // Execute Updates
+  for (const item of toUpdate) {
+    const updateQuery = `
+      UPDATE location_subservice_prices SET price = ? WHERE id = ?
+    `;
+    await dbQuery(updateQuery, [item.price, item.id]);
+  }
+
+  // Execute Deletes
+  if (toDeleteIds.length > 0) {
+    const deleteQuery = `
+      DELETE FROM location_subservice_prices WHERE id IN (?)
+    `;
+    await dbQuery(deleteQuery, [toDeleteIds]);
+  }
+
+  return {
+    inserted: toInsert.length,
+    updated: toUpdate.length,
+    deleted: toDeleteIds.length,
+  };
 };
 
 export const addNewTowCarServicePrice = async ({
@@ -849,12 +898,18 @@ export const fetchTowCarServiceLocationData = async (userId, page, limit) => {
         l.province, 
         l.code_district, 
         l.district,
-        GROUP_CONCAT(tcs.provider) as provider,
-        GROUP_CONCAT(tcs.price) as price
+        JSON_ARRAYAGG(
+          JSON_OBJECT(
+            'providerId', tcs.id,
+            'provider', tcs.provider,
+            'price', tcs.price
+          )
+        ) as providers
       FROM location_data l
-      LEFT JOIN location_towcarservice_prices tcs ON l.id = tcs.location_id AND tcs.user_id = ?
+      LEFT JOIN location_towcarservice_prices tcs 
+        ON l.id = tcs.location_id AND tcs.user_id = ?
       GROUP BY l.id, l.code, l.ring_type, l.code_department, l.department,
-               l.code_province, l.province, l.code_district, l.district
+              l.code_province, l.province, l.code_district, l.district
       LIMIT ? OFFSET ?
     `;
     queryParams = [userId, limit, offset];
@@ -892,6 +947,37 @@ export const updateProviderPriceInDb = async ({
   const queryParams = [provider, price, providerId, userId, locationId];
 
   await dbQuery(query, queryParams);
+};
+
+export const existingProviderPrice = async ({ locationId, userId }) => {
+  const query = `
+    SELECT id FROM location_towcarservice_prices WHERE location_id = ? AND user_id = ?
+  `;
+
+  try {
+    const rows = await dbQuery(query, [locationId, userId]);
+    return rows;
+  } catch (error) {
+    console.error("Error fetching existing provider prices:", error);
+    throw error;
+  }
+};
+
+export const deleteProviderPrice = async ({
+  userId,
+  locationId,
+  toDeleteIds,
+}) => {
+  const query = `DELETE FROM location_towcarservice_prices WHERE id IN (${toDeleteIds?.join(
+    ","
+  )}) AND user_id = ? AND location_id = ?`;
+
+  try {
+    await dbQuery(query, [userId, locationId]);
+  } catch (error) {
+    console.error("Error deleting provider price:", error);
+    throw error;
+  }
 };
 
 // ------------------------------- DISPATCH CASE TRACKING

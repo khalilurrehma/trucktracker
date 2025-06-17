@@ -17,7 +17,6 @@ import {
   getDispatchCaseTracking,
   adminOverrideTemplate,
   subservicesLocationData,
-  addNewSubservicePrice,
   fetchSearchHistory,
   fetchSearchHistoryByUserId,
   suggestedServicesApproval,
@@ -28,6 +27,7 @@ import {
   towcarServiceLocationData,
   addTowCarServicePrice,
   updateTowCarServicePrice,
+  saveSubservicePrices,
 } from "../controllers/dispatch.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { authDriver } from "../middlewares/auth.middleware.js";
@@ -93,7 +93,7 @@ router.post("/dispatch/process/template/override", adminOverrideTemplate);
 
 router.post("/dispatch/rimac/report", rimacReport);
 
-router.post("/dispatch/subservice-prices", addNewSubservicePrice);
+router.post("/dispatch/subservice-prices", saveSubservicePrices);
 
 router.post("/dispatch/towcarservice/price", addTowCarServicePrice);
 

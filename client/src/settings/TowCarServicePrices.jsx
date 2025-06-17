@@ -19,13 +19,14 @@ import {
   IconButton,
   FormControl,
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
+import { toast, ToastContainer } from "react-toastify";
 import EditIcon from "@mui/icons-material/Edit";
 import { useAppContext } from "../AppContext";
 
 const TowcarServicePrices = () => {
   const { url } = useAppContext();
-  const userId = useSelector((state) => state.session.user.id);
+  // const userId = useSelector((state) => state.session.user.id);
+  const userId = 180;
   const [data, setData] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -108,6 +109,15 @@ const TowcarServicePrices = () => {
 
       const result = response.data;
       if (result.success) {
+        toast.success(result.message, {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+        });
         const updatedResponse = await axios.get(
           `${url}/dispatch/towcarservice/locations?page=${
             page + 1
@@ -136,6 +146,15 @@ const TowcarServicePrices = () => {
 
       const result = response.data;
       if (result.success) {
+        toast.success(result.message, {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+        });
         const updatedResponse = await axios.get(
           `${url}/dispatch/towcarservice/locations?page=${
             page + 1
@@ -156,6 +175,7 @@ const TowcarServicePrices = () => {
 
   return (
     <div style={{ padding: "20px" }}>
+      <ToastContainer />
       <TableContainer>
         <Table>
           <TableHead>
@@ -175,28 +195,42 @@ const TowcarServicePrices = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {data.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell>{row.code}</TableCell>
-                <TableCell>{row.ring_type}</TableCell>
-                <TableCell>{row.department}</TableCell>
-                <TableCell>{row.province}</TableCell>
-                <TableCell>{row.district}</TableCell>
-                {userId !== 1 && (
-                  <>
-                    <TableCell>{row.provider}</TableCell>
-                    <TableCell>{row.price}</TableCell>
-                    <TableCell>
-                      <IconButton
-                        onClick={() => handleOpen(row.id, row.providers)}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                    </TableCell>
-                  </>
-                )}
-              </TableRow>
-            ))}
+            {data.map((row) => {
+              let parsedProviders = row.providers
+                ? JSON.parse(row.providers)
+                : [];
+
+              return (
+                <TableRow key={row.id}>
+                  <TableCell>{row.code}</TableCell>
+                  <TableCell>{row.ring_type}</TableCell>
+                  <TableCell>{row.department}</TableCell>
+                  <TableCell>{row.province}</TableCell>
+                  <TableCell>{row.district}</TableCell>
+                  {userId !== 1 && (
+                    <>
+                      <TableCell>
+                        {parsedProviders
+                          .map((p) => (p.provider ? `${p.provider}` : ""))
+                          .join(", ")}
+                      </TableCell>
+                      <TableCell>
+                        {parsedProviders
+                          .map((p) => (p.price ? `$${p.price}` : ""))
+                          .join(", ")}
+                      </TableCell>
+                      <TableCell>
+                        <IconButton
+                          onClick={() => handleOpen(row.id, parsedProviders)}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                      </TableCell>
+                    </>
+                  )}
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
         <TablePagination

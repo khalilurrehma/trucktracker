@@ -613,6 +613,8 @@ export const driverLogin = async (req, res) => {
   const { email, password, fcmToken, deviceId } = req.body;
   let isVehicleAssigned = false;
 
+  console.log(fcmToken);
+
   const missingFields = [];
 
   if (!email) missingFields.push("email");
