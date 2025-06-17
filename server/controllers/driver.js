@@ -35,6 +35,7 @@ import {
   defaultTemplateTimeForAdmin,
   findCaseById,
   findCaseByUserIdAndDeviceId,
+  findLatestInProgressCase,
 } from "../model/dispatch.js";
 import axios from "axios";
 import { refreshShiftJobs } from "../services/cronJobs.js";
@@ -361,6 +362,35 @@ export const dispatchCasesForDriver = async (req, res) => {
     });
 
     res.status(200).json({ status: true, message: formattedData });
+  } catch (error) {
+    res.status(500).json({ status: false, message: error.message });
+  }
+};
+
+export const driverCurrentCaseSubprocess = async (req, res) => {
+  const { companyId } = req.params;
+  const driverId = req.userId;
+
+  try {
+    const driverVehicleIds = await findAssociateVehicleByDriverId(driverId);
+
+    if (!driverVehicleIds) {
+      return res.status(404).json({
+        status: false,
+        message:
+          "Driver has no associated vehicles, Please associate at least one vehicle",
+      });
+    }
+
+    const latestCase = await findLatestInProgressCase(
+      companyId,
+      driverVehicleIds
+    );
+
+    res.status(200).json({
+      status: true,
+      message: latestCase,
+    });
   } catch (error) {
     res.status(500).json({ status: false, message: error.message });
   }

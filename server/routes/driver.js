@@ -5,6 +5,7 @@ import {
   dispatchCasesForDriver,
   driverAssociateVehicles,
   driverCaseStart,
+  driverCurrentCaseSubprocess,
   driverDashboard,
   driverForgotPassword,
   driverLogin,
@@ -58,6 +59,12 @@ router.get(
 router.get("/driver/availability/status", authDriver, getDriverStatus);
 
 router.get("/driver/cases/:companyId", authDriver, dispatchCasesForDriver);
+
+router.get(
+  "/driver/case/current-subprocess/:companyId",
+  authDriver,
+  driverCurrentCaseSubprocess
+);
 
 router.post("/driver/start/case/:caseId", authDriver, driverCaseStart);
 

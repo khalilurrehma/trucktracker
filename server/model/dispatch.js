@@ -339,6 +339,36 @@ export const findCaseByUserIdAndDeviceId = async (userId, deviceId) => {
   }
 };
 
+export const findLatestInProgressCase = async (userId, deviceId) => {
+  const query = `
+        SELECT 
+      dc.current_subprocess
+    FROM 
+      dispatch_cases dc
+    JOIN 
+      dispatch_case_devices dcd ON dc.id = dcd.dispatch_case_id
+    WHERE 
+      dc.user_id = ? 
+      AND dcd.device_id = ?
+      AND dc.status != 'completed'
+    ORDER BY 
+      dc.created_at DESC
+    LIMIT 1;
+  `;
+
+  try {
+    const rows = await dbQuery(query, [parseInt(userId), parseInt(deviceId)]);
+    if (rows.length > 0) {
+      return rows[0].current_subprocess;
+    } else {
+      return "No currently in-progress case found";
+    }
+  } catch (error) {
+    console.error("Error fetching latest in-progress dispatch case:", error);
+    throw error;
+  }
+};
+
 export const saveDispatchCaseAction = async (body) => {
   const { case_id, driver_id, action, rejection_reason } = body;
 
