@@ -123,7 +123,7 @@ export const updateCaseCurrentProcess = async (case_id, status) => {
 export const saveCaseAssignedDeviceId = async (case_id, device_id) => {
   const sql = `INSERT INTO dispatch_case_devices (dispatch_case_id, device_id) VALUES (?, ?)`;
 
-  const values = [case_id, device_id];
+  const values = [case_id, parseInt(device_id)];
 
   try {
     const result = await dbQuery(sql, values);
@@ -1169,16 +1169,17 @@ export const insertDispatchCompleteCase = async (caseId, driverId) => {
 
 export const saveSearchHistory = async ({
   userId,
+  userName,
   address,
   radius,
   lat,
   lng,
 }) => {
   const query = `
-    INSERT INTO dispatch_search_history (userId, address, latitude, longitude, radius) VALUES (?, ?, ?, ?, ?)
+    INSERT INTO dispatch_search_history (userId, userName, address, latitude, longitude, radius) VALUES (?, ?, ?, ?, ?, ?)
   `;
 
-  const values = [userId, address, lat, lng, radius];
+  const values = [userId, userName, address, lat, lng, radius];
 
   const result = await dbQuery(query, values);
 
@@ -1215,6 +1216,40 @@ export const updateSearchHistory = async (search_id) => {
   try {
     await dbQuery(sql, [true, search_id]);
   } catch (error) {
+    throw error;
+  }
+};
+
+export const fetchZoneRatesByUserId = async (userId, districtName) => {
+  const query = `
+      SELECT 
+        ltp.provider,
+        ltp.price,
+        ld.district,
+        ld.id AS location_id
+      FROM 
+        location_data ld
+      JOIN 
+        location_towcarservice_prices ltp 
+        ON ld.id = ltp.location_id
+      WHERE 
+        ld.district = ? 
+        AND ltp.user_id = (
+          SELECT 
+            COALESCE((
+              SELECT user_id FROM location_towcarservice_prices 
+              WHERE location_id = ld.id AND user_id = ? LIMIT 1
+            ), 1)
+        )
+      `;
+
+  const values = [districtName, parseInt(userId)];
+
+  try {
+    const rows = await dbQuery(query, values);
+    return rows;
+  } catch (error) {
+    console.error("Error fetching zone rates by user ID:", error);
     throw error;
   }
 };

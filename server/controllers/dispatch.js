@@ -17,6 +17,7 @@ import {
   fetchDispatchCasesByUserId,
   fetchSubserviceLocationData,
   fetchTowCarServiceLocationData,
+  fetchZoneRatesByUserId,
   findCaseById,
   findCaseByName,
   findCaseStatusById,
@@ -818,6 +819,61 @@ export const getRimacReportById = async (req, res) => {
     });
   } catch (error) {
     res.status(204).send({ status: false, message: error.message });
+  }
+};
+
+export const getZoneRates = async (req, res) => {
+  const { userId } = req.params;
+  const { deviceDistrict, incidentDistrict, destinationDistrict } = req.query;
+
+  let missingFields = [];
+
+  if (!deviceDistrict || deviceDistrict === "")
+    missingFields.push("deviceDistrict");
+  if (!incidentDistrict || incidentDistrict === "")
+    missingFields.push("incidentDistrict");
+  if (!destinationDistrict || destinationDistrict === "")
+    missingFields.push("destinationDistrict");
+
+  if (!userId || userId === "") {
+    return res
+      .status(400)
+      .json({ status: false, message: "User ID is required" });
+  }
+
+  if (missingFields.length > 0) {
+    return res.status(400).json({
+      status: false,
+      message: `Missing required fields: ${missingFields.join(", ")}`,
+    });
+  }
+
+  try {
+    const zoneRates = await fetchZoneRatesByUserId(userId, deviceDistrict);
+
+    if (!zoneRates) {
+      return res.status(200).json({
+        status: false,
+        message: "No zone rates found for given district and user",
+        zoneRates: [],
+      });
+    }
+
+    const highestPriceZone = zoneRates.reduce((prev, curr) =>
+      curr.price > prev.price ? curr : prev
+    );
+
+    res.status(200).json({
+      status: true,
+      message: "Highest zone rate fetched successfully",
+      zoneRate: highestPriceZone,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: "Error fetching zone rates",
+      error: error.message,
+    });
   }
 };
 

@@ -137,9 +137,9 @@ const RimacCases = () => {
         params: { page, limit: 10 },
       });
 
-      // Parse report_data and map to table structure
       const mappedCases = data.data.map((item) => {
         const report = JSON.parse(item.report_data);
+
         return {
           id: item.id,
           creationDate: new Date(item.created_at).toLocaleDateString(),
@@ -151,6 +151,7 @@ const RimacCases = () => {
           issue: report.DescEnvio,
           mode: report.LMDM === "S" ? "LMDM" : "Standard",
           state: report.EstadoPoliza === "ACTIVA" ? "SECURED CONTACT" : "OTHER",
+          accidentAddress: report.DirSin || "N/A",
         };
       });
 
@@ -295,7 +296,20 @@ const RimacCases = () => {
                 </TableRow>
               ) : (
                 cases.map((row) => (
-                  <TableRow key={row.id}>
+                  <TableRow
+                    key={row.id}
+                    onClick={() => {
+                      navigate(
+                        `/operations/dispatch?address=${row.accidentAddress}&casenumber=${row.code}`
+                      );
+                    }}
+                    sx={{
+                      cursor: "pointer",
+                      "&:hover": {
+                        backgroundColor: "#F5F5F5",
+                      },
+                    }}
+                  >
                     <TableCell>{row.creationDate}</TableCell>
                     <TableCell>{row.code}</TableCell>
                     <TableCell>{row.salesforce}</TableCell>

@@ -28,6 +28,7 @@ import {
   addTowCarServicePrice,
   updateTowCarServicePrice,
   saveSubservicePrices,
+  getZoneRates,
 } from "../controllers/dispatch.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { authDriver } from "../middlewares/auth.middleware.js";
@@ -64,6 +65,8 @@ router.get(
 router.get("/rimac/cases", fetchAllRimacCases);
 
 router.get("/rimac/case/report/:id", getRimacReportById);
+
+router.get("/dispatch/zone-rates/:userId", getZoneRates);
 
 router.post(
   "/dispatch/case/:caseId/action/:companyId",

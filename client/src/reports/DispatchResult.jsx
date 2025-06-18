@@ -29,6 +29,7 @@ import DispatchResultTable from "./components/DispatchResultTable";
 import DispatchDialog from "./components/DispatchDialog";
 import dayjs from "dayjs";
 import { useTranslation } from "../common/components/LocalizationProvider";
+import { useLocation } from "react-router-dom";
 
 const debounce = (func, wait) => {
   let timeout;
@@ -55,7 +56,14 @@ const DispatchResult = () => {
     ? import.meta.env.VITE_DEV_BACKEND_URL
     : import.meta.env.VITE_PROD_BACKEND_URL;
 
+  const { search } = useLocation();
+  const query = new URLSearchParams(search);
+
+  const rimacAddress = query.get("address");
+  const rimacCaseNumber = query.get("casenumber");
+
   const userId = useSelector((state) => state.session.user.id);
+  const userName = useSelector((state) => state.session.user.name);
   const t = useTranslation();
   const centerDefault = { lat: -12.0464, lng: -77.0428 };
   const mapRef = useRef(null);
@@ -68,8 +76,10 @@ const DispatchResult = () => {
   const [selectedDeviceIds, setSelectedDeviceIds] = useState([]);
   const [caseNumber, setCaseNumber] = useState("");
   const [address, setAddress] = useState("");
+  const [destinationAddress, setDestinationAddress] = useState(""); // New state for destination address
   const [mapCenter, setMapCenter] = useState(centerDefault);
   const [markerPosition, setMarkerPosition] = useState(null);
+  const [destinationPosition, setDestinationPosition] = useState(null); // New state for destination coordinates
   const [radius, setRadius] = useState(3000);
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   const [searchValue, setSearchValue] = useState("");
@@ -77,6 +87,7 @@ const DispatchResult = () => {
   const [devicesInRadius, setDevicesInRadius] = useState([]);
   const [assignedDevices, setAssignedDevices] = useState([]);
   const [placeOptions, setPlaceOptions] = useState([]);
+  const [destinationPlaceOptions, setDestinationPlaceOptions] = useState([]); // New state for destination autocomplete options
   const [etaMap, setEtaMap] = useState({});
   const [loading, setLoading] = useState(false);
   const [sessionToken, setSessionToken] = useState(null);
@@ -88,8 +99,10 @@ const DispatchResult = () => {
     setSelectedDeviceIds([]);
     setCaseNumber("");
     setAddress("");
+    setDestinationAddress(""); // Reset destination address
     setMapCenter(centerDefault);
     setMarkerPosition(null);
+    setDestinationPosition(null); // Reset destination position
     setRadius(3000);
     setSelectedDeviceId(null);
     setSearchValue("");
@@ -97,6 +110,7 @@ const DispatchResult = () => {
     setDevicesInRadius([]);
     setAssignedDevices([]);
     setPlaceOptions([]);
+    setDestinationPlaceOptions([]); // Reset destination place options
     setEtaMap({});
     setLoading(false);
     setSessionToken(null);
@@ -148,9 +162,9 @@ const DispatchResult = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const fetchPlacePredictions = debounce(async (input) => {
+  const fetchPlacePredictions = debounce(async (input, setOptions) => {
     if (!isLoaded || !window.google || !input) {
-      setPlaceOptions([]);
+      setOptions([]);
       return;
     }
 
@@ -183,7 +197,7 @@ const DispatchResult = () => {
           },
           (results, status) => {
             if (status === "OK" && results[0]) {
-              setPlaceOptions([
+              setOptions([
                 {
                   label: results[0].formatted_address,
                   placeId: results[0].place_id,
@@ -191,36 +205,49 @@ const DispatchResult = () => {
                 },
               ]);
             } else {
-              setPlaceOptions([]);
+              setOptions([]);
             }
           }
         );
       } else {
-        setPlaceOptions(predictions);
+        setOptions(predictions);
       }
     } catch (error) {
       console.error("Error fetching place predictions:", error);
-      setPlaceOptions([]);
+      setOptions([]);
     }
   }, 300);
 
   const handleAddressChange = (e, newInputValue) => {
     setAddress(newInputValue);
-    fetchPlacePredictions(newInputValue);
+    fetchPlacePredictions(newInputValue, setPlaceOptions);
   };
 
-  const handlePlaceSelect = (newValue) => {
+  const handleDestinationAddressChange = (e, newInputValue) => {
+    setDestinationAddress(newInputValue);
+    fetchPlacePredictions(newInputValue, setDestinationPlaceOptions);
+  };
+
+  const handlePlaceSelect = (newValue, isDestination = false) => {
+    const setAddressFn = isDestination ? setDestinationAddress : setAddress;
+    const setPositionFn = isDestination
+      ? setDestinationPosition
+      : setMarkerPosition;
+    const setOptionsFn = isDestination
+      ? setDestinationPlaceOptions
+      : setPlaceOptions;
+    const center = isDestination ? mapCenter : centerDefault;
+
     if (!newValue) {
-      setAddress("");
-      setPlaceOptions([]);
-      setMarkerPosition(null);
-      setMapCenter(centerDefault);
-      if (map) map.panTo(centerDefault);
+      setAddressFn("");
+      setOptionsFn([]);
+      setPositionFn(null);
+      if (!isDestination && map) map.panTo(center);
       return;
     }
 
-    setAddress(newValue.label);
-    setPlaceOptions([]);
+    setAddressFn(newValue.label);
+    setOptionsFn([]);
 
     if (!map || !isLoaded || !window.google) return;
 
@@ -238,14 +265,16 @@ const DispatchResult = () => {
         ) {
           const { lat, lng } = place.geometry.location;
           const newPosition = { lat: lat(), lng: lng() };
-          setMapCenter(newPosition);
-          setMarkerPosition(newPosition);
-          if (map) {
-            map.panTo(newPosition);
-            const zoomLevel = place.types.includes("point_of_interest")
-              ? 16
-              : 15;
-            setMapZoom(zoomLevel);
+          setPositionFn(newPosition);
+          if (!isDestination) {
+            setMapCenter(newPosition);
+            if (map) {
+              map.panTo(newPosition);
+              const zoomLevel = place.types.includes("point_of_interest")
+                ? 16
+                : 15;
+              setMapZoom(zoomLevel);
+            }
           }
         } else {
           console.error("PlacesService failed:", status);
@@ -259,9 +288,8 @@ const DispatchResult = () => {
               if (status === "OK" && results[0]) {
                 const { lat, lng } = results[0].geometry.location;
                 const newPosition = { lat: lat(), lng: lng() };
-                setMapCenter(newPosition);
-                setMarkerPosition(newPosition);
-                if (map) map.panTo(newPosition);
+                setPositionFn(newPosition);
+                if (!isDestination && map) map.panTo(newPosition);
               } else {
                 alert("Unable to retrieve location details");
               }
@@ -283,6 +311,11 @@ const DispatchResult = () => {
       !window.google
     ) {
       alert("Please enter an address and select at least one service type");
+      return;
+    }
+
+    if (selectedServiceType[0]?.name === "GRUA" && !destinationAddress) {
+      alert("Please enter a destination address for GRUA service");
       return;
     }
 
@@ -313,7 +346,12 @@ const DispatchResult = () => {
 
       const currentDate = dayjs().format("YYYY-MM-DD");
       const encodedAddress = encodeURIComponent(address);
-      const apiUrl = `${url}/new-devices?date=${currentDate}&deviceLocation=true&address=${encodedAddress}&radius=${radius}&lat=${lat()}&lng=${lng()}&userId=${userId}`;
+      let apiUrl = `${url}/new-devices?date=${currentDate}&deviceLocation=true&address=${encodedAddress}&radius=${radius}&lat=${lat()}&lng=${lng()}&userId=${userId}&userName=${userName}`;
+
+      // if (selectedServiceType[0]?.name === "GRUA" && destinationPosition) {
+      //   apiUrl += `&destinationLat=${destinationPosition.lat}&destinationLng=${destinationPosition.lng}`;
+      // }
+
       const res = await axios.get(apiUrl);
 
       if (res.status !== 200) {
@@ -379,6 +417,7 @@ const DispatchResult = () => {
         .slice(0, 3);
 
       setDevicesInRadius(filteredDevices);
+      setNewAllDevices(formattedDevice); // Store all devices for reference
     } catch (error) {
       console.error("Error in handleShowClick:", error);
       alert("Failed to fetch data or geocode address");
@@ -404,6 +443,14 @@ const DispatchResult = () => {
   const handleRowDataChange = (rowData) => {
     setSelectedRowData(rowData);
   };
+
+  useEffect(() => {
+    if (rimacCaseNumber && rimacAddress) {
+      setCaseNumber(rimacCaseNumber);
+      setAddress(rimacAddress);
+      handlePlaceSelect({ label: rimacAddress, placeId: null });
+    }
+  }, [rimacCaseNumber, rimacAddress]);
 
   return (
     <PageLayout
@@ -445,7 +492,6 @@ const DispatchResult = () => {
               fullWidth
               value={caseNumber}
               onChange={(event) => setCaseNumber(event.target.value)}
-              // InputProps={{ readOnly: true }}
             />
           </Grid>
           <Grid item xs={12} sm={4}>
@@ -518,20 +564,24 @@ const DispatchResult = () => {
             />
           </Grid>
 
-          {selectedServiceType[0]?.name === "GRUA" && (
+          {selectedServiceType.some((service) => service.name === "GRUA") && (
             <Grid item xs={12} sm={7}>
               <Autocomplete
-                id="address-autocomplete"
-                options={placeOptions}
+                id="destination-address-autocomplete"
+                options={destinationPlaceOptions}
                 getOptionLabel={(option) => option.label || ""}
                 value={
-                  placeOptions.find((option) => option.label === address) || {
-                    label: address,
+                  destinationPlaceOptions.find(
+                    (option) => option.label === destinationAddress
+                  ) || {
+                    label: destinationAddress,
                     placeId: null,
                   }
                 }
-                onChange={(event, newValue) => handlePlaceSelect(newValue)}
-                onInputChange={handleAddressChange}
+                onChange={(event, newValue) =>
+                  handlePlaceSelect(newValue, true)
+                }
+                onInputChange={handleDestinationAddressChange}
                 freeSolo
                 renderInput={(params) => (
                   <TextField
@@ -561,7 +611,15 @@ const DispatchResult = () => {
           <Grid item xs={12} sm={2}>
             <Button
               variant="outlined"
-              disabled={!address || !selectedServiceType.length || loading}
+              disabled={
+                !address ||
+                !selectedServiceType.length ||
+                (selectedServiceType.some(
+                  (service) => service.name === "GRUA"
+                ) &&
+                  !destinationAddress) ||
+                loading
+              }
               onClick={handleShowClick}
               sx={{ height: "56px", width: "100%" }}
             >
@@ -594,6 +652,18 @@ const DispatchResult = () => {
                   />
                 </>
               )}
+              {destinationPosition &&
+                selectedServiceType.some(
+                  (service) => service.name === "GRUA"
+                ) && (
+                  <Marker
+                    position={destinationPosition}
+                    icon={{
+                      url: "https://maps.google.com/mapfiles/ms/icons/green-dot.png", // Different icon for destination
+                      scaledSize: new window.google.maps.Size(30, 30),
+                    }}
+                  />
+                )}
               {devicesInRadius.map((device) => (
                 <Marker
                   key={device.id}
@@ -686,6 +756,7 @@ const DispatchResult = () => {
           <DispatchResultTable
             devicesInRadius={devicesInRadius}
             markerPosition={markerPosition}
+            destinationPosition={destinationPosition}
             searchValue={searchValue}
             newAllDevices={newAllDevices}
             setMapCenter={setMapCenter}
@@ -698,12 +769,16 @@ const DispatchResult = () => {
             etaMap={etaMap}
             setEtaMap={setEtaMap}
             onRowDataChange={handleRowDataChange}
+            userId={userId}
           />
         )}
 
         {openAssignModal && (
           <DispatchDialog
-            value={{ description: address }}
+            value={{
+              description: address,
+              destinationDescription: destinationAddress,
+            }}
             openAssignModal={openAssignModal}
             setOpenAssignModal={setOpenAssignModal}
             assignedDevices={assignedDevices}
@@ -711,11 +786,14 @@ const DispatchResult = () => {
             setSelectedRows={setSelectedDeviceIds}
             lat={markerPosition?.lat}
             lng={markerPosition?.lng}
+            destinationLat={destinationPosition?.lat} // Pass destination coordinates
+            destinationLng={destinationPosition?.lng}
             newAllDevices={newAllDevices}
             etaMap={etaMap}
             caseNumber={caseNumber}
             selectedRowData={selectedRowData}
             markerPosition={markerPosition}
+            destinationPosition={destinationPosition} // Pass destination position
             resetStates={resetStates}
             searchId={searchId}
           />

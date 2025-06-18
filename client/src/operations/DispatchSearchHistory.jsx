@@ -58,25 +58,21 @@ const DispatchSearchHistory = () => {
     fetchHistory();
   }, [userId, url]);
 
-  // Apply filters whenever historyData or filter inputs change
   useEffect(() => {
     let filtered = historyData;
 
-    // Address filter
     if (addressFilter) {
       filtered = filtered.filter((row) =>
         row.address.toLowerCase().includes(addressFilter.toLowerCase())
       );
     }
 
-    // Radius filter
     if (radiusFilter) {
       filtered = filtered.filter(
         (row) => Number(row.radius) >= Number(radiusFilter)
       );
     }
 
-    // Date range filter
     if (startDate || endDate) {
       filtered = filtered.filter((row) => {
         const rowDate = dayjs(row.time);
@@ -270,6 +266,7 @@ const DispatchSearchHistory = () => {
                   <TableCell sx={{ fontWeight: "bold" }}>
                     Case Assigned
                   </TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>Searched by</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>Time</TableCell>
                 </TableRow>
               </TableHead>
@@ -283,6 +280,7 @@ const DispatchSearchHistory = () => {
                       <TableCell>{row.longitude.toFixed(6)}</TableCell>
                       <TableCell>{casesRadius(row.radius)}</TableCell>
                       <TableCell>{row.case_assigned ? "Yes" : "No"}</TableCell>
+                      <TableCell>{row.userName}</TableCell>
                       <TableCell>
                         {new Date(row.time).toLocaleString()}
                       </TableCell>

@@ -17,12 +17,15 @@ import {
 import RoomIcon from "@mui/icons-material/Room";
 import dayjs from "dayjs";
 import useDistrictFetcher from "../../settings/hooks/useDistrictFetcher";
+import useZoneRateFetcher from "../../settings/hooks/useZoneRateFetcher";
+import { useSelector } from "react-redux";
 
 const AVERAGE_SPEED_KMH = 40;
 
 const DispatchResultTable = ({
   devicesInRadius,
   markerPosition,
+  destinationPosition,
   searchValue,
   newAllDevices,
   setMapCenter,
@@ -33,6 +36,9 @@ const DispatchResultTable = ({
   mapRef,
   setMapZoom,
   selectedServiceType,
+  etaMap,
+  setEtaMap,
+  userId,
 }) => {
   const [columnFilters, setColumnFilters] = useState({
     licensePlate: "",
@@ -46,15 +52,18 @@ const DispatchResultTable = ({
     cost: "",
     district: "",
     initialBase: "",
+    zoneRate: "",
   });
   const { districts, fetchDistrict } = useDistrictFetcher();
+  const { zoneRates, fetchZoneRate } = useZoneRateFetcher();
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [sortColumn, setSortColumn] = useState("distance");
   const [sortOrder, setSortOrder] = useState("asc");
-  const [etaMap, setEtaMap] = useState({});
   const [loadingDistricts, setLoadingDistricts] = useState(new Set());
+  const [loadingZoneRates, setLoadingZoneRates] = useState(new Set());
   const [rowData, setRowData] = useState([]);
+  const isGrua = selectedServiceType.some((service) => service.name === "GRUA");
 
   const getAvailabilityChip = (status) => {
     switch (status) {
@@ -116,7 +125,9 @@ const DispatchResultTable = ({
 
   const calculateETAForDevice = useCallback(
     (device) => {
-      if (!markerPosition || !window.google || !device.lat || !device.lng) {
+      const targetPosition =
+        isGrua && destinationPosition ? destinationPosition : markerPosition;
+      if (!targetPosition || !window.google || !device.lat || !device.lng) {
         setEtaMap((prev) => ({ ...prev, [device.id]: null }));
         return;
       }
@@ -125,7 +136,7 @@ const DispatchResultTable = ({
       directionsService.route(
         {
           origin: { lat: device.lat, lng: device.lng },
-          destination: markerPosition,
+          destination: targetPosition,
           travelMode: window.google.maps.TravelMode.DRIVING,
           provideRouteAlternatives: false,
         },
@@ -145,22 +156,22 @@ const DispatchResultTable = ({
         }
       );
     },
-    [markerPosition]
+    [markerPosition, destinationPosition, isGrua]
   );
 
   const handleFetchDistrict = useCallback(
-    async (lat, lng, deviceId) => {
-      if (districts[deviceId] || loadingDistricts.has(deviceId)) return;
-      setLoadingDistricts((prev) => new Set(prev).add(deviceId));
+    async (lat, lng, id) => {
+      if (districts[id] || loadingDistricts.has(id)) return;
+      setLoadingDistricts((prev) => new Set(prev).add(id));
       try {
         await new Promise((resolve) => setTimeout(resolve, 1000));
-        await fetchDistrict(lat, lng, deviceId);
+        await fetchDistrict(lat, lng, id);
       } catch (error) {
-        console.error(`Failed to fetch district for ${deviceId}:`, error);
+        console.error(`Failed to fetch district for ${id}:`, error);
       } finally {
         setLoadingDistricts((prev) => {
           const newSet = new Set(prev);
-          newSet.delete(deviceId);
+          newSet.delete(id);
           return newSet;
         });
       }
@@ -238,6 +249,7 @@ const DispatchResultTable = ({
           initialBase: fullDeviceInfo.initialBase || "Never recorded",
           distance,
           cost,
+          zoneRate: isGrua ? zoneRates[id] || "N/A" : null,
         };
       });
 
@@ -249,7 +261,9 @@ const DispatchResultTable = ({
       newAllDevices,
       etaMap,
       districts,
+      zoneRates,
       onRowDataChange,
+      isGrua,
     ]
   );
 
@@ -306,6 +320,9 @@ const DispatchResultTable = ({
       const initialBase = (
         deviceInfo.initialBase || "Never recorded"
       ).toLowerCase();
+      const zoneRate = isGrua
+        ? (zoneRates[device.id] || "N/A").toLowerCase()
+        : "";
 
       const globalMatch = globalSearch
         ? [
@@ -318,6 +335,7 @@ const DispatchResultTable = ({
             cost,
             district,
             initialBase,
+            isGrua ? zoneRate : "",
           ].some((field) => field.toLowerCase().includes(globalSearch))
         : true;
 
@@ -393,6 +411,10 @@ const DispatchResultTable = ({
       const initialBaseMatch = columnFilters.initialBase
         ? initialBase.includes(columnFilters.initialBase.toLowerCase())
         : true;
+      const zoneRateMatch =
+        isGrua && columnFilters.zoneRate
+          ? zoneRate.includes(columnFilters.zoneRate.toLowerCase())
+          : true;
 
       return (
         globalMatch &&
@@ -405,7 +427,8 @@ const DispatchResultTable = ({
         etaMatch &&
         costMatch &&
         districtMatch &&
-        initialBaseMatch
+        initialBaseMatch &&
+        zoneRateMatch
       );
     });
 
@@ -475,13 +498,21 @@ const DispatchResultTable = ({
           valueA = deviceA.initialBase || "Never recorded";
           valueB = deviceB.initialBase || "Never recorded";
           break;
+        case "zoneRate":
+          if (isGrua) {
+            valueA = zoneRates[a.id] || "N/A";
+            valueB = zoneRates[b.id] || "N/A";
+          } else {
+            return 0;
+          }
+          break;
         default:
           return 0;
       }
 
       if (valueA === valueB) return 0;
-      if (!valueA) return 1;
-      if (!valueB) return -1;
+      if (!valueA || valueA === "N/A") return 1;
+      if (!valueB || valueB === "N/A") return -1;
 
       return sortOrder === "asc"
         ? valueA > valueB
@@ -496,12 +527,14 @@ const DispatchResultTable = ({
     searchValue,
     columnFilters,
     districts,
+    zoneRates,
     etaMap,
     sortColumn,
     sortOrder,
     parseNumberFilter,
     selectedServiceType,
     newAllDevices,
+    isGrua,
   ]);
 
   useEffect(() => {
@@ -510,11 +543,60 @@ const DispatchResultTable = ({
       page * rowsPerPage + rowsPerPage
     );
 
+    if (
+      isGrua &&
+      markerPosition &&
+      !districts["incident"] &&
+      !loadingDistricts.has("incident")
+    ) {
+      handleFetchDistrict(markerPosition.lat, markerPosition.lng, "incident");
+    }
+    if (
+      isGrua &&
+      destinationPosition &&
+      !districts["destination"] &&
+      !loadingDistricts.has("destination")
+    ) {
+      handleFetchDistrict(
+        destinationPosition.lat,
+        destinationPosition.lng,
+        "destination"
+      );
+    }
+
     visibleDevices.forEach((device) => {
       if (!districts[device.id] && !loadingDistricts.has(device.id)) {
         handleFetchDistrict(device.lat, device.lng, device.id);
       }
-      if (!etaMap[device.id] && markerPosition) {
+
+      if (
+        isGrua &&
+        districts[device.id] &&
+        districts["incident"] &&
+        districts["destination"] &&
+        !zoneRates[device.id] &&
+        !loadingZoneRates.has(device.id)
+      ) {
+        setLoadingZoneRates((prev) => new Set(prev).add(device.id));
+        fetchZoneRate(
+          userId,
+          districts[device.id],
+          districts["incident"],
+          districts["destination"],
+          device.id
+        ).finally(() => {
+          setLoadingZoneRates((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(device.id);
+            return newSet;
+          });
+        });
+      }
+
+      if (
+        !etaMap[device.id] &&
+        (markerPosition || (isGrua && destinationPosition))
+      ) {
         calculateETAForDevice(device);
       }
     });
@@ -523,11 +605,17 @@ const DispatchResultTable = ({
     page,
     rowsPerPage,
     districts,
+    zoneRates,
     etaMap,
     handleFetchDistrict,
+    fetchZoneRate,
     calculateETAForDevice,
     loadingDistricts,
+    loadingZoneRates,
     markerPosition,
+    destinationPosition,
+    isGrua,
+    userId,
   ]);
 
   const handleSort = useCallback(
@@ -541,12 +629,6 @@ const DispatchResultTable = ({
     },
     [sortColumn, sortOrder]
   );
-
-  useEffect(() => {
-    if (rowData) {
-      console.log(rowData);
-    }
-  }, [rowData]);
 
   return (
     <Box sx={{ mt: 4 }}>
@@ -568,8 +650,9 @@ const DispatchResultTable = ({
                 active={sortColumn === "movement"}
                 direction={sortColumn === "movement" ? sortOrder : "asc"}
                 onClick={() => handleSort("movement")}
-              />
-              Movement
+              >
+                Movement
+              </TableSortLabel>
             </TableCell>
             <TableCell>App Status</TableCell>
             <TableCell>Subprocess</TableCell>
@@ -596,8 +679,9 @@ const DispatchResultTable = ({
                 active={sortColumn === "advisor"}
                 direction={sortColumn === "advisor" ? sortOrder : "asc"}
                 onClick={() => handleSort("advisor")}
-              />
-              Advisor
+              >
+                Advisor
+              </TableSortLabel>
             </TableCell>
             <TableCell>
               <TableSortLabel
@@ -626,22 +710,34 @@ const DispatchResultTable = ({
                 Cost ($)
               </TableSortLabel>
             </TableCell>
-            <TableCell>Zone Rate</TableCell>
+            {isGrua && (
+              <TableCell>
+                <TableSortLabel
+                  active={sortColumn === "zoneRate"}
+                  direction={sortColumn === "zoneRate" ? sortOrder : "asc"}
+                  onClick={() => handleSort("zoneRate")}
+                >
+                  Zone Rate
+                </TableSortLabel>
+              </TableCell>
+            )}
             <TableCell>
               <TableSortLabel
                 active={sortColumn === "district"}
                 direction={sortColumn === "district" ? sortOrder : "asc"}
                 onClick={() => handleSort("district")}
-              />
-              District
+              >
+                District
+              </TableSortLabel>
             </TableCell>
             <TableCell>
               <TableSortLabel
                 active={sortColumn === "initialBase"}
                 direction={sortColumn === "initialBase" ? sortOrder : "asc"}
                 onClick={() => handleSort("initialBase")}
-              />
-              Initial Base
+              >
+                Initial Base
+              </TableSortLabel>
             </TableCell>
             <TableCell>Rimac ETA (min)</TableCell>
           </TableRow>
@@ -690,7 +786,6 @@ const DispatchResultTable = ({
               />
             </TableCell>
             <TableCell />
-            <TableCell />
             <TableCell>
               <TextField
                 size="small"
@@ -734,7 +829,7 @@ const DispatchResultTable = ({
               />
             </TableCell>
             <TableCell>
-              <Tooltip title="search">
+              <Tooltip title="Search">
                 <TextField
                   size="small"
                   variant="standard"
@@ -781,7 +876,22 @@ const DispatchResultTable = ({
                 />
               </Tooltip>
             </TableCell>
-            <TableCell />
+            {isGrua && (
+              <TableCell>
+                <TextField
+                  size="small"
+                  variant="standard"
+                  placeholder="Search"
+                  value={columnFilters.zoneRate}
+                  onChange={(e) =>
+                    setColumnFilters((prev) => ({
+                      ...prev,
+                      zoneRate: e.target.value,
+                    }))
+                  }
+                />
+              </TableCell>
+            )}
             <TableCell>
               <TextField
                 size="small"
@@ -828,24 +938,15 @@ const DispatchResultTable = ({
                   ? Math.ceil((distance / AVERAGE_SPEED_KMH) * 60)
                   : "N/A");
               const cost =
-                distance !== "N/A" &&
-                deviceInfo.costByKm &&
-                deviceInfo.initialBase
-                  ? (
-                      parseFloat(distance) * deviceInfo.costByKm +
-                      deviceInfo.initialBase
-                    ).toFixed(2)
+                distance !== "N/A" && deviceInfo.costByKm
+                  ? (parseFloat(distance) * deviceInfo.costByKm).toFixed(2)
                   : "Not set";
-
-              // console.log(device);
 
               return (
                 <TableRow
                   key={device.id}
                   hover
-                  onClick={(e) => {
-                    handleRowClick(e, device.id, device);
-                  }}
+                  onClick={(e) => handleRowClick(e, device.id, device)}
                   sx={{
                     cursor: "pointer",
                     backgroundColor: selectedDeviceIds?.includes(device.id)
@@ -887,9 +988,19 @@ const DispatchResultTable = ({
                   <TableCell>
                     {cost !== "Not set" ? `${cost} $` : cost}
                   </TableCell>
-                  <TableCell>N/A</TableCell>
+                  {isGrua && (
+                    <TableCell>
+                      {zoneRates[device.id] ? (
+                        `$${zoneRates[device.id]}`
+                      ) : loadingZoneRates.has(device.id) ? (
+                        <CircularProgress size={15} />
+                      ) : (
+                        "N/A"
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell>
-                    {districts && districts[device.id] ? (
+                    {districts[device.id] ? (
                       districts[device.id]
                     ) : loadingDistricts.has(device.id) ? (
                       <CircularProgress size={15} />

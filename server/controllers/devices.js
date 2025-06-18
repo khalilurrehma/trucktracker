@@ -436,6 +436,7 @@ export const allNewDevices = async (req, res) => {
     ) {
       searchId = await saveSearchHistory({
         userId: query.userId,
+        userName: query.userName,
         address: query.address,
         radius: query.radius,
         lat: query.lat,

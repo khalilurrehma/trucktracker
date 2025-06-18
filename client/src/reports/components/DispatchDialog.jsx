@@ -142,7 +142,7 @@ const DispatchDialog = ({
             <TableHead>
               <TableRow>
                 <TableCell>License Plate</TableCell>
-                <TableCell>Address</TableCell>
+                <TableCell>Incident Address</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -174,12 +174,21 @@ const DispatchDialog = ({
             disabled
           />
           <TextField
-            label="Address"
+            label="Incident Address"
             value={value.description || "N/A"}
             fullWidth
             margin="normal"
             disabled
           />
+          {value.destinationDescription && (
+            <TextField
+              label="Destination Address"
+              value={value.destinationDescription || "N/A"}
+              fullWidth
+              margin="normal"
+              disabled
+            />
+          )}
         </Paper>
 
         <TextField
@@ -224,7 +233,7 @@ const DispatchDialog = ({
             autoFocus
             onClick={handleAssignTasks}
             variant="contained"
-            style={{ width: "100%" }}
+            style={{ width: "100%", top: "15px" }}
           >
             {loader ? "Loading..." : "Assign Task"}
           </Button>
