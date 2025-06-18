@@ -31,6 +31,7 @@ import {
   getLatestDriverBehaivorReportsByUserId,
 } from "../model/notifications.js";
 import {
+  caseTrackingByIdAndStageName,
   countTodayCasesByUserAndDevice,
   defaultTemplateTimeForAdmin,
   findCaseById,
@@ -386,6 +387,61 @@ export const driverCurrentCaseSubprocess = async (req, res) => {
       companyId,
       driverVehicleIds
     );
+
+    if (!latestCase.current_subprocess) {
+      return res.status(404).json({
+        status: false,
+        message: "No in-progress case found for the driver",
+      });
+    }
+
+    switch (latestCase.current_subprocess) {
+      case "advisor_assignment":
+        const advisorAssignmentProcess = await caseTrackingByIdAndStageName(
+          latestCase.id,
+          "Assignment of the Advisor"
+        );
+        latestCase.current_subprocess = advisorAssignmentProcess;
+        break;
+      case "reception_case":
+        const receptionProcess = await caseTrackingByIdAndStageName(
+          latestCase.id,
+          "Reception Case"
+        );
+        latestCase.current_subprocess = receptionProcess;
+        break;
+      case "on_the_way":
+        const onTheWayProcess = await caseTrackingByIdAndStageName(
+          latestCase.id,
+          "On the Way"
+        );
+        latestCase.current_subprocess = onTheWayProcess;
+        break;
+      case "in_reference":
+        const inReferenceProcess = await caseTrackingByIdAndStageName(
+          latestCase.id,
+          "In Reference"
+        );
+        latestCase.current_subprocess = inReferenceProcess;
+        break;
+      case "authorization_request":
+        const authorizationRequestProcess = await caseTrackingByIdAndStageName(
+          latestCase.id,
+          "Authorization Request"
+        );
+        latestCase.current_subprocess = authorizationRequestProcess;
+        break;
+      case "supervisor_approval":
+        const supervisorApprovalProcess = await caseTrackingByIdAndStageName(
+          latestCase.id,
+          "Supervisor Approval"
+        );
+        latestCase.current_subprocess = supervisorApprovalProcess;
+        break;
+
+      default:
+        latestCase.current_subprocess = "Unknown Process";
+    }
 
     res.status(200).json({
       status: true,

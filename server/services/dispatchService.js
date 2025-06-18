@@ -149,6 +149,18 @@ export const isOnTheWayStageExists = async (case_id) => {
   return !!result.length;
 };
 
+export const currentCaseProcess = async (case_id) => {
+  const sql = `SELECT current_subprocess FROM dispatch_cases WHERE id = ? AND current_subprocess IS NOT NULL`;
+
+  try {
+    const result = await dbQuery(sql, [case_id]);
+    return result[0];
+  } catch (error) {
+    console.error("Error fetching current case process:", error);
+    throw error;
+  }
+};
+
 export const isInReferenceStageExists = async (case_id) => {
   const sql = `
     SELECT id FROM case_stage_tracking 

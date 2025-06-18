@@ -24,6 +24,7 @@ import { getDeviceRadiusReport } from "../utils/device.radius.js";
 import { getRealmUsersWithDeviceIds } from "../utils/mqtt.helper.js";
 import dayjs from "dayjs";
 import {
+  currentCaseProcess,
   getLatestActiveCaseByDeviceId,
   isInReferenceStageExists,
   isOnTheWayStageExists,
@@ -399,9 +400,26 @@ export const handleInReferenceStage = async (topic, message) => {
         id: caseData.dispatch_case_id,
         current_subprocess: "on_the_way",
       });
-      console.log(
-        `Stage 'On the way' recorded for case ${caseData.dispatch_case_id}`
+    } else {
+      const alreadyRecordedCaseProcess = await currentCaseProcess(
+        caseData.dispatch_case_id
       );
+
+      if (
+        alreadyRecordedCaseProcess.current_subprocess.includes([
+          "advisor_assignment",
+          "reception_case",
+        ])
+      ) {
+        await updateCaseCurrentProcess(caseData.dispatch_case_id, "on_the_way");
+        DispatchEmitter.emit("subprocessEvent", {
+          id: caseData.dispatch_case_id,
+          current_subprocess: "on_the_way",
+        });
+        console.log(
+          `Stage 'On the way' updated for case ${caseData.dispatch_case_id}`
+        );
+      }
     }
   }
 

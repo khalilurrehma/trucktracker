@@ -342,7 +342,7 @@ export const findCaseByUserIdAndDeviceId = async (userId, deviceId) => {
 export const findLatestInProgressCase = async (userId, deviceId) => {
   const query = `
         SELECT 
-      dc.current_subprocess
+      dc.*
     FROM 
       dispatch_cases dc
     JOIN 
@@ -350,7 +350,7 @@ export const findLatestInProgressCase = async (userId, deviceId) => {
     WHERE 
       dc.user_id = ? 
       AND dcd.device_id = ?
-      AND dc.status != 'completed'
+      AND dc.status = 'in progress'
     ORDER BY 
       dc.created_at DESC
     LIMIT 1;
@@ -359,7 +359,7 @@ export const findLatestInProgressCase = async (userId, deviceId) => {
   try {
     const rows = await dbQuery(query, [parseInt(userId), parseInt(deviceId)]);
     if (rows.length > 0) {
-      return rows[0].current_subprocess;
+      return rows[0];
     } else {
       return "No currently in-progress case found";
     }
@@ -1070,6 +1070,21 @@ export const caseTrackingById = async (case_id) => {
   try {
     const results = await dbQuery(query, [parseInt(case_id)]);
     return results;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const caseTrackingByIdAndStageName = async (case_id, stage_name) => {
+  const query = `SELECT 
+         stage_name,
+         status
+       FROM case_stage_tracking
+       WHERE case_id = ? AND stage_name = ?`;
+
+  try {
+    const results = await dbQuery(query, [parseInt(case_id), stage_name]);
+    return results[0];
   } catch (error) {
     throw error;
   }
