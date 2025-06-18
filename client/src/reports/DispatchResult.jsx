@@ -417,7 +417,6 @@ const DispatchResult = () => {
         .slice(0, 3);
 
       setDevicesInRadius(filteredDevices);
-      setNewAllDevices(formattedDevice); // Store all devices for reference
     } catch (error) {
       console.error("Error in handleShowClick:", error);
       alert("Failed to fetch data or geocode address");
