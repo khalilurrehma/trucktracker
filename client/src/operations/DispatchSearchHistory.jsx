@@ -1,28 +1,27 @@
-import React, { useEffect, useState } from "react";
-import OperationsMenu from "../settings/components/OperationsMenu";
-import PageLayout from "../common/components/PageLayout";
-import axios from "axios";
-import { useAppContext } from "../AppContext";
+import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
+import { useAppContext } from "../AppContext";
+import axios from "axios";
+import dayjs from "dayjs";
 import {
-  Table,
-  TableBody,
-  TableCell,
+  Box,
+  Grid,
+  TextField,
   TableContainer,
+  Table,
   TableHead,
   TableRow,
-  Paper,
-  Typography,
-  CircularProgress,
-  Box,
-  TextField,
-  Grid,
+  TableCell,
+  TableBody,
   Chip,
+  CircularProgress,
+  Typography,
+  TablePagination,
 } from "@mui/material";
-import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
+import { LocalizationProvider, DateTimePicker } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import dayjs from "dayjs";
+import OperationsMenu from "../settings/components/OperationsMenu";
+import PageLayout from "../common/components/PageLayout";
 
 const DispatchSearchHistory = () => {
   const userId = useSelector((state) => state.session.user.id);
@@ -35,6 +34,8 @@ const DispatchSearchHistory = () => {
   const [radiusFilter, setRadiusFilter] = useState("");
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const fetchHistory = async () => {
     try {
@@ -87,6 +88,7 @@ const DispatchSearchHistory = () => {
     }
 
     setFilteredData(filtered);
+    setPage(0); // Reset to first page when filters change
   }, [historyData, addressFilter, radiusFilter, startDate, endDate]);
 
   const casesRadius = (radius) => {
@@ -149,7 +151,7 @@ const DispatchSearchHistory = () => {
       case 10000:
         return (
           <Chip
-            label="5km"
+            label="10km"
             sx={{
               backgroundColor: "#ffdddd",
               color: "#c62828",
@@ -160,7 +162,7 @@ const DispatchSearchHistory = () => {
       case 20000:
         return (
           <Chip
-            label="5km"
+            label="20km"
             sx={{
               backgroundColor: "#ffdddd",
               color: "#c62828",
@@ -171,7 +173,7 @@ const DispatchSearchHistory = () => {
       case 30000:
         return (
           <Chip
-            label="5km"
+            label="30km"
             sx={{
               backgroundColor: "#ffdddd",
               color: "#c62828",
@@ -179,7 +181,6 @@ const DispatchSearchHistory = () => {
             }}
           />
         );
-
       default:
         return (
           <Chip
@@ -188,6 +189,15 @@ const DispatchSearchHistory = () => {
           />
         );
     }
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0); // Reset to first page when rows per page changes
   };
 
   return (
@@ -251,45 +261,58 @@ const DispatchSearchHistory = () => {
         ) : filteredData.length === 0 ? (
           <Typography>No history data available.</Typography>
         ) : (
-          <TableContainer>
-            <Table
-              sx={{ minWidth: 650 }}
-              aria-label="dispatch search history table"
-            >
-              <TableHead>
-                <TableRow>
-                  {/* <TableCell sx={{ fontWeight: "bold" }}>ID</TableCell> */}
-                  <TableCell sx={{ fontWeight: "bold" }}>Address</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Latitude</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Longitude</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Radius (m)</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>
-                    Case Assigned
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Searched by</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Time</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredData.map((row) => {
-                  return (
-                    <TableRow key={row.id}>
-                      {/* <TableCell>{row.id}</TableCell> */}
-                      <TableCell>{row.address}</TableCell>
-                      <TableCell>{row.latitude.toFixed(6)}</TableCell>
-                      <TableCell>{row.longitude.toFixed(6)}</TableCell>
-                      <TableCell>{casesRadius(row.radius)}</TableCell>
-                      <TableCell>{row.case_assigned ? "Yes" : "No"}</TableCell>
-                      <TableCell>{row.userName}</TableCell>
-                      <TableCell>
-                        {new Date(row.time).toLocaleString()}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <>
+            <TableContainer>
+              <Table
+                sx={{ minWidth: 650 }}
+                aria-label="dispatch search history table"
+              >
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: "bold" }}>Address</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Latitude</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Longitude</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Radius</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>
+                      Case Assigned
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>
+                      Searched by
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Time</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredData
+                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                    .map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell>{row.address}</TableCell>
+                        <TableCell>{row.latitude.toFixed(6)}</TableCell>
+                        <TableCell>{row.longitude.toFixed(6)}</TableCell>
+                        <TableCell>{casesRadius(row.radius)}</TableCell>
+                        <TableCell>
+                          {row.case_assigned ? "Yes" : "No"}
+                        </TableCell>
+                        <TableCell>{row.userName}</TableCell>
+                        <TableCell>
+                          {new Date(row.time).toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <TablePagination
+              component="div"
+              count={filteredData.length}
+              page={page}
+              rowsPerPage={rowsPerPage}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={[5, 10, 25]}
+            />
+          </>
         )}
       </Box>
     </PageLayout>

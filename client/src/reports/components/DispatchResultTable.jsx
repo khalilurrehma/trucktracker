@@ -320,9 +320,7 @@ const DispatchResultTable = ({
       const initialBase = (
         deviceInfo.initialBase || "Never recorded"
       ).toLowerCase();
-      const zoneRate = isGrua
-        ? (zoneRates[device.id] || "N/A").toLowerCase()
-        : "";
+      const zoneRate = isGrua ? zoneRates[device.id] || "N/A" : "";
 
       const globalMatch = globalSearch
         ? [
