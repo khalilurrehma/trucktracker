@@ -100,8 +100,8 @@ app.post("/api/upload/photo", upload.any(), async (req, res) => {
   }
 });
 
-const { broadcast } = createWebSocketServer(server);
-setBroadcast(broadcast);
+const { broadcast, broadcastToDriver } = createWebSocketServer(server);
+setBroadcast(broadcast, broadcastToDriver);
 
 pool.getConnection((err, connection) => {
   if (err) {

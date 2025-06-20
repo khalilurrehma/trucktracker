@@ -16,9 +16,11 @@ import {
 import { mqttEmitter } from "./mqtt.client.js";
 
 let broadcast;
+let broadcastToDriver;
 
-const setBroadcast = (broadcastFn) => {
+const setBroadcast = (broadcastFn, broadcastToDriverFn) => {
   broadcast = broadcastFn;
+  broadcastToDriver = broadcastToDriverFn;
 };
 
 mqttEmitter.on("mqttMessage", async ({ topic, payload }) => {
@@ -26,36 +28,36 @@ mqttEmitter.on("mqttMessage", async ({ topic, payload }) => {
     switch (true) {
       case topic.includes("calcs/1742074"): // Default - Reports - Events
         const newEvent = await deviceNewEvent(topic, payload);
-        if (newEvent) broadcast(newEvent);
+        if (newEvent) broadcast(newEvent, { to: "admin" });
         break;
       case topic.includes("calcs/1742075"): // Default - Operations - Alarms
         const alarmData = await devicesAlarmMQTT(topic, payload);
-        if (alarmData) broadcast(alarmData);
+        if (alarmData) broadcast(alarmData, { to: "admin" });
         break;
       case topic.includes("calcs/1742077"): // Default - Reports - Driver Behaivor
         const behaivor = await driverBehaivor(topic, payload);
-        if (behaivor) broadcast(behaivor);
+        if (behaivor) broadcast(behaivor, { to: "admin" });
         break;
       case topic.startsWith("flespi/state/gw/devices/") &&
         topic.endsWith("/telemetry/position"):
         const liveLocation = await handleDeviceLiveLocation(topic, payload);
         await handleInReferenceStage(topic, payload);
-        if (liveLocation) broadcast(liveLocation);
+        if (liveLocation) broadcast(liveLocation, { to: "admin" });
         break;
       case topic.startsWith("flespi/state/gw/devices/") &&
         topic.endsWith("/telemetry/din"):
         const din = await handleDeviceDin(topic, payload);
-        if (din) broadcast(din);
+        if (din) broadcast(din, { to: "admin" });
         break;
       case topic.startsWith("flespi/state/gw/devices/") &&
         topic.endsWith("/connected"):
         const connectionStatus = await handleDeviceConnection(topic, payload);
-        if (connectionStatus) broadcast(connectionStatus);
+        if (connectionStatus) broadcast(connectionStatus, { to: "admin" });
         break;
       case topic.startsWith("flespi/state/gw/devices/") &&
         topic.endsWith("/telemetry/engine.ignition.status"):
         const ignitionStatus = await handleDeviceIgnition(topic, payload);
-        if (ignitionStatus) broadcast(ignitionStatus);
+        if (ignitionStatus) broadcast(ignitionStatus, { to: "admin" });
         break;
       case topic.includes("calcs/1766118"):
         const geofenceResults = await geofenceEntryAndExit(topic, payload);
@@ -80,7 +82,7 @@ cronEmitter.on("cronSaved", async (cronData) => {
       loaded,
     };
 
-    broadcast(message);
+    broadcast(message, { to: "admin" });
   } catch (error) {
     console.error("❌ Error processing cron event:", error.message);
   }
@@ -92,7 +94,7 @@ DispatchEmitter.on("newcase", async (casedata) => {
       ...casedata,
       dispatchNotification: "newcase-notification",
     };
-    broadcast(message);
+    broadcast(message, { to: "admin" });
   } catch (error) {
     console.error("❌ Error processing dispatch case event:", error.message);
   }
@@ -104,7 +106,7 @@ DispatchEmitter.on("subprocessEvent", async (subprocessEvent) => {
       ...subprocessEvent,
       subprocessEvent: "subprocessEvent-update",
     };
-    broadcast(message);
+    broadcast(message, { to: "admin" });
   } catch (error) {
     console.error("❌ Error processing dispatch case event:", error.message);
   }
@@ -116,10 +118,29 @@ DispatchEmitter.on("suggestedServices", async (suggestedServices) => {
       suggestedServices: "suggestedServices-notification",
     };
 
-    broadcast(message);
+    broadcast(message, { to: "admin" });
   } catch (error) {
     console.error(
       "❌ Error processing suggestedServices event:",
+      error.message
+    );
+  }
+});
+
+DispatchEmitter.on("driverCase", async (driverCase) => {
+  try {
+    broadcastToDriver(driverCase.driverId, driverCase);
+  } catch (error) {
+    console.error("❌ Error processing driverCase event:", error.message);
+  }
+});
+
+DispatchEmitter.on("caseProcessUpdate", async (caseProcessUpdate) => {
+  try {
+    broadcastToDriver(caseProcessUpdate.driverId, caseProcessUpdate);
+  } catch (error) {
+    console.error(
+      "❌ Error processing caseProcessUpdate event:",
       error.message
     );
   }

@@ -33,7 +33,8 @@ export const getAllNewCases = async (
   userId = 1,
   superVisor = false,
   page = 0,
-  limit = 15
+  limit = 15,
+  search = ""
 ) => {
   try {
     const data = await axios.get(`${apiUrl}/dispatch/cases`, {
@@ -42,6 +43,7 @@ export const getAllNewCases = async (
         superVisor,
         page: page + 1,
         limit,
+        search,
       },
     });
 

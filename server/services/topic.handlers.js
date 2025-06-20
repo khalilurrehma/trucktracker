@@ -416,9 +416,6 @@ export const handleInReferenceStage = async (topic, message) => {
           id: caseData.dispatch_case_id,
           current_subprocess: "on_the_way",
         });
-        console.log(
-          `Stage 'On the way' updated for case ${caseData.dispatch_case_id}`
-        );
       }
     }
   }
@@ -442,14 +439,11 @@ export const handleInReferenceStage = async (topic, message) => {
       await Promise.all([
         saveInReferenceStage(caseData.dispatch_case_id),
         updateCaseCurrentProcess(caseData.dispatch_case_id, "in_reference"),
-      ]),
-        DispatchEmitter.emit("subprocessEvent", {
-          id: caseData.dispatch_case_id,
-          current_subprocess: "in_reference",
-        });
-      console.log(
-        `Stage 'In Reference' recorded for case ${caseData.dispatch_case_id}`
-      );
+      ]);
+      DispatchEmitter.emit("subprocessEvent", {
+        id: caseData.dispatch_case_id,
+        current_subprocess: "in_reference",
+      });
     }
   }
 };

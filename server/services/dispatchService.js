@@ -171,26 +171,28 @@ export const isInReferenceStageExists = async (case_id) => {
 };
 
 export const saveInReferenceStage = async (case_id) => {
+  let now = dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss");
   const sql = `
     INSERT INTO case_stage_tracking 
     (case_id, stage_name, status, expected_duration, start_time) 
-    VALUES (?, 'In Reference', 'confirmed', 150, NOW())`;
+    VALUES (?, 'In Reference', 'confirmed', 150, ?)`;
 
-  await dbQuery(sql, [case_id]);
+  await dbQuery(sql, [case_id, now]);
 };
 
 export const saveAuthorizationRequestStage = async (
   case_id,
   expected_duration
 ) => {
+  let now = dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss");
   const sql = `
     INSERT INTO case_stage_tracking (case_id, stage_name, status, expected_duration, start_time)
     VALUES 
-      (?, 'Authorization Request', 'sent', 150, NOW()),
-      (?, 'Supervisor Approval', 'pending', ?, NOW())
+      (?, 'Authorization Request', 'sent', 150, ?),
+      (?, 'Supervisor Approval', 'pending', ?, ?)
   `;
 
-  const values = [case_id, case_id, expected_duration];
+  const values = [case_id, now, case_id, expected_duration, now];
   await dbQuery(sql, values);
 };
 

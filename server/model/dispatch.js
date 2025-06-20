@@ -135,7 +135,11 @@ export const saveCaseAssignedDeviceId = async (case_id, device_id) => {
   }
 };
 
-export const fetchDispatchCases = async (offset, limit) => {
+export const fetchDispatchCases = async (offset, limit, search = "") => {
+  const hasSearch = !!search.trim();
+  const whereClause = hasSearch ? `WHERE dc.case_name LIKE ?` : "";
+  const params = hasSearch ? [`%${search}%`, limit, offset] : [limit, offset];
+
   const baseQuery = `
     SELECT 
       dc.*,
@@ -148,16 +152,20 @@ export const fetchDispatchCases = async (offset, limit) => {
     FROM dispatch_cases dc
     LEFT JOIN dispatch_case_devices dcd ON dc.id = dcd.dispatch_case_id
     LEFT JOIN new_settings_devices nsd ON dcd.device_id = nsd.id
+    ${whereClause}
     GROUP BY dc.id
     ORDER BY dc.created_at DESC
     LIMIT ? OFFSET ?
   `;
 
-  const countQuery = `SELECT COUNT(*) as total FROM dispatch_cases`;
+  const countQuery = hasSearch
+    ? `SELECT COUNT(*) as total FROM dispatch_cases dc WHERE dc.case_name LIKE ?`
+    : `SELECT COUNT(*) as total FROM dispatch_cases`;
 
   try {
-    const rows = await dbQuery(baseQuery, [limit, offset]);
-    const [{ total }] = await dbQuery(countQuery);
+    const rows = await dbQuery(baseQuery, params);
+    const countParams = hasSearch ? [`%${search}%`] : [];
+    const [{ total }] = await dbQuery(countQuery, countParams);
 
     return {
       rows: rows.map((row) => ({
@@ -173,7 +181,18 @@ export const fetchDispatchCases = async (offset, limit) => {
   }
 };
 
-export const fetchDispatchCasesByUserId = async (user_id, offset, limit) => {
+export const fetchDispatchCasesByUserId = async (
+  user_id,
+  offset,
+  limit,
+  search = ""
+) => {
+  const hasSearch = !!search.trim();
+  const whereClause = hasSearch ? `AND dc.case_name LIKE ?` : "";
+  const params = hasSearch
+    ? [user_id, `%${search}%`, limit, offset]
+    : [user_id, limit, offset];
+
   const query = `
     SELECT 
       dc.*,
@@ -187,18 +206,20 @@ export const fetchDispatchCasesByUserId = async (user_id, offset, limit) => {
     LEFT JOIN dispatch_case_devices dcd ON dc.id = dcd.dispatch_case_id
     LEFT JOIN new_settings_devices nsd ON dcd.device_id = nsd.id
     WHERE dc.user_id = ?
+    ${whereClause}
     GROUP BY dc.id
     ORDER BY dc.created_at DESC
     LIMIT ? OFFSET ?
   `;
 
-  const countQuery = `
-    SELECT COUNT(*) as total FROM dispatch_cases WHERE user_id = ?
-  `;
+  const countQuery = hasSearch
+    ? `SELECT COUNT(*) as total FROM dispatch_cases WHERE user_id = ? AND case_name LIKE ?`
+    : `SELECT COUNT(*) as total FROM dispatch_cases WHERE user_id = ?`;
 
   try {
-    const rows = await dbQuery(query, [user_id, limit, offset]);
-    const [{ total }] = await dbQuery(countQuery, [user_id]);
+    const rows = await dbQuery(query, params);
+    const countParams = hasSearch ? [user_id, `%${search}%`] : [user_id];
+    const [{ total }] = await dbQuery(countQuery, countParams);
 
     return {
       rows: rows.map((row) => ({
@@ -350,7 +371,7 @@ export const findLatestInProgressCase = async (userId, deviceId) => {
     WHERE 
       dc.user_id = ? 
       AND dcd.device_id = ?
-      AND dc.status = 'in progress'
+      AND dc.status NOT IN ('pending', 'completed')
     ORDER BY 
       dc.created_at DESC
     LIMIT 1;
@@ -1013,7 +1034,7 @@ export const deleteProviderPrice = async ({
 // ------------------------------- DISPATCH CASE TRACKING
 
 export const initialCaseStageStatus = async ({ caseId, expected_duration }) => {
-  const now = new Date();
+  const now = dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss");
 
   const query = `
     INSERT INTO case_stage_tracking (case_id, stage_name, status, expected_duration, start_time)
@@ -1037,7 +1058,7 @@ export const onTheWayCaseStageStatus = async ({
   caseId,
   expected_duration,
 }) => {
-  const now = new Date();
+  const now = dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss");
   const query = `
     INSERT INTO case_stage_tracking (case_id, stage_name, status, expected_duration, start_time)
     VALUES 
@@ -1078,7 +1099,9 @@ export const caseTrackingById = async (case_id) => {
 export const caseTrackingByIdAndStageName = async (case_id, stage_name) => {
   const query = `SELECT 
          stage_name,
-         status
+         status,
+         expected_duration,
+         start_time
        FROM case_stage_tracking
        WHERE case_id = ? AND stage_name = ?`;
 

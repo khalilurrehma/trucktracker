@@ -338,17 +338,28 @@ const RimacCases = () => {
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <IconButton>
+                      <IconButton
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          console.log("Info clicked");
+                        }}
+                      >
                         <InfoOutlinedIcon />
                       </IconButton>
                       <IconButton
-                        onClick={() =>
-                          navigate(`/operations/rimac/case/report/${row.id}`)
-                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/operations/rimac/case/report/${row.id}`);
+                        }}
                       >
                         <VisibilityOutlinedIcon />
                       </IconButton>
-                      <IconButton>
+                      <IconButton
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          console.log("Edit clicked");
+                        }}
+                      >
                         <EditOutlinedIcon />
                       </IconButton>
                     </TableCell>

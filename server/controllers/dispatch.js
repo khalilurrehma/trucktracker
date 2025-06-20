@@ -63,6 +63,7 @@ import {
   realmUserTraccarIdsByUserId,
 } from "../model/realm.js";
 import {
+  adminAuthorizationRequestStage,
   calculateDriverServiceTime,
   checkAndMarkDelayedCase,
   checkReportAuthorizedStatus,
@@ -212,6 +213,22 @@ export const handleNewDispatchCase = async (req, res) => {
               .tz("America/Lima")
               .format("YYYY-MM-DD HH:mm:ss"),
           });
+          const casePayload = {
+            driverId: driverIds[0],
+            type: "case-assigned",
+            caseId: newCase_id,
+            caseName,
+            caseAddress,
+            position: { lat, lng },
+            message,
+            file_data: dbBody.file_data || [],
+            assignedDeviceIds,
+            createdAt: dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss"),
+            respondWithin: expectedDuration,
+            status: "pending",
+          };
+
+          DispatchEmitter.emit("driverCase", casePayload);
         }
       } else {
         console.log("No FCM tokens found for drivers");
@@ -241,7 +258,7 @@ export const handleNewDispatchCase = async (req, res) => {
 };
 
 export const fetchAllDispatchCases = async (req, res) => {
-  const { userId, page = 1, limit = 10 } = req.query;
+  const { userId, page = 1, limit = 10, search = "" } = req.query;
   const superVisor = JSON.parse(req.query.superVisor || "false");
 
   const pageInt = parseInt(page);
@@ -256,13 +273,15 @@ export const fetchAllDispatchCases = async (req, res) => {
       if (parseInt(userId) === 1) {
         ({ rows: dispatchCases, total } = await fetchDispatchCases(
           offset,
-          limitInt
+          limitInt,
+          search
         ));
       } else {
         ({ rows: dispatchCases, total } = await fetchDispatchCasesByUserId(
           userId,
           offset,
-          limitInt
+          limitInt,
+          search
         ));
       }
     } else {
@@ -272,7 +291,8 @@ export const fetchAllDispatchCases = async (req, res) => {
       ({ rows: dispatchCases, total } = await fetchDispatchCasesByUserId(
         companyId,
         offset,
-        limitInt
+        limitInt,
+        search
       ));
     }
 
@@ -412,6 +432,12 @@ export const handleCaseAction = async (req, res) => {
     ]);
 
     DispatchEmitter.emit("subprocessEvent", event);
+    DispatchEmitter.emit("caseProcessUpdate", {
+      driverId,
+      caseId,
+      type: "case-subprocess",
+      subprocessUpdated: true,
+    });
 
     res.status(200).json({
       status: true,
@@ -446,10 +472,11 @@ export const authorizeCaseReport = async (req, res) => {
       });
     }
 
-    const [result, update, superVisorApproved] = await Promise.all([
+    const [result, update, superVisorApproved, tracking] = await Promise.all([
       updateCaseReportStatus(reportId, true),
       updateCaseStatusById(caseId, "approved"),
       updateCaseCurrentProcess(caseId, "supervisor_approval"),
+      adminAuthorizationRequestStage(caseId, "approved"),
     ]);
 
     if (result.affectedRows === 0) {
@@ -484,6 +511,12 @@ export const authorizeCaseReport = async (req, res) => {
       current_subprocess: "supervisor_approval",
       created_at: dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss"),
       status: "approved",
+    });
+    DispatchEmitter.emit("caseProcessUpdate", {
+      driverId,
+      caseId,
+      type: "case-subprocess",
+      subprocessUpdated: true,
     });
 
     return res.status(200).json({
@@ -678,6 +711,12 @@ export const dispatchCaseReport = async (req, res) => {
       current_subprocess: "authorization_request",
       created_at: dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss"),
       status: "waiting_approval",
+    });
+    DispatchEmitter.emit("caseProcessUpdate", {
+      driverId,
+      caseId,
+      type: "case-subprocess",
+      subprocessUpdated: true,
     });
 
     setTimeout(() => {
@@ -940,6 +979,12 @@ export const dispatchCaseCompleteService = async (req, res) => {
       current_subprocess: "case_completed",
       created_at: dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss"),
       status: "completed",
+    });
+    DispatchEmitter.emit("caseProcessUpdate", {
+      driverId,
+      caseId,
+      type: "case-subprocess",
+      subprocessUpdated: true,
     });
 
     await Promise.all([

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import PageLayout from "../common/components/PageLayout";
 import OperationsMenu from "../settings/components/OperationsMenu";
 import {
@@ -51,6 +51,8 @@ const ViewNewCases = () => {
   } else {
     url = import.meta.env.VITE_PROD_BACKEND_URL;
   }
+  const [searchInput, setSearchInput] = useState("");
+  const debounceTimeout = useRef(null);
   const { subprocessEvents, liveSuggestedServices } = useAppContext();
   const [allCases, setAllCases] = useState([]);
   const [totalCases, setTotalCases] = useState(0);
@@ -297,7 +299,8 @@ const ViewNewCases = () => {
           userId,
           superVisor,
           page,
-          rowsPerPage
+          rowsPerPage,
+          searchTerm
         );
 
         if (data.status) {
@@ -339,7 +342,7 @@ const ViewNewCases = () => {
     }
     fetchCases();
     getNotifications();
-  }, [userId, superVisor, page, rowsPerPage]);
+  }, [userId, superVisor, page, rowsPerPage, searchTerm]);
 
   const fetchSuggestedServices = async (caseId) => {
     try {
@@ -369,6 +372,16 @@ const ViewNewCases = () => {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    clearTimeout(debounceTimeout.current);
+
+    debounceTimeout.current = setTimeout(() => {
+      setSearchTerm(value);
+    }, 400);
+  };
+
   return (
     <PageLayout
       menu={<OperationsMenu />}
@@ -383,8 +396,8 @@ const ViewNewCases = () => {
         <TextField
           sx={{ width: "30%" }}
           label="Search by Case"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          value={searchInput}
+          onChange={handleSearchChange}
         />
         <IconButton onClick={handleNotificationClick}>
           <Badge badgeContent={unreadCount} color="error">

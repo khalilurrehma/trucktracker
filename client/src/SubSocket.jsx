@@ -36,7 +36,8 @@ const TempNotification = ({ notifications, setNotifications }) => {
 };
 
 const SubSocket = () => {
-  const { updateMqttMessage, serverMessage } = useAppContext();
+  const { updateMqttMessage, serverMessage, setServerMessage } =
+    useAppContext();
   const [notifications, setNotifications] = useState([]);
   const sessionUserId = useSelector((state) => state.session.user.id);
   // const [doutProcessedData, setDoutProcessedData] = useState([]);
@@ -73,6 +74,11 @@ const SubSocket = () => {
       socketRef.current.onopen = () => {
         console.log("✅ WebSocket connected");
         clearTimeout(reconnectTimeout.current);
+
+        sendMessageToServer({
+          action: "identify-client",
+          clientType: "admin",
+        });
       };
 
       socketRef.current.onmessage = (event) => {

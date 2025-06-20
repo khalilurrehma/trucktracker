@@ -31,6 +31,7 @@ import {
   getLatestDriverBehaivorReportsByUserId,
 } from "../model/notifications.js";
 import {
+  caseTrackingById,
   caseTrackingByIdAndStageName,
   countTodayCasesByUserAndDevice,
   defaultTemplateTimeForAdmin,
@@ -388,60 +389,21 @@ export const driverCurrentCaseSubprocess = async (req, res) => {
       driverVehicleIds
     );
 
-    if (!latestCase.current_subprocess) {
+    if (!latestCase) {
       return res.status(404).json({
         status: false,
-        message: "No in-progress case found for the driver",
+        message: "No active case found for the driver",
       });
     }
 
-    switch (latestCase.current_subprocess) {
-      case "advisor_assignment":
-        const advisorAssignmentProcess = await caseTrackingByIdAndStageName(
-          latestCase.id,
-          "Assignment of the Advisor"
-        );
-        latestCase.current_subprocess = advisorAssignmentProcess;
-        break;
-      case "reception_case":
-        const receptionProcess = await caseTrackingByIdAndStageName(
-          latestCase.id,
-          "Reception Case"
-        );
-        latestCase.current_subprocess = receptionProcess;
-        break;
-      case "on_the_way":
-        const onTheWayProcess = await caseTrackingByIdAndStageName(
-          latestCase.id,
-          "On the Way"
-        );
-        latestCase.current_subprocess = onTheWayProcess;
-        break;
-      case "in_reference":
-        const inReferenceProcess = await caseTrackingByIdAndStageName(
-          latestCase.id,
-          "In Reference"
-        );
-        latestCase.current_subprocess = inReferenceProcess;
-        break;
-      case "authorization_request":
-        const authorizationRequestProcess = await caseTrackingByIdAndStageName(
-          latestCase.id,
-          "Authorization Request"
-        );
-        latestCase.current_subprocess = authorizationRequestProcess;
-        break;
-      case "supervisor_approval":
-        const supervisorApprovalProcess = await caseTrackingByIdAndStageName(
-          latestCase.id,
-          "Supervisor Approval"
-        );
-        latestCase.current_subprocess = supervisorApprovalProcess;
-        break;
+    const caseStages = await caseTrackingById(latestCase.id);
 
-      default:
-        latestCase.current_subprocess = "Unknown Process";
-    }
+    const latestSubprocess = caseStages.reduce(
+      (latest, current) => (current.id > (latest?.id || 0) ? current : latest),
+      null
+    );
+
+    latestCase.current_subprocess = latestSubprocess || null;
 
     res.status(200).json({
       status: true,
