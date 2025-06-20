@@ -8,10 +8,14 @@ import {
 } from "../model/dispatch.js";
 import dayjs from "dayjs";
 import duration from "dayjs/plugin/duration.js";
+import timezone from "dayjs/plugin/timezone.js";
+import utc from "dayjs/plugin/utc.js";
 import { EventEmitter } from "events";
 const dbQuery = util.promisify(pool.query).bind(pool);
 
 dayjs.extend(duration);
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export const DispatchEmitter = new EventEmitter();
 
@@ -88,13 +92,15 @@ export const defaultTemplateTime = async (key) => {
 };
 
 export const markCaseStageAsDelayed = async (caseId) => {
+  const now = dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss");
   const query = `UPDATE case_stage_tracking SET status = 'delayed', end_time = ? WHERE case_id = ? AND status = 'pending' AND stage_name = 'Reception Case' LIMIT 1`;
-  return await dbQuery(query, [new Date(), caseId]);
+  return await dbQuery(query, [now, caseId]);
 };
 
 export const markCaseStage = async (caseId, status) => {
+  const now = dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss");
   const query = `UPDATE case_stage_tracking SET status = ?, end_time = ? WHERE case_id = ? AND status = 'pending' AND stage_name = 'Reception Case' LIMIT 1`;
-  return await dbQuery(query, [status, new Date(), caseId]);
+  return await dbQuery(query, [status, now, caseId]);
 };
 
 export const driverOnTheWayStage = async (caseId) => {
@@ -109,8 +115,9 @@ export const driverOnTheWayStage = async (caseId) => {
 };
 
 export const updateOnTheWayStageStatus = async (caseId, status) => {
+  const now = dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss");
   const query = `UPDATE case_stage_tracking SET status = ?, end_time = ? WHERE case_id = ? AND stage_name = 'On the way'`;
-  return await dbQuery(query, [status, new Date(), caseId]);
+  return await dbQuery(query, [status, now, caseId]);
 };
 
 export const getLatestActiveCaseByDeviceId = async (deviceId) => {
