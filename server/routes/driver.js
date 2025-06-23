@@ -10,6 +10,7 @@ import {
   driverForgotPassword,
   driverLogin,
   driverLogout,
+  driverSession,
   driversLoginLogs,
   getCompanyVehicles,
   getDriver,
@@ -32,12 +33,7 @@ const router = express.Router();
 
 router.post("/driver", postDriver);
 
-router.post(
-  "/driver/vehicle/association",
-  upload.any(),
-  authDriver,
-  assignDriverToVehicle
-);
+router.post("/driver/vehicle/association", upload.any(), assignDriverToVehicle);
 
 router.get("/drivers", getDrivers);
 
@@ -93,6 +89,8 @@ router.post("/driver/login", driverLogin);
 router.post("/driver/logout", driverLogout);
 
 router.post("/driver/forgot-password", driverForgotPassword);
+
+router.get("/driver/device/session", authDriver, driverSession);
 
 // Driver Dashboard APIs
 

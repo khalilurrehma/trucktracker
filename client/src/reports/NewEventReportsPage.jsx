@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
 import {
   Table,
@@ -8,7 +8,6 @@ import {
   TableBody,
   Typography,
   Box,
-  Input,
   TextField,
   IconButton,
   TablePagination,
@@ -41,12 +40,10 @@ const NewEventReportsPage = () => {
     (state) => state.session.user.attributes.non_admin
   );
   const classes = useReportStyles();
-  let url;
-  if (import.meta.env.DEV) {
-    url = import.meta.env.VITE_DEV_BACKEND_URL;
-  } else {
-    url = import.meta.env.VITE_PROD_BACKEND_URL;
-  }
+  const baseUrl = import.meta.env.DEV
+    ? import.meta.env.VITE_DEV_BACKEND_URL
+    : import.meta.env.VITE_PROD_BACKEND_URL;
+
   const [initialRESTData, setInitialRESTData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -55,60 +52,62 @@ const NewEventReportsPage = () => {
   const [rowsPerPage, setRowsPerPage] = useState(15);
   const [page, setPage] = useState(0);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [totalCount, setTotalCount] = useState(0);
+
+  const fetchFromAPI = useCallback(
+    async (
+      id,
+      currentPage = 0,
+      rows = rowsPerPage,
+      search = searchQuery,
+      date = selectedDate
+    ) => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({
+          page: currentPage + 1,
+          limit: rows,
+          ...(search && { search }),
+          ...(date && { date: date.toISOString().split("T")[0] }),
+          ...(nonAdmin && { non_admin: true }),
+        });
+
+        const { data } = await axios.get(
+          `${baseUrl}/devices/reports/events/${id}?${params.toString()}`
+        );
+
+        if (data.status) {
+          setInitialRESTData(data.message.data || []);
+          setTotalCount(data.message.total || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [baseUrl, nonAdmin]
+  );
 
   useEffect(() => {
     if (userId) {
-      fetchInitiallyFromAPI(userId);
+      fetchFromAPI(userId, page, rowsPerPage, searchQuery, selectedDate);
     }
-  }, [userId]);
+  }, [userId, page, rowsPerPage, searchQuery, selectedDate, fetchFromAPI]);
 
   useEffect(() => {
-    if (mqttReportsEvents.length > 0) {
-      fetchInitiallyFromAPI(userId);
+    if (mqttReportsEvents.length > 0 && userId) {
+      setPage(0);
+      fetchFromAPI(userId, 0, rowsPerPage, searchQuery, selectedDate);
     }
-  }, [mqttReportsEvents]);
-
-  const fetchInitiallyFromAPI = async (id) => {
-    setLoading(true);
-    try {
-      const { data } = nonAdmin
-        ? await axios.get(`${url}/devices/reports/events/${id}?non_admin=true`)
-        : await axios.get(`${url}/devices/reports/events/${id}`);
-      if (data.status) {
-        setInitialRESTData(data.message);
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredData = initialRESTData?.filter((msg) => {
-    const createdAtDate = new Date(msg?.createdAt);
-    const createdAtMidnight = new Date(
-      createdAtDate.getFullYear(),
-      createdAtDate.getMonth(),
-      createdAtDate.getDate()
-    ).getTime();
-
-    const selectedDateMidnight = selectedDate
-      ? new Date(
-          selectedDate.getFullYear(),
-          selectedDate.getMonth(),
-          selectedDate.getDate()
-        ).getTime()
-      : null;
-
-    const matchesDevice =
-      msg?.deviceId?.toString().includes(searchQuery) ||
-      msg?.deviceName?.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesDate =
-      !selectedDateMidnight || createdAtMidnight === selectedDateMidnight;
-
-    return matchesDevice && matchesDate;
-  });
+  }, [
+    mqttReportsEvents,
+    userId,
+    rowsPerPage,
+    searchQuery,
+    selectedDate,
+    fetchFromAPI,
+  ]);
 
   const handleLocationToggle = (index, location) => {
     if (activeRow === index) {
@@ -118,6 +117,17 @@ const NewEventReportsPage = () => {
       setActiveRow(index);
       setSelectedLocation(location);
     }
+  };
+
+  const handleSearchChange = (e) => {
+    const newSearch = e.target.value;
+    setSearchQuery(newSearch);
+    setPage(0);
+  };
+
+  const handleDateChange = (newValue) => {
+    setSelectedDate(newValue);
+    setPage(0);
   };
 
   return (
@@ -132,24 +142,28 @@ const NewEventReportsPage = () => {
             <DatePicker
               label={t("sharedSelectDate")}
               value={selectedDate}
-              onChange={(newValue) => setSelectedDate(newValue)}
+              onChange={handleDateChange}
               slotProps={{ textField: { size: "small" } }}
               disableFuture
-              renderInput={(params) => (
-                <TextField {...params} size="small" sx={{ width: "30%" }} />
-              )}
             />
           </LocalizationProvider>
           <TextField
             label={t("sharedSearch")}
             variant="outlined"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
             className="mb-4"
             sx={{ width: "30%" }}
           />
-          <Button variant="outlined" onClick={() => setSelectedDate(null)}>
-            {t("sharedClearDate")}
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setSelectedDate(null);
+              setSearchQuery("");
+              setPage(0);
+            }}
+          >
+            {t("sharedClear")}
           </Button>
         </Box>
 
@@ -166,68 +180,70 @@ const NewEventReportsPage = () => {
               <TableCell>{t("sharedEventCreatedAt")}</TableCell>
             </TableRow>
           </TableHead>
-          {filteredData.length === 0 && !loading ? (
-            <Typography mt={2} ml={2}>
-              No Alarm Logs found
-            </Typography>
+          {initialRESTData.length === 0 && !loading ? (
+            <TableBody>
+              <TableRow>
+                <TableCell colSpan={8}>
+                  <Typography align="center" mt={2}>
+                    No Alarm Logs found
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            </TableBody>
           ) : !loading ? (
             <TableBody>
-              {filteredData
-                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                .map((msg, index) => {
-                  let intervalJSON;
+              {initialRESTData.map((msg, index) => {
+                let intervalJSON;
 
-                  try {
-                    intervalJSON =
-                      typeof msg.message === "string"
-                        ? JSON.parse(msg.message)
-                        : msg.message;
+                try {
+                  intervalJSON =
+                    typeof msg.message === "string"
+                      ? JSON.parse(msg.message)
+                      : msg.message;
 
-                    if (typeof intervalJSON === "string") {
-                      intervalJSON = JSON.parse(intervalJSON);
-                    }
-                  } catch (error) {
-                    intervalJSON = {};
+                  if (typeof intervalJSON === "string") {
+                    intervalJSON = JSON.parse(intervalJSON);
                   }
+                } catch (error) {
+                  intervalJSON = {};
+                }
 
-                  const formattedBegin = formatUnixTimestamp(
-                    intervalJSON?.begin
-                  );
-                  const formattedEnd = formatUnixTimestamp(intervalJSON?.end);
-                  const formattedCreatedAt = convertISODate(msg?.createdAt);
-                  const formattedEventTime = convertISODate(
-                    intervalJSON?.event_time
-                  );
+                const formattedBegin = formatUnixTimestamp(intervalJSON?.begin);
+                const formattedEnd = formatUnixTimestamp(intervalJSON?.end);
+                const formattedCreatedAt = convertISODate(msg?.createdAt);
+                const formattedEventTime = convertISODate(
+                  intervalJSON?.event_time
+                );
 
-                  return (
-                    <TableRow key={`${msg.deviceId}-${msg.createdAt}-${index}`}>
-                      <TableCell>
-                        <IconButton
-                          onClick={() =>
-                            handleLocationToggle(index, {
-                              latitude: intervalJSON?.latitude,
-                              longitude: intervalJSON?.longitude,
-                              deviceName: msg?.deviceName,
-                            })
-                          }
-                        >
-                          {activeRow === index ? (
-                            <MyLocationIcon />
-                          ) : (
-                            <LocationSearchingIcon />
-                          )}
-                        </IconButton>
-                      </TableCell>
-                      <TableCell>{formattedBegin}</TableCell>
-                      <TableCell>{msg?.deviceId}</TableCell>
-                      <TableCell>{msg?.deviceName}</TableCell>
-                      <TableCell>{msg?.eventType}</TableCell>
-                      <TableCell>{formattedEnd}</TableCell>
-                      <TableCell>{formattedEventTime}</TableCell>
-                      <TableCell>{formattedCreatedAt}</TableCell>
-                    </TableRow>
-                  );
-                })}
+                return (
+                  <TableRow key={`${msg.deviceId}-${msg.createdAt}-${index}`}>
+                    <TableCell>
+                      <IconButton
+                        onClick={() =>
+                          handleLocationToggle(index, {
+                            latitude: intervalJSON?.latitude,
+                            longitude: intervalJSON?.longitude,
+                            deviceName: msg?.deviceName,
+                          })
+                        }
+                      >
+                        {activeRow === index ? (
+                          <MyLocationIcon />
+                        ) : (
+                          <LocationSearchingIcon />
+                        )}
+                      </IconButton>
+                    </TableCell>
+                    <TableCell>{formattedBegin}</TableCell>
+                    <TableCell>{msg?.deviceId}</TableCell>
+                    <TableCell>{msg?.deviceName}</TableCell>
+                    <TableCell>{msg?.eventType}</TableCell>
+                    <TableCell>{formattedEnd}</TableCell>
+                    <TableCell>{formattedEventTime}</TableCell>
+                    <TableCell>{formattedCreatedAt}</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           ) : (
             <TableShimmer columns={8} />
@@ -237,7 +253,7 @@ const NewEventReportsPage = () => {
         <TablePagination
           rowsPerPageOptions={[15, 25, 35]}
           component="div"
-          count={filteredData.length}
+          count={totalCount}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={(_, newPage) => setPage(newPage)}

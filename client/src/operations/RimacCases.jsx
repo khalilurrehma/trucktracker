@@ -20,22 +20,47 @@ import {
   Typography,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import notificationSound from "./../resources/clicking-412.mp3";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import Tooltip from "@mui/material/Tooltip";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAppContext } from "../AppContext";
 import dayjs from "dayjs";
+import { toast, ToastContainer } from "react-toastify";
 
 const safeValue = (value) =>
   typeof value === "string" || typeof value === "number" ? value : "N/A";
 
+const mapIncomingReport = (report) => {
+  const now = dayjs();
+  const createdAt = dayjs(report.created_at || new Date());
+
+  return {
+    id: report.id,
+    creationDate: createdAt.format("DD/MM/YYYY"),
+    code: safeValue(report.Informe),
+    salesforce: safeValue(report.NomBrok),
+    plate: safeValue(report.NroPlaca),
+    districtOrigin: safeValue(report.Dist),
+    destinationDistrict: safeValue(report.Dist),
+    issue: safeValue(report.DescEnvio),
+    mode: report.LMDM === "S" ? "LMDM" : "Standard",
+    state: report.EstadoPoliza === "ACTIVA" ? "SECURED CONTACT" : "OTHER",
+    accidentAddress: safeValue(report.DirSin),
+    isNew: now.diff(createdAt, "hour") <= 24,
+    isLive: true,
+  };
+};
+
 const RimacCases = () => {
-  const { url } = useAppContext();
+  const { url, liveRimacCases } = useAppContext();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isOnRimacPage = location.pathname === "/operations/rimac/cases";
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -43,11 +68,11 @@ const RimacCases = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState("Salesforce");
 
-  const fetchFromApi = async (page = 1) => {
+  const fetchFromApi = async (page = 1, search = "") => {
     try {
       setLoading(true);
       const { data } = await axios.get(`${url}/rimac/cases`, {
-        params: { page, limit: 10 },
+        params: { page, limit: 10, search },
       });
 
       const now = dayjs();
@@ -64,19 +89,15 @@ const RimacCases = () => {
           id: item.id,
           creationDate: new Date(item.created_at).toLocaleDateString(),
           code: safeValue(report.Informe),
-          salesforce:
-            typeof report.NomBrok === "string" ? report.NomBrok : "N/A",
-          plate: typeof report.NroPlaca === "string" ? report.NroPlaca : "N/A",
-          districtOrigin: typeof report.Dist === "string" ? report.Dist : "N/A",
-          destinationDistrict:
-            typeof report.Dist === "string" ? report.Dist : "N/A",
-          issue:
-            typeof report.DescEnvio === "string" ? report.DescEnvio : "N/A",
+          salesforce: safeValue(report.NomBrok),
+          plate: safeValue(report.NroPlaca),
+          districtOrigin: safeValue(report.Dist),
+          destinationDistrict: safeValue(report.Dist),
+          issue: safeValue(report.DescEnvio),
           mode: report.LMDM === "S" ? "LMDM" : "Standard",
           state: report.EstadoPoliza === "ACTIVA" ? "SECURED CONTACT" : "OTHER",
-          accidentAddress:
-            typeof report.DirSin === "string" ? report.DirSin : "N/A",
-          isNew, // 👈 Add this flag
+          accidentAddress: safeValue(report.DirSin),
+          isNew,
         };
       });
 
@@ -90,8 +111,8 @@ const RimacCases = () => {
   };
 
   useEffect(() => {
-    fetchFromApi(page);
-  }, [page]);
+    fetchFromApi(page, searchQuery);
+  }, [page, searchQuery]);
 
   const handlePageChange = (event, value) => {
     setPage(value);
@@ -99,17 +120,63 @@ const RimacCases = () => {
 
   const handleSearchChange = (event) => {
     setSearchQuery(event.target.value);
+    setPage(1);
   };
 
   const handleFilterChange = (event) => {
     setFilter(event.target.value);
   };
 
+  useEffect(() => {
+    if (!liveRimacCases || liveRimacCases.length === 0) return;
+
+    const latest = liveRimacCases[liveRimacCases.length - 1];
+    const updated = mapIncomingReport(latest.report);
+
+    if (latest?.type === "post") {
+      setCases((prev) => [updated, ...prev]);
+
+      setTimeout(() => {
+        setCases((prev) =>
+          prev.map((c) => (c.id === updated.id ? { ...c, isLive: false } : c))
+        );
+      }, 5000);
+
+      if (isOnRimacPage) {
+        toast.info("📋 New Rimac case received", { autoClose: 4000 });
+        try {
+          const audio = new Audio(notificationSound);
+          audio.load();
+          audio
+            .play()
+            .catch((error) => console.warn("⚠️ Audio play error:", error));
+        } catch (error) {
+          console.error("🚨 Failed to play audio:", error);
+        }
+      }
+    }
+
+    if (latest?.type === "update") {
+      setCases((prev) =>
+        prev.map((c) =>
+          c.id === updated.id ? { ...updated, isLive: true } : c
+        )
+      );
+
+      setTimeout(() => {
+        setCases((prev) =>
+          prev.map((c) => (c.id === updated.id ? { ...c, isLive: false } : c))
+        );
+      }, 5000);
+    }
+  }, [liveRimacCases]);
+
   return (
     <PageLayout
       menu={<OperationsMenu />}
       breadcrumbs2={["Operations", "Rimac Cases"]}
     >
+      <ToastContainer />
       <Box sx={{ p: 3 }}>
         <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
           <TextField
@@ -233,6 +300,8 @@ const RimacCases = () => {
                     }}
                     sx={{
                       cursor: "pointer",
+                      backgroundColor: row.isLive ? "#FFF8E1" : "inherit",
+                      transition: "background-color 1s ease",
                       "&:hover": {
                         backgroundColor: "#F5F5F5",
                       },

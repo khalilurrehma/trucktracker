@@ -24,22 +24,35 @@ export const saveRimacCase = async (body) => {
   }
 };
 
-export const allRimacCases = async (offset, limit) => {
-  const query = `
+export const allRimacCases = async (offset, limit, search = "") => {
+  const hasSearch = search.trim() !== "";
+  const searchFilter = hasSearch
+    ? `WHERE JSON_UNQUOTE(JSON_EXTRACT(report_data, '$.Informe')) LIKE ?`
+    : "";
+
+  const baseQuery = `
     SELECT 
       *, 
-      (SELECT COUNT(*) FROM rimac_reports) AS total
+      (
+        SELECT COUNT(*) 
+        FROM rimac_reports 
+        ${searchFilter}
+      ) AS total
     FROM rimac_reports
+    ${searchFilter}
     ORDER BY created_at DESC
     LIMIT ? OFFSET ?
   `;
 
   try {
-    const rows = await dbQuery(query, [limit, offset]);
+    const queryParams = hasSearch
+      ? [`%${search}%`, `%${search}%`, limit, offset]
+      : [limit, offset];
+
+    const rows = await dbQuery(baseQuery, queryParams);
 
     const total = rows.length > 0 ? rows[0].total : 0;
     const cleanRows = rows.map(({ total, ...rest }) => rest);
-
     return { data: cleanRows, total };
   } catch (error) {
     console.error("Error fetching Rimac cases:", error);
@@ -394,8 +407,15 @@ export const findCaseByUserIdAndDeviceId = async (userId, deviceId) => {
 };
 
 export const findLatestInProgressCase = async (userId, deviceId) => {
+  const parsedUserId = parseInt(userId);
+  const parsedDeviceId = parseInt(deviceId);
+
+  if (isNaN(parsedUserId) || isNaN(parsedDeviceId)) {
+    throw new Error(`Invalid userId or deviceId: ${userId}, ${deviceId}`);
+  }
+
   const query = `
-        SELECT 
+    SELECT 
       dc.*
     FROM 
       dispatch_cases dc
@@ -403,7 +423,7 @@ export const findLatestInProgressCase = async (userId, deviceId) => {
       dispatch_case_devices dcd ON dc.id = dcd.dispatch_case_id
     WHERE 
       dc.user_id = ? 
-      AND dcd.device_id = ?
+      AND dcd.device_id = ? 
       AND dc.status NOT IN ('pending')
     ORDER BY 
       dc.created_at DESC
@@ -411,12 +431,8 @@ export const findLatestInProgressCase = async (userId, deviceId) => {
   `;
 
   try {
-    const rows = await dbQuery(query, [parseInt(userId), parseInt(deviceId)]);
-    if (rows.length > 0) {
-      return rows[0];
-    } else {
-      return "No currently in-progress case found";
-    }
+    const rows = await dbQuery(query, [parsedUserId, parsedDeviceId]);
+    return rows[0] || null;
   } catch (error) {
     console.error("Error fetching latest in-progress dispatch case:", error);
     throw error;

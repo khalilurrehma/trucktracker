@@ -190,7 +190,19 @@ const DispatchResult = () => {
         types: prediction.types,
       }));
 
-      if (predictions.length === 0 && cleanedInput) {
+      if (predictions.length === 0) {
+        if (cleanedInput.length > 5) {
+          setOptions([
+            {
+              label: `Search: ${cleanedInput}`,
+              placeId: null,
+              isCustom: true,
+            },
+          ]);
+        } else {
+          setOptions([]);
+        }
+
         const geocoder = new window.google.maps.Geocoder();
         geocoder.geocode(
           {
@@ -206,8 +218,6 @@ const DispatchResult = () => {
                   types: results[0].types,
                 },
               ]);
-            } else {
-              setOptions([]);
             }
           }
         );
@@ -240,7 +250,7 @@ const DispatchResult = () => {
       : setPlaceOptions;
     const center = isDestination ? mapCenter : centerDefault;
 
-    if (!newValue) {
+    if (!newValue || (!newValue.placeId && !newValue.label)) {
       setAddressFn("");
       setOptionsFn([]);
       setPositionFn(null);

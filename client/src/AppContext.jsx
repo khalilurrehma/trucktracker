@@ -50,6 +50,7 @@ const AppContextProvider = ({ children }) => {
   const [updateCronLogs, setUpdateCronLogs] = useState([]);
   const [subprocessEvents, setSubprocessEvents] = useState([]);
   const [liveSuggestedServices, setLiveSuggestedServices] = useState([]);
+  const [liveRimacCases, setLiveRimacCases] = useState([]);
 
   const user = useSelector((state) => state.session.user);
 
@@ -96,6 +97,8 @@ const AppContextProvider = ({ children }) => {
       setSubprocessEvents((prev) => [...prev, newMessage]);
     } else if (stateType === "suggestedServices") {
       setLiveSuggestedServices((prev) => [...prev, newMessage]);
+    } else if (stateType === "rimacCase") {
+      setLiveRimacCases((prev) => [...prev, newMessage]);
     }
   };
 
@@ -444,6 +447,7 @@ const AppContextProvider = ({ children }) => {
         updateCronLogs,
         subprocessEvents,
         liveSuggestedServices,
+        liveRimacCases,
       }}
     >
       {children}

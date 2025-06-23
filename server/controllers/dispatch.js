@@ -807,6 +807,14 @@ export const rimacReport = async (req, res) => {
     if (existingReport) {
       await updateRimacReportById(existingReport.id, reportData);
 
+      DispatchEmitter.emit("rimacCase", {
+        type: "update",
+        report: {
+          ...reportData,
+          id: existingReport.id,
+        },
+      });
+
       return res.status(200).json({
         success: true,
         message: "Report updated successfully",
@@ -817,6 +825,14 @@ export const rimacReport = async (req, res) => {
       });
     } else {
       const result = await saveRimacCase(reportData);
+
+      DispatchEmitter.emit("rimacCase", {
+        type: "post",
+        report: {
+          ...reportData,
+          id: result.insertId,
+        },
+      });
       return res.status(201).json({
         success: true,
         message: "Report saved successfully",
@@ -842,8 +858,9 @@ export const fetchAllRimacCases = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
+    const search = req.query.search || "";
 
-    const { data, total } = await allRimacCases(offset, limit);
+    const { data, total } = await allRimacCases(offset, limit, search);
 
     res.status(200).json({
       success: true,

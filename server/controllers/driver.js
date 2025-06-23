@@ -145,19 +145,19 @@ export const postDriver = async (req, res) => {
 };
 
 export const assignDriverToVehicle = async (req, res) => {
-  const driver_id = req.userId;
   let files;
   const {
     vehicleId: device_id,
     odometer,
     vehicle_status: device_status,
     description,
+    driverId: driver_id,
   } = req.body;
 
-  if (!device_id || !odometer || !device_status) {
+  if (!device_id || !odometer || !device_status || !driver_id) {
     return res.status(400).json({
       status: false,
-      message: "Device ID, Odometer, and Vehicle Status are required",
+      message: "Device ID, driverId, Odometer, and Vehicle Status are required",
     });
   }
 
@@ -190,7 +190,7 @@ export const assignDriverToVehicle = async (req, res) => {
     const flespiResponse = await getDeviceOdometer(deviceFlespiId);
 
     let verifyOdometerReading =
-      flespiResponse[0].telemetry["vehicle.mileage"]?.value;
+      flespiResponse[0]?.telemetry["vehicle.mileage"]?.value;
 
     if (verifyOdometerReading === undefined) {
       return res.status(500).json({
@@ -403,9 +403,9 @@ export const driverCurrentCaseSubprocess = async (req, res) => {
   const driverId = req.userId;
 
   try {
-    const driverVehicleIds = await findAssociateVehicleByDriverId(driverId);
+    const driverVehicleId = await findAssociateVehicleByDriverId(driverId);
 
-    if (!driverVehicleIds) {
+    if (!driverVehicleId) {
       return res.status(404).json({
         status: false,
         message:
@@ -415,13 +415,13 @@ export const driverCurrentCaseSubprocess = async (req, res) => {
 
     const latestCase = await findLatestInProgressCase(
       companyId,
-      driverVehicleIds
+      driverVehicleId
     );
 
     if (!latestCase) {
-      return res.status(404).json({
-        status: false,
-        message: "No active case found for the driver",
+      return res.status(200).json({
+        status: true,
+        message: {},
       });
     }
 
@@ -932,6 +932,15 @@ export const driverDashboard = async (req, res) => {
     };
 
     res.status(200).json({ status: true, message: responseBody });
+  } catch (error) {
+    res.status(500).json({ status: false, message: error.message });
+  }
+};
+
+export const driverSession = async (req, res) => {
+  const driverId = req.userId;
+  try {
+    res.send("test");
   } catch (error) {
     res.status(500).json({ status: false, message: error.message });
   }

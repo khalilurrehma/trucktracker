@@ -146,4 +146,17 @@ DispatchEmitter.on("caseProcessUpdate", async (caseProcessUpdate) => {
   }
 });
 
+DispatchEmitter.on("rimacCase", async (caseRport) => {
+  try {
+    let message = {
+      ...caseRport,
+      rimacCase: "rimacCase",
+    };
+
+    broadcast(message, { to: "admin" });
+  } catch (error) {
+    console.error("❌ Error processing rimacCase event:", error.message);
+  }
+});
+
 export { setBroadcast };

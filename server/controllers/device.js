@@ -361,32 +361,51 @@ export const devicesAlarmLogs = async (req, res) => {
 
 export const devicesEvents = async (req, res) => {
   const userId = Number(req.params.userId);
-  const nonAdmin = req.query.non_admin === "true";
+  const { non_admin, page = 1, limit = 15, search, date } = req.query;
+  const isNonAdmin = non_admin === "true";
+  const offset = (Number(page) - 1) * Number(limit);
+
   try {
-    if (nonAdmin) {
+    let events;
+    let total;
+
+    if (isNonAdmin) {
       const nonAdminCompanyId = await realmUserByTraccarId(userId);
-      let companyId = nonAdminCompanyId[0].userId;
+      let companyId = nonAdminCompanyId[0]?.userId;
       if (!companyId) {
         return res.status(400).json({
           status: false,
           error: "You are not authorized to access this resource",
         });
       }
-      const resp = await getLatestDeviceEventsByUserId(companyId);
-      res.status(200).json({ status: true, message: resp });
+      ({ events, total } = await getLatestDeviceEventsByUserId(companyId, {
+        limit: Number(limit),
+        offset,
+        search,
+        date,
+      }));
     } else {
-      let resp;
-
       if (userId === 1) {
-        resp = await getLatestDeviceEvents();
+        ({ events, total } = await getLatestDeviceEvents({
+          limit: Number(limit),
+          offset,
+          search,
+          date,
+        }));
       } else {
-        resp = await getLatestDeviceEventsByUserId(userId);
+        ({ events, total } = await getLatestDeviceEventsByUserId(userId, {
+          limit: Number(limit),
+          offset,
+          search,
+          date,
+        }));
       }
-
-      res.status(200).json({ status: true, message: resp });
     }
+
+    res.status(200).json({ status: true, message: { data: events, total } });
   } catch (error) {
-    res.status(500).json({ status: false, error: error });
+    console.error("Error fetching device events:", error);
+    res.status(500).json({ status: false, error: error.message });
   }
 };
 

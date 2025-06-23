@@ -133,6 +133,10 @@ const SubSocket = () => {
             addNotification(recievedData.message);
           }
 
+          if (recievedData?.rimacCase === "rimacCase") {
+            updateMqttMessage(recievedData, "rimacCase");
+          }
+
           if (
             (recievedData.dispatchNotification === "newcase-notification" &&
               (recievedData.reportDetails?.companyId === sessionUserId ||

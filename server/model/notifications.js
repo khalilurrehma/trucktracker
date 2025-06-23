@@ -295,15 +295,48 @@ export const newDeviceEvent = async (data) => {
   }
 };
 
-export const getLatestDeviceEvents = async () => {
-  const sql = `SELECT * FROM reports_events ORDER BY createdAt DESC`;
+export const getLatestDeviceEvents = async ({
+  limit,
+  offset,
+  search,
+  date,
+}) => {
+  let sql = `SELECT * FROM reports_events`;
+  let countSql = `SELECT COUNT(*) as total FROM reports_events`;
+  const params = [];
+  const countParams = [];
+
+  if (search) {
+    sql += ` WHERE (deviceId LIKE ? OR deviceName LIKE ?)`;
+    countSql += ` WHERE (deviceId LIKE ? OR deviceName LIKE ?)`;
+    const searchParam = `%${search}%`;
+    params.push(searchParam, searchParam);
+    countParams.push(searchParam, searchParam);
+  }
+
+  if (date) {
+    sql += (search ? ` AND` : ` WHERE`) + ` DATE(createdAt) = ?`;
+    countSql += (search ? ` AND` : ` WHERE`) + ` DATE(createdAt) = ?`;
+    params.push(date);
+    countParams.push(date);
+  }
+
+  sql += ` ORDER BY createdAt DESC LIMIT ? OFFSET ?`;
+  params.push(limit, offset);
 
   return new Promise((resolve, reject) => {
-    dbQuery(sql, (err, results) => {
+    dbQuery(countSql, countParams, (err, countResult) => {
       if (err) {
-        reject(err);
+        return reject(err);
       }
-      resolve(results);
+      const total = countResult[0].total;
+
+      dbQuery(sql, params, (err, results) => {
+        if (err) {
+          return reject(err);
+        }
+        resolve({ events: results, total });
+      });
     });
   });
 };
@@ -332,15 +365,46 @@ export const getLastIgnitionEventBefore = async (
   });
 };
 
-export const getLatestDeviceEventsByUserId = async (userId) => {
-  const sql = `SELECT * FROM reports_events WHERE userId = ? ORDER BY createdAt DESC`;
+export const getLatestDeviceEventsByUserId = async (
+  userId,
+  { limit, offset, search, date }
+) => {
+  let sql = `SELECT * FROM reports_events WHERE userId = ?`;
+  let countSql = `SELECT COUNT(*) as total FROM reports_events WHERE userId = ?`;
+  const params = [userId];
+  const countParams = [userId];
+
+  if (search) {
+    sql += ` AND (deviceId LIKE ? OR deviceName LIKE ?)`;
+    countSql += ` AND (deviceId LIKE ? OR deviceName LIKE ?)`;
+    const searchParam = `%${search}%`;
+    params.push(searchParam, searchParam);
+    countParams.push(searchParam, searchParam);
+  }
+
+  if (date) {
+    sql += ` AND DATE(createdAt) = ?`;
+    countSql += ` AND DATE(createdAt) = ?`;
+    params.push(date);
+    countParams.push(date);
+  }
+
+  sql += ` ORDER BY createdAt DESC LIMIT ? OFFSET ?`;
+  params.push(limit, offset);
 
   return new Promise((resolve, reject) => {
-    dbQuery(sql, [userId], (err, results) => {
+    dbQuery(countSql, countParams, (err, countResult) => {
       if (err) {
-        reject(err);
+        return reject(err);
       }
-      resolve(results);
+      const total = countResult[0].total;
+
+      dbQuery(sql, params, (err, results) => {
+        if (err) {
+          return reject(err);
+        }
+        resolve({ events: results, total });
+      });
     });
   });
 };

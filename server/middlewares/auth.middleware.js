@@ -1,5 +1,8 @@
 import jwt from "jsonwebtoken";
-import { checkSessionInDB } from "../model/driver.js";
+import {
+  checkSessionInDB,
+  findAssociateVehicleByDriverId,
+} from "../model/driver.js";
 
 export const authDriver = async (req, res, next) => {
   const authHeader = req.headers["authorization"];
@@ -25,7 +28,9 @@ export const authDriver = async (req, res, next) => {
 
     const isSessionValid = await checkSessionInDB(decoded.id, token);
 
-    if (isSessionValid.length === 0) {
+    const sessionVehicle = await findAssociateVehicleByDriverId(decoded.id);
+
+    if (isSessionValid.length === 0 || !sessionVehicle) {
       return res.status(401).json({
         status: false,
         message: "Session expired or logged out from another device",
