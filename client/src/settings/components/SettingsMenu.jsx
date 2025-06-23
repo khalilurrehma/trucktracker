@@ -532,7 +532,7 @@ const SettingsMenu = () => {
               <MenuItem
                 title={"Snapshots"}
                 link="/settings/snapshots"
-                icon={<PersonIcon sx={{ ml: 2 }} />}
+                icon={<PersonIcon />}
                 selected={location.pathname.startsWith("/settings/snapshots")}
               />
             )}

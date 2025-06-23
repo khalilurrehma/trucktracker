@@ -371,7 +371,7 @@ export const findLatestInProgressCase = async (userId, deviceId) => {
     WHERE 
       dc.user_id = ? 
       AND dcd.device_id = ?
-      AND dc.status NOT IN ('pending', 'completed')
+      AND dc.status NOT IN ('pending')
     ORDER BY 
       dc.created_at DESC
     LIMIT 1;
