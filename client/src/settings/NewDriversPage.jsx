@@ -5,6 +5,7 @@ import CollectionFab from "./components/CollectionFab";
 import EditIcon from "@mui/icons-material/Edit";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import DeleteIcon from "@mui/icons-material/Delete";
+import InfoIcon from "@mui/icons-material/Info";
 import {
   Table,
   TableBody,
@@ -24,18 +25,27 @@ import {
   IconButton,
   TablePagination,
   Button,
+  CircularProgress,
+  Typography,
+  Box,
+  Paper,
 } from "@mui/material";
 import { deleteDriverById, getDrivers, getDriversByUserId } from "../apis/api";
 import { toast, ToastContainer } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import SettingLoader from "./common/SettingLoader";
-import { useAppContext } from "../AppContext";
 import { useSelector } from "react-redux";
 import DriverSlotPicker from "./components/DriverSlotPicker";
 import { useTranslation } from "../common/components/LocalizationProvider";
+import axios from "axios";
 
 const NewDriversPage = () => {
-  const { traccarUser } = useAppContext();
+  let url;
+  if (import.meta.env.DEV) {
+    url = import.meta.env.VITE_DEV_BACKEND_URL;
+  } else {
+    url = import.meta.env.VITE_PROD_BACKEND_URL;
+  }
   const t = useTranslation();
   const [drivers, setDrivers] = useState([]);
   const [filteredDrivers, setFilteredDrivers] = useState([]);
@@ -48,6 +58,12 @@ const NewDriversPage = () => {
   const [openCalendar, setOpenCalendar] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [totalPages, setTotalPages] = useState(1);
+  const [openLogsModal, setOpenLogsModal] = useState(false);
+  const [logsData, setLogsData] = useState({
+    vehicleDetails: [],
+    loginLogs: [],
+  });
+  const [logsLoading, setLogsLoading] = useState(false);
   const userId = useSelector((state) => state.session.user.id);
 
   let lat = null;
@@ -91,8 +107,32 @@ const NewDriversPage = () => {
       setFilteredDrivers(processedDrivers);
     } catch (error) {
       console.error("Error fetching drivers", error);
+      toast.error("Failed to fetch drivers");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchDriverLogs = async (driverId) => {
+    setLogsLoading(true);
+    try {
+      const response = await axios.get(`${url}/driver/login/logs/${driverId}`);
+      const data = response.data;
+
+      if (data.status) {
+        setLogsData({
+          vehicleDetails: data.message.vehicleDetails || [],
+          loginLogs: data.message.loginLogs || [],
+        });
+      } else {
+        throw new Error("Failed to fetch logs");
+      }
+    } catch (error) {
+      console.error("Error fetching driver logs", error);
+      toast.error("Failed to fetch driver logs");
+      setLogsData({ vehicleDetails: [], loginLogs: [] });
+    } finally {
+      setLogsLoading(false);
     }
   };
 
@@ -167,13 +207,24 @@ const NewDriversPage = () => {
     fetchDrivers();
   };
 
+  const handleOpenLogsModal = (driver) => {
+    setSelectedDriver(driver);
+    setOpenLogsModal(true);
+    fetchDriverLogs(driver.id);
+  };
+
+  const handleCloseLogsModal = () => {
+    setOpenLogsModal(false);
+    setSelectedDriver(null);
+    setLogsData({ vehicleDetails: [], loginLogs: [] });
+  };
+
   return (
     <PageLayout
       menu={<SettingsMenu />}
       breadcrumbs={["settingsTitle", "configShifts"]}
     >
       <ToastContainer />
-      {/* Filter Controls */}
       <div
         style={{
           marginBottom: "16px",
@@ -225,7 +276,7 @@ const NewDriversPage = () => {
             onChange={(e) => setSortType(e.target.value)}
           >
             <MenuItem value="asc">{t("sharedAscending")}</MenuItem>
-            <MenuItem value="asc">{t("sharedDescending")}</MenuItem>
+            <MenuItem value="desc">{t("sharedDescending")}</MenuItem>
           </Select>
         </FormControl>
 
@@ -250,15 +301,15 @@ const NewDriversPage = () => {
               <TableCell>{t("sharedPhone")}</TableCell>
               <TableCell>{t("userEmail")}</TableCell>
               <TableCell>{t("sharedStation")}</TableCell>
-              {/* <TableCell>Location</TableCell> */}
               <TableCell>{t("sharedAction")}</TableCell>
               <TableCell>{t("sharedCalendar")}</TableCell>
+              <TableCell>App logs</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={9} align="center">
+                <TableCell colSpan={12} align="center">
                   <SettingLoader />
                 </TableCell>
               </TableRow>
@@ -295,11 +346,16 @@ const NewDriversPage = () => {
                         <CalendarMonthIcon sx={{ cursor: "pointer" }} />
                       </IconButton>
                     </TableCell>
+                    <TableCell>
+                      <IconButton onClick={() => handleOpenLogsModal(driver)}>
+                        <InfoIcon sx={{ cursor: "pointer" }} />
+                      </IconButton>
+                    </TableCell>
                   </TableRow>
                 ))
             ) : (
               <TableRow>
-                <TableCell colSpan={9} align="center">
+                <TableCell colSpan={12} align="center">
                   No Data Found
                 </TableCell>
               </TableRow>
@@ -311,6 +367,209 @@ const NewDriversPage = () => {
           selectedDriver={selectedDriver}
           onClose={handleClose}
         />
+        <Dialog
+          open={openLogsModal}
+          onClose={handleCloseLogsModal}
+          maxWidth="md"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 2,
+              boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+              maxHeight: "90vh",
+              overflowY: "auto",
+            },
+          }}
+        >
+          <DialogTitle
+            sx={{
+              bgcolor: "#f5f5f5",
+              borderBottom: "1px solid #e0e0e0",
+              py: 2,
+            }}
+          >
+            <Box
+              display="flex"
+              alignItems="center"
+              justifyContent="space-between"
+            >
+              <Typography variant="h5" fontWeight="600">
+                App logs for {selectedDriver?.name}
+              </Typography>
+              <IconButton onClick={handleCloseLogsModal} sx={{ color: "#666" }}>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
+                </svg>
+              </IconButton>
+            </Box>
+          </DialogTitle>
+          <DialogContent sx={{ p: 3, bgcolor: "#fafafa" }}>
+            {logsLoading ? (
+              <Box
+                display="flex"
+                flexDirection="column"
+                justifyContent="center"
+                alignItems="center"
+                minHeight="300px"
+                bgcolor="rgba(0,0,0,0.05)"
+                borderRadius={2}
+              >
+                <CircularProgress
+                  size={40}
+                  thickness={4}
+                  sx={{ color: "#1976d2" }}
+                />
+                <Typography variant="body2" color="text.secondary" mt={2}>
+                  Loading logs...
+                </Typography>
+              </Box>
+            ) : (
+              <>
+                <Typography
+                  variant="h6"
+                  fontWeight="500"
+                  color="text.primary"
+                  gutterBottom
+                  sx={{ mt: 1 }}
+                >
+                  Vehicle Details
+                </Typography>
+                {logsData.vehicleDetails.length > 0 ? (
+                  <Paper
+                    elevation={3}
+                    sx={{
+                      p: 3,
+                      mb: 3,
+                      borderRadius: 2,
+                      bgcolor: "#fff",
+                      transition: "transform 0.2s ease-in-out",
+                      "&:hover": { transform: "translateY(-2px)" },
+                    }}
+                  >
+                    <Box display="grid" gridTemplateColumns="1fr 1fr" gap={2}>
+                      <Typography variant="body1" color="text.secondary">
+                        <strong>Device Name:</strong>{" "}
+                        {logsData.vehicleDetails[0].device_name}
+                      </Typography>
+                      <Typography variant="body1" color="text.secondary">
+                        <strong>Driver Name:</strong>{" "}
+                        {logsData.vehicleDetails[0].driver_name}
+                      </Typography>
+                      <Typography variant="body1" color="text.secondary">
+                        <strong>Odometer Reading:</strong>{" "}
+                        {logsData.vehicleDetails[0].odometer_reading}
+                      </Typography>
+                      <Typography variant="body1" color="text.secondary">
+                        <strong>Device Status:</strong>{" "}
+                        {logsData.vehicleDetails[0].device_status}
+                      </Typography>
+                      <Typography variant="body1" color="text.secondary">
+                        <strong>Created At:</strong>{" "}
+                        {new Date(
+                          logsData.vehicleDetails[0].created_at
+                        ).toLocaleString()}
+                      </Typography>
+                    </Box>
+                  </Paper>
+                ) : (
+                  <Paper
+                    elevation={1}
+                    sx={{ p: 2, mb: 3, borderRadius: 2, textAlign: "center" }}
+                  >
+                    <Typography variant="body1" color="text.secondary">
+                      No vehicle details available.
+                    </Typography>
+                  </Paper>
+                )}
+                <Typography
+                  variant="h6"
+                  fontWeight="500"
+                  color="text.primary"
+                  gutterBottom
+                >
+                  Login Logs
+                </Typography>
+                <TableContainer
+                  component={Paper}
+                  sx={{
+                    borderRadius: 2,
+                    boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+                  }}
+                >
+                  <Table>
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: "#f5f5f5" }}>
+                        <TableCell sx={{ fontWeight: "600", color: "#333" }}>
+                          ID
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: "600", color: "#333" }}>
+                          Device accessed
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: "600", color: "#333" }}>
+                          Login Time
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {logsData.loginLogs.length > 0 ? (
+                        logsData.loginLogs.map((log, index) => (
+                          <TableRow
+                            key={log.id}
+                            sx={{
+                              "&:hover": { bgcolor: "#f9f9f9" },
+                              transition: "background-color 0.2s",
+                            }}
+                          >
+                            <TableCell>{log.id}</TableCell>
+                            <TableCell>{log.device_id}</TableCell>
+                            <TableCell>
+                              {new Date(log.login_time).toLocaleString()}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={3} align="center">
+                            <Typography variant="body2" color="text.secondary">
+                              No login logs found
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ p: 2, borderTop: "1px solid #e0e0e0" }}>
+            <Button
+              onClick={handleCloseLogsModal}
+              variant="contained"
+              sx={{
+                borderRadius: 1,
+                textTransform: "none",
+                px: 3,
+                py: 1,
+                bgcolor: "#1976d2",
+                "&:hover": { bgcolor: "#1565c0" },
+              }}
+            >
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
         <TablePagination
           component="div"
           count={filteredDrivers.length}

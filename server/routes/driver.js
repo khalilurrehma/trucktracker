@@ -10,6 +10,7 @@ import {
   driverForgotPassword,
   driverLogin,
   driverLogout,
+  driversLoginLogs,
   getCompanyVehicles,
   getDriver,
   getDriverAvailability,
@@ -49,6 +50,8 @@ router.get("/drivers/shifts", getDriversShiftDetails);
 router.get("/driver/availability/view/:id", getDriverAvailability);
 
 router.get("/driver/associated/vehicles", authDriver, driverAssociateVehicles);
+
+router.get("/driver/login/logs/:driverId", driversLoginLogs);
 
 router.get(
   "/driver/company/vehicles/:companyId",

@@ -528,6 +528,14 @@ const SettingsMenu = () => {
                 />
               </AccordionDetails>
             </Accordion>
+            {!traccarUser?.attributes.non_admin && (
+              <MenuItem
+                title={"Snapshots"}
+                link="/settings/snapshots"
+                icon={<PersonIcon sx={{ ml: 2 }} />}
+                selected={location.pathname.startsWith("/settings/snapshots")}
+              />
+            )}
           </>
         )}
       </List>

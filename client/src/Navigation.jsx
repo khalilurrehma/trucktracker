@@ -129,6 +129,9 @@ import RimacCases from "./operations/RimacCases";
 import RimacCaseReport from "./operations/RimacCaseReport";
 import Subprocess from "./operations/Subprocess";
 import DispatchSearchHistory from "./operations/DispatchSearchHistory";
+import SnapshotsPage from "./settings/SnapshotsPage";
+import AddSnaphotsDevices from "./settings/AddSnaphotsDevices";
+import RemoveSnapshotsDevices from "./settings/RemoveSnapshotsDevices";
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -261,6 +264,12 @@ const Navigation = () => {
           <Route path="device/:id/share" element={<SharePage />} />
           <Route path="device/:id" element={<DevicePage />} />
           <Route path="device" element={<DevicePage />} />
+          <Route path="snapshots" element={<SnapshotsPage />} />
+          <Route path="snapshots-devices" element={<AddSnaphotsDevices />} />
+          <Route
+            path="snapshots-devices-remove"
+            element={<RemoveSnapshotsDevices />}
+          />
           <Route path="services" element={<ServiceSettings />} />
           <Route
             path="devices/service-types"

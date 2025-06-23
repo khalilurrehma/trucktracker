@@ -8,6 +8,7 @@ import {
   existingFCMToken,
   fetchDriver,
   fetchDriverAvailability,
+  fetchDriverLoginLogs,
   fetchDrivers,
   fetchDriversByUserId,
   findAssociateVehicleByDriverId,
@@ -19,6 +20,7 @@ import {
   removeDriver,
   removeVehicleAssociation,
   saveAssociationRelation,
+  saveDriverLoginLogs,
   saveDriverResetToken,
   saveFCMToken,
   saveNewSession,
@@ -272,10 +274,17 @@ export const assignDriverToVehicle = async (req, res) => {
 };
 
 export const driverAssociateVehicles = async (req, res) => {
-  const userId = req.userId;
+  const driverId = req.userId;
+  const { appLogs } = req.query;
 
   try {
-    const driverVehicles = await findVehiclesByDriverId(userId);
+    const driverVehicles = await findVehiclesByDriverId(driverId);
+
+    if (appLogs) {
+      const loginLogs = await fetchDriverLoginLogs(driverId);
+
+      driverVehicles.push({ loginLogs });
+    }
 
     if (driverVehicles.length === 0) {
       return res.status(404).json({
@@ -285,6 +294,26 @@ export const driverAssociateVehicles = async (req, res) => {
     }
 
     res.status(200).json({ status: true, message: driverVehicles });
+  } catch (error) {
+    res.status(500).json({ status: false, message: error.message });
+  }
+};
+
+export const driversLoginLogs = async (req, res) => {
+  const { driverId } = req.params;
+
+  try {
+    const [driverVehicles, loginLogs] = await Promise.all([
+      findVehiclesByDriverId(driverId),
+      fetchDriverLoginLogs(driverId),
+    ]);
+
+    const formattedResponse = {
+      vehicleDetails: driverVehicles || [],
+      loginLogs: loginLogs || [],
+    };
+
+    res.status(200).json({ status: true, message: formattedResponse });
   } catch (error) {
     res.status(500).json({ status: false, message: error.message });
   }
@@ -661,8 +690,6 @@ export const driverLogin = async (req, res) => {
   const { email, password, fcmToken, deviceId } = req.body;
   let isVehicleAssigned = false;
 
-  console.log(fcmToken);
-
   const missingFields = [];
 
   if (!email) missingFields.push("email");
@@ -716,6 +743,7 @@ export const driverLogin = async (req, res) => {
 
     if (deviceId) {
       await saveNewSession(driver.id, deviceId, token);
+      await saveDriverLoginLogs(driver.id, deviceId);
     }
 
     const driverVehicle = await checkAlreadyAssociatedVehicle(driver.id);

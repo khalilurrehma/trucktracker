@@ -1,13 +1,20 @@
 import pool from "../config/dbConfig.js";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc.js";
+import timezone from "dayjs/plugin/timezone.js";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export const addDriver = async (body) => {
   const { userId, traccarId, name, uniqueId, attributes, location, password } =
     body;
+  let now = dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss");
 
   const sql = `
       INSERT INTO drivers
         (user_id, traccar_id, name, unique_id, attributes, location, password, assigned, deleted_at, created_at, updated_at) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NOW(), NOW())
+      VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)
     `;
 
   const values = [
@@ -18,6 +25,8 @@ export const addDriver = async (body) => {
     JSON.stringify(attributes),
     JSON.stringify(location),
     password,
+    now,
+    now,
   ];
 
   return new Promise((resolve, reject) => {
@@ -519,10 +528,54 @@ export const checkSessionInDB = async (driver_id, token) => {
 };
 
 export const saveNewSession = async (driver_id, device_id, token) => {
-  const sql = `INSERT INTO driver_sessions (driver_id, device_id, token) VALUES (?, ?, ?)`;
+  let now = dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss");
+
+  const sql = `INSERT INTO driver_sessions (driver_id, device_id, token, created_at) VALUES (?, ?, ?, ?)`;
 
   return new Promise((resolve, reject) => {
-    pool.query(sql, [driver_id, device_id, token], (err, results) => {
+    pool.query(sql, [driver_id, device_id, token, now], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+export const saveDriverLoginLogs = async (driver_id, device_id) => {
+  let now = dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss");
+  const sql = `
+    INSERT INTO driver_login_logs (driver_id, device_id, login_time)
+    VALUES (?, ?, ?)
+  `;
+  const values = [driver_id, device_id, now];
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, values, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+export const fetchDriverLoginLogs = async (driver_id) => {
+  const sql = `
+    SELECT * FROM driver_login_logs 
+    WHERE driver_id = ? 
+    ORDER BY login_time DESC
+  `;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [driver_id], (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
+
+export const fetchDriverSession = async (driver_id) => {
+  const sql = `SELECT * FROM driver_sessions WHERE driver_id = ?`;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [driver_id], (err, results) => {
       if (err) return reject(err);
       resolve(results);
     });
@@ -530,12 +583,13 @@ export const saveNewSession = async (driver_id, device_id, token) => {
 };
 
 export const saveFCMToken = async (driver_id, fcm_token) => {
+  let now = dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss");
+
   const sql = `
     INSERT INTO drivers_fcm_token (driver_id, fcm_token, created_at, updated_at)
-    VALUES (?, ?, NOW(), NOW())
+    VALUES (?, ?, ?, ?)
   `;
-
-  const values = [driver_id, fcm_token];
+  const values = [driver_id, fcm_token, now, now];
 
   return new Promise((resolve, reject) => {
     pool.query(sql, values, (err, results) => {
