@@ -228,13 +228,8 @@ const DispatchResultTable = ({
             ? Math.ceil((distance / AVERAGE_SPEED_KMH) * 60)
             : "N/A");
         const cost =
-          distance !== "N/A" &&
-          fullDeviceInfo.costByKm &&
-          fullDeviceInfo.initialBase
-            ? (
-                parseFloat(distance) * fullDeviceInfo.costByKm +
-                fullDeviceInfo.initialBase
-              ).toFixed(2)
+          distance !== "N/A" && fullDeviceInfo.costByKm
+            ? (parseFloat(distance) * fullDeviceInfo.costByKm).toFixed(2)
             : "Not set";
 
         return {
@@ -308,14 +303,10 @@ const DispatchResultTable = ({
         (distance !== "N/A"
           ? Math.ceil((distance / AVERAGE_SPEED_KMH) * 60)
           : "N/A");
-      const cost = (
-        distance !== "N/A" && deviceInfo.costByKm && deviceInfo.initialBase
-          ? (
-              parseFloat(distance) * deviceInfo.costByKm +
-              deviceInfo.initialBase
-            ).toFixed(2)
-          : "Not set"
-      )?.toLowerCase();
+      const cost =
+        distance !== "N/A" && deviceInfo.costByKm
+          ? parseFloat(distance) * deviceInfo.costByKm
+          : "Not set";
       const district = (districts[device.id] || "N/A").toLowerCase();
       const initialBase = (
         deviceInfo.initialBase || "Never recorded"
@@ -478,14 +469,12 @@ const DispatchResultTable = ({
           break;
         case "cost":
           valueA =
-            a.distance && deviceA.costByKm && deviceA.initialBase
-              ? parseFloat((a.distance / 1000).toFixed(2)) * deviceA.costByKm +
-                deviceA.initialBase
+            a.distance && deviceA.costByKm
+              ? parseFloat((a.distance / 1000).toFixed(2)) * deviceA.costByKm
               : 0;
           valueB =
-            b.distance && deviceB.costByKm && deviceB.initialBase
-              ? parseFloat((b.distance / 1000).toFixed(2)) * deviceB.costByKm +
-                deviceB.initialBase
+            b.distance && deviceB.costByKm
+              ? parseFloat((b.distance / 1000).toFixed(2)) * deviceB.costByKm
               : 0;
           break;
         case "district":
@@ -937,7 +926,7 @@ const DispatchResultTable = ({
                   : "N/A");
               const cost =
                 distance !== "N/A" && deviceInfo.costByKm
-                  ? (parseFloat(distance) * deviceInfo.costByKm).toFixed(2)
+                  ? parseFloat(distance) * deviceInfo.costByKm
                   : "Not set";
 
               return (

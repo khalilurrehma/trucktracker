@@ -29,6 +29,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 
 const DispatchDialog = ({
   value,
+  rimacCase,
   openAssignModal,
   setOpenAssignModal,
   assignedDevices,
@@ -76,6 +77,8 @@ const DispatchDialog = ({
     selectedImages.forEach((file) => {
       formData.append("files", file);
     });
+
+    if (rimacCase) formData.append("metadata", JSON.stringify({ rimacCase }));
 
     try {
       setLoader(true);

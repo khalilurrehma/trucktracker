@@ -21,104 +21,17 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import FilterListIcon from "@mui/icons-material/FilterList";
+import Tooltip from "@mui/material/Tooltip";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { useAppContext } from "../AppContext";
+import dayjs from "dayjs";
 
-// Static data based on the screenshot
-const cases = [
-  {
-    creationDate: "05/29/2025 1:27 PM",
-    code: "24693",
-    salesforce: "0025400973",
-    plate: "FB527*",
-    districtOrigin: "CALLAO",
-    destinationDistrict: "-",
-    issue: "CRASH IN TRAFFIC",
-    mode: "Auctioned",
-    state: "SECURED CONTACT",
-  },
-  {
-    creationDate: "05/29/2025 10:35",
-    code: "24685",
-    salesforce: "0025400921",
-    plate: "AKN26*",
-    districtOrigin: "STONE BRIDGE",
-    destinationDistrict: "-",
-    issue: "HIT AND RUN WHILE DRIVING",
-    mode: "Auctioned",
-    state: "CULMINATION",
-  },
-  {
-    creationDate: "05/29/2025 09:43",
-    code: "24682",
-    salesforce: "0025400878",
-    plate: "BUP91*",
-    districtOrigin: "Santiago de Surco",
-    destinationDistrict: "-",
-    issue: "PROPERTY DAMAGE",
-    mode: "Auctioned",
-    state: "CULMINATION",
-  },
-  {
-    creationDate: "05/29/2025 09:39",
-    code: "24681",
-    salesforce: "0025400872",
-    plate: "CKR35*",
-    districtOrigin: "COMMAS",
-    destinationDistrict: "-",
-    issue: "CRASH IN TRAFFIC",
-    mode: "Auctioned",
-    state: "CULMINATION",
-  },
-  {
-    creationDate: "05/29/2025 09:28",
-    code: "24677",
-    salesforce: "0025400848",
-    plate: "CKL68*",
-    districtOrigin: "COMMAS",
-    destinationDistrict: "-",
-    issue: "CRASH IN TRAFFIC",
-    mode: "Auctioned",
-    state: "CULMINATION",
-  },
-  {
-    creationDate: "05/29/2025 08:16",
-    code: "24673",
-    salesforce: "0025400697",
-    plate: "AXP58*",
-    districtOrigin: "THE AUGUSTINE",
-    destinationDistrict: "-",
-    issue: "CRASH IN TRAFFIC",
-    mode: "Auctioned",
-    state: "CULMINATION",
-  },
-  {
-    creationDate: "05/29/2025 08:09",
-    code: "24672",
-    salesforce: "0025400688",
-    plate: "BZG44*",
-    districtOrigin: "Villa Maria del Triunfo",
-    destinationDistrict: "-",
-    issue: "CRASH IN TRAFFIC",
-    mode: "Auctioned",
-    state: "CULMINATION",
-  },
-  {
-    creationDate: "05/29/2025 07:25",
-    code: "24663",
-    salesforce: "0025400578",
-    plate: "ACL06*",
-    districtOrigin: "SAN ISIDRO",
-    destinationDistrict: "-",
-    issue: "CRASH IN TRAFFIC",
-    mode: "Auctioned",
-    state: "CULMINATION",
-  },
-];
+const safeValue = (value) =>
+  typeof value === "string" || typeof value === "number" ? value : "N/A";
 
 const RimacCases = () => {
   const { url } = useAppContext();
@@ -137,21 +50,33 @@ const RimacCases = () => {
         params: { page, limit: 10 },
       });
 
+      const now = dayjs();
       const mappedCases = data.data.map((item) => {
-        const report = JSON.parse(item.report_data);
+        const report =
+          typeof item.report_data === "string"
+            ? JSON.parse(item.report_data)
+            : item.report_data;
+
+        const createdAt = dayjs(item.created_at);
+        const isNew = now.diff(createdAt, "hour") <= 24;
 
         return {
           id: item.id,
           creationDate: new Date(item.created_at).toLocaleDateString(),
-          code: report.Informe,
-          salesforce: report.NomBrok || "N/A",
-          plate: report.NroPlaca,
-          districtOrigin: report.Dist || "N/A",
-          destinationDistrict: report.Dist || "N/A",
-          issue: report.DescEnvio,
+          code: safeValue(report.Informe),
+          salesforce:
+            typeof report.NomBrok === "string" ? report.NomBrok : "N/A",
+          plate: typeof report.NroPlaca === "string" ? report.NroPlaca : "N/A",
+          districtOrigin: typeof report.Dist === "string" ? report.Dist : "N/A",
+          destinationDistrict:
+            typeof report.Dist === "string" ? report.Dist : "N/A",
+          issue:
+            typeof report.DescEnvio === "string" ? report.DescEnvio : "N/A",
           mode: report.LMDM === "S" ? "LMDM" : "Standard",
           state: report.EstadoPoliza === "ACTIVA" ? "SECURED CONTACT" : "OTHER",
-          accidentAddress: report.DirSin || "N/A",
+          accidentAddress:
+            typeof report.DirSin === "string" ? report.DirSin : "N/A",
+          isNew, // 👈 Add this flag
         };
       });
 
@@ -252,6 +177,9 @@ const RimacCases = () => {
           <Table>
             <TableHead>
               <TableRow sx={{ backgroundColor: "#FFEBEE" }}>
+                <TableCell
+                  sx={{ color: "#E57373", fontWeight: "bold" }}
+                ></TableCell>
                 <TableCell sx={{ color: "#E57373", fontWeight: "bold" }}>
                   CREATION DATE
                 </TableCell>
@@ -310,6 +238,24 @@ const RimacCases = () => {
                       },
                     }}
                   >
+                    <TableCell>
+                      {row.isNew && (
+                        <Box
+                          component="span"
+                          sx={{
+                            backgroundColor: "#E57373",
+                            color: "white",
+                            fontSize: "11px",
+                            borderRadius: "8px",
+                            px: 1,
+                            py: 0.2,
+                            fontWeight: "bold",
+                          }}
+                        >
+                          NEW
+                        </Box>
+                      )}{" "}
+                    </TableCell>
                     <TableCell>{row.creationDate}</TableCell>
                     <TableCell>{row.code}</TableCell>
                     <TableCell>{row.salesforce}</TableCell>
@@ -338,14 +284,14 @@ const RimacCases = () => {
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <IconButton
+                      {/* <IconButton
                         onClick={(e) => {
                           e.stopPropagation();
                           console.log("Info clicked");
                         }}
                       >
                         <InfoOutlinedIcon />
-                      </IconButton>
+                      </IconButton> */}
                       <IconButton
                         onClick={(e) => {
                           e.stopPropagation();
@@ -354,14 +300,14 @@ const RimacCases = () => {
                       >
                         <VisibilityOutlinedIcon />
                       </IconButton>
-                      <IconButton
+                      {/* <IconButton
                         onClick={(e) => {
                           e.stopPropagation();
                           console.log("Edit clicked");
                         }}
                       >
                         <EditOutlinedIcon />
-                      </IconButton>
+                      </IconButton> */}
                     </TableCell>
                   </TableRow>
                 ))

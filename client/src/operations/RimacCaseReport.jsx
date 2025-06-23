@@ -147,7 +147,7 @@ const RimacCaseReport = () => {
           <Box sx={{ display: "flex", gap: 2 }}>
             <TextField
               label="Color"
-              value={report.Color || "N/A"}
+              value={report.Color ? report.Color : "N/A"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}

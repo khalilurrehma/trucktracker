@@ -62,6 +62,8 @@ const DispatchResult = () => {
   const rimacAddress = query.get("address");
   const rimacCaseNumber = query.get("casenumber");
 
+  let ifRimacCase = rimacAddress && rimacCaseNumber ? true : false;
+
   const userId = useSelector((state) => state.session.user.id);
   const userName = useSelector((state) => state.session.user.name);
   const t = useTranslation();
@@ -76,10 +78,10 @@ const DispatchResult = () => {
   const [selectedDeviceIds, setSelectedDeviceIds] = useState([]);
   const [caseNumber, setCaseNumber] = useState("");
   const [address, setAddress] = useState("");
-  const [destinationAddress, setDestinationAddress] = useState(""); // New state for destination address
+  const [destinationAddress, setDestinationAddress] = useState("");
   const [mapCenter, setMapCenter] = useState(centerDefault);
   const [markerPosition, setMarkerPosition] = useState(null);
-  const [destinationPosition, setDestinationPosition] = useState(null); // New state for destination coordinates
+  const [destinationPosition, setDestinationPosition] = useState(null);
   const [radius, setRadius] = useState(3000);
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   const [searchValue, setSearchValue] = useState("");
@@ -87,7 +89,7 @@ const DispatchResult = () => {
   const [devicesInRadius, setDevicesInRadius] = useState([]);
   const [assignedDevices, setAssignedDevices] = useState([]);
   const [placeOptions, setPlaceOptions] = useState([]);
-  const [destinationPlaceOptions, setDestinationPlaceOptions] = useState([]); // New state for destination autocomplete options
+  const [destinationPlaceOptions, setDestinationPlaceOptions] = useState([]);
   const [etaMap, setEtaMap] = useState({});
   const [loading, setLoading] = useState(false);
   const [sessionToken, setSessionToken] = useState(null);
@@ -102,7 +104,7 @@ const DispatchResult = () => {
     setDestinationAddress(""); // Reset destination address
     setMapCenter(centerDefault);
     setMarkerPosition(null);
-    setDestinationPosition(null); // Reset destination position
+    setDestinationPosition(null);
     setRadius(3000);
     setSelectedDeviceId(null);
     setSearchValue("");
@@ -110,7 +112,7 @@ const DispatchResult = () => {
     setDevicesInRadius([]);
     setAssignedDevices([]);
     setPlaceOptions([]);
-    setDestinationPlaceOptions([]); // Reset destination place options
+    setDestinationPlaceOptions([]);
     setEtaMap({});
     setLoading(false);
     setSessionToken(null);
@@ -778,6 +780,7 @@ const DispatchResult = () => {
               description: address,
               destinationDescription: destinationAddress,
             }}
+            rimacCase={ifRimacCase}
             openAssignModal={openAssignModal}
             setOpenAssignModal={setOpenAssignModal}
             assignedDevices={assignedDevices}
@@ -785,14 +788,14 @@ const DispatchResult = () => {
             setSelectedRows={setSelectedDeviceIds}
             lat={markerPosition?.lat}
             lng={markerPosition?.lng}
-            destinationLat={destinationPosition?.lat} // Pass destination coordinates
+            destinationLat={destinationPosition?.lat}
             destinationLng={destinationPosition?.lng}
             newAllDevices={newAllDevices}
             etaMap={etaMap}
             caseNumber={caseNumber}
             selectedRowData={selectedRowData}
             markerPosition={markerPosition}
-            destinationPosition={destinationPosition} // Pass destination position
+            destinationPosition={destinationPosition}
             resetStates={resetStates}
             searchId={searchId}
           />

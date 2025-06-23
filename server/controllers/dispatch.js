@@ -25,6 +25,7 @@ import {
   findRimacReportById,
   getAllNotifications,
   getNotificationsByCompanyId,
+  getRimacCaseByCode,
   initialCaseStageStatus,
   insertDispatchCompleteCase,
   insertDriverServiceTime,
@@ -47,6 +48,7 @@ import {
   updateCaseServiceById,
   updateCaseStatusById,
   updateProviderPriceInDb,
+  updateRimacReportById,
   updateSearchHistory,
 } from "../model/dispatch.js";
 import {
@@ -90,6 +92,7 @@ export const handleNewDispatchCase = async (req, res) => {
     lng,
     message,
     devicesMeta,
+    metadata,
   } = req.body;
   let assignedDeviceIds = req.body.assignedDeviceIds;
   let files;
@@ -131,6 +134,10 @@ export const handleNewDispatchCase = async (req, res) => {
       message,
       devicesMeta,
     };
+
+    if (metadata) {
+      dbBody.metadata = metadata;
+    }
 
     if (req.files?.length) {
       const uploadedFiles = await Promise.all(
@@ -775,6 +782,15 @@ export const rimacReport = async (req, res) => {
       });
     }
 
+    const { Informe } = reportData;
+
+    if (!Informe) {
+      return res.status(400).json({
+        success: false,
+        message: "Se requiere código de Informe",
+      });
+    }
+
     const invalidFields = Object.keys(reportData).filter(
       (key) => !rimacBodyValidFields.includes(key)
     );
@@ -786,17 +802,31 @@ export const rimacReport = async (req, res) => {
       });
     }
 
-    const result = await saveRimacCase(reportData);
+    const existingReport = await getRimacCaseByCode(Informe);
 
-    res.status(201).json({
-      success: true,
-      message: "Report received and stored successfully",
-      data: {
-        id: result.insertId,
-        report_data: reportData,
-        created_at: new Date().toISOString(),
-      },
-    });
+    if (existingReport) {
+      await updateRimacReportById(existingReport.id, reportData);
+
+      return res.status(200).json({
+        success: true,
+        message: "Report updated successfully",
+        data: {
+          id: existingReport.id,
+          report_data: reportData,
+        },
+      });
+    } else {
+      const result = await saveRimacCase(reportData);
+      return res.status(201).json({
+        success: true,
+        message: "Report saved successfully",
+        data: {
+          id: result.insertId,
+          report_data: reportData,
+          created_at: new Date().toISOString(),
+        },
+      });
+    }
   } catch (error) {
     console.error("Error processing Rimac report:", error);
     res.status(500).json({

@@ -30,6 +30,7 @@ export const allRimacCases = async (offset, limit) => {
       *, 
       (SELECT COUNT(*) FROM rimac_reports) AS total
     FROM rimac_reports
+    ORDER BY created_at DESC
     LIMIT ? OFFSET ?
   `;
 
@@ -42,6 +43,35 @@ export const allRimacCases = async (offset, limit) => {
     return { data: cleanRows, total };
   } catch (error) {
     console.error("Error fetching Rimac cases:", error);
+    throw error;
+  }
+};
+
+export const getRimacCaseByCode = async (code) => {
+  const sql = `
+    SELECT id, report_data
+    FROM rimac_reports
+    WHERE JSON_UNQUOTE(JSON_EXTRACT(report_data, '$.Informe')) = ?
+    LIMIT 1
+  `;
+
+  try {
+    const result = await dbQuery(sql, [code]);
+    return result[0];
+  } catch (error) {
+    console.error("Error fetching Rimac report by code:", error);
+    throw error;
+  }
+};
+
+export const updateRimacReportById = async (id, report_body) => {
+  const sql = `UPDATE rimac_reports SET report_data = ? WHERE id = ?`;
+  let values = [JSON.stringify(report_body), id];
+
+  try {
+    await dbQuery(sql, values);
+  } catch (error) {
+    console.error("Error fetching Rimac report by ID:", error);
     throw error;
   }
 };
@@ -68,6 +98,7 @@ export const addNewCase = async (body) => {
     message,
     devicesMeta,
     file_data,
+    metadata,
   } = body;
 
   const query = `
@@ -80,8 +111,9 @@ export const addNewCase = async (body) => {
       message,
       created_at,
       device_meta,
-      file_data
-    ) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?)
+      file_data,
+      meta_data
+    ) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)
   `;
 
   let now = dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss");
@@ -95,6 +127,7 @@ export const addNewCase = async (body) => {
     now,
     devicesMeta,
     JSON.stringify(file_data),
+    metadata,
   ];
 
   try {
@@ -1224,7 +1257,7 @@ export const allSearchHistory = async () => {
 
 export const allSearchHistoryByUserId = async (userId) => {
   const query = `
-    SELECT * FROM dispatch_search_history WHERE userId = ?
+    SELECT * FROM dispatch_search_history WHERE userId = ? ORDER BY time DESC
   `;
   try {
     const rows = await dbQuery(query, [userId]);
