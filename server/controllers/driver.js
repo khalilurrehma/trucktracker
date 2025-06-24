@@ -333,7 +333,6 @@ export const getDriverStatus = async (req, res) => {
 
 export const getCompanyVehicles = async (req, res) => {
   const { companyId } = req.params;
-  const userId = req.userId;
   const search = req.query.search || "";
 
   try {

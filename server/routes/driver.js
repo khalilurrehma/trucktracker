@@ -49,11 +49,7 @@ router.get("/driver/associated/vehicles", authDriver, driverAssociateVehicles);
 
 router.get("/driver/login/logs/:driverId", driversLoginLogs);
 
-router.get(
-  "/driver/company/vehicles/:companyId",
-  authDriver,
-  getCompanyVehicles
-);
+router.get("/driver/company/vehicles/:companyId", getCompanyVehicles);
 
 router.get("/driver/availability/status", authDriver, getDriverStatus);
 
