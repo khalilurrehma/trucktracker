@@ -54,10 +54,7 @@ const CaseReportDialog = ({
   const fetchReport = async () => {
     try {
       const { data } = await axios(
-        `${url}/dispatch/case/report/${caseDetails.id}`,
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }
+        `${url}/dispatch/case/report/${caseDetails.id}`
       );
       if (data.status) {
         if (!data.message || Object.keys(data.message).length === 0) {
@@ -226,19 +223,8 @@ const CaseReportDialog = ({
                     {report.additional_information || "N/A"}
                   </Typography>
                   <Typography variant="subtitle1">
-                    <strong>Damage:</strong> {report.damage || "Not specified"}
-                  </Typography>
-                  <Typography variant="subtitle1">
-                    <strong>Meta Information:</strong>{" "}
-                    {report.meta_information || "Not specified"}
-                  </Typography>
-                  <Typography variant="subtitle1">
                     <strong>Created:</strong>{" "}
                     {formatDate(report.report_created_at)}
-                  </Typography>
-                  <Typography variant="subtitle1">
-                    <strong>Updated:</strong>{" "}
-                    {formatDate(report.report_updated_at)}
                   </Typography>
                 </Grid>
                 {report.damage && report.meta_information && (
@@ -251,7 +237,7 @@ const CaseReportDialog = ({
                     <strong>Damage:</strong> {report.damage || "Not specified"}
                   </Typography>
                   <Typography variant="subtitle1">
-                    <strong>Meta Information:</strong>
+                    <strong>Meta Information: </strong>
                     {report.meta_information || "Not specified"}
                   </Typography>
                 </Grid>

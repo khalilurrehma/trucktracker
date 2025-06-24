@@ -24,10 +24,36 @@ export const saveRimacCase = async (body) => {
   }
 };
 
-export const allRimacCases = async (offset, limit, search = "") => {
-  const hasSearch = search.trim() !== "";
-  const searchFilter = hasSearch
-    ? `WHERE JSON_UNQUOTE(JSON_EXTRACT(report_data, '$.Informe')) LIKE ?`
+export const allRimacCases = async (
+  offset,
+  limit,
+  search = "",
+  filter = ""
+) => {
+  const conditions = [];
+  const subConditions = [];
+  const queryParams = [];
+
+  if (search.trim()) {
+    const searchCondition = `JSON_UNQUOTE(JSON_EXTRACT(report_data, '$.Informe')) LIKE ?`;
+    conditions.push(searchCondition);
+    subConditions.push(searchCondition);
+    queryParams.push(`%${search}%`);
+  }
+
+  if (filter) {
+    subConditions.push(`status = ?`);
+    queryParams.push(filter);
+
+    conditions.push(`status = ?`);
+    queryParams.push(filter);
+  }
+
+  const whereClause = conditions.length
+    ? `WHERE ${conditions.join(" AND ")}`
+    : "";
+  const subWhereClause = subConditions.length
+    ? `WHERE ${subConditions.join(" AND ")}`
     : "";
 
   const baseQuery = `
@@ -35,22 +61,19 @@ export const allRimacCases = async (offset, limit, search = "") => {
       *, 
       (
         SELECT COUNT(*) 
-        FROM rimac_reports 
-        ${searchFilter}
+        FROM rimac_reports
+        ${subWhereClause}
       ) AS total
     FROM rimac_reports
-    ${searchFilter}
+    ${whereClause}
     ORDER BY created_at DESC
     LIMIT ? OFFSET ?
   `;
 
+  queryParams.push(limit, offset);
+
   try {
-    const queryParams = hasSearch
-      ? [`%${search}%`, `%${search}%`, limit, offset]
-      : [limit, offset];
-
     const rows = await dbQuery(baseQuery, queryParams);
-
     const total = rows.length > 0 ? rows[0].total : 0;
     const cleanRows = rows.map(({ total, ...rest }) => rest);
     return { data: cleanRows, total };

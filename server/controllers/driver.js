@@ -189,28 +189,29 @@ export const assignDriverToVehicle = async (req, res) => {
 
     const flespiResponse = await getDeviceOdometer(deviceFlespiId);
 
-    let verifyOdometerReading =
-      flespiResponse[0]?.telemetry["vehicle.mileage"]?.value;
+    let verifyOdometerReading = null;
 
-    if (verifyOdometerReading === undefined) {
-      return res.status(500).json({
-        status: false,
-        message: "Failed to retrieve odometer reading from Flespi",
-      });
+    if (Array.isArray(flespiResponse) && flespiResponse.length > 0) {
+      verifyOdometerReading =
+        flespiResponse[0]?.telemetry?.["vehicle.mileage"]?.value;
     }
 
-    const parsedOdometer = parseFloat(odometer);
-    const normalizedOdometer = parseFloat(parsedOdometer.toFixed(2));
-    const normalizedFlespi = parseFloat(
-      parseFloat(verifyOdometerReading).toFixed(2)
-    );
+    let parsedOdometer = parseFloat(odometer);
+    let normalizedOdometer = parseFloat(parsedOdometer.toFixed(2));
 
-    // if (normalizedOdometer !== normalizedFlespi) {
-    //   return res.status(400).json({
-    //     status: false,
-    //     message: `Odometer reading (${normalizedOdometer}) does not match Flespi's reading (${normalizedFlespi})`,
-    //   });
-    // }
+    if (verifyOdometerReading !== null && verifyOdometerReading !== undefined) {
+      let normalizedFlespi = parseFloat(
+        parseFloat(verifyOdometerReading).toFixed(2)
+      );
+
+      // Optionally compare if you want
+      // if (normalizedOdometer !== normalizedFlespi) {
+      //   return res.status(400).json({
+      //     status: false,
+      //     message: `Odometer mismatch: ${normalizedOdometer} vs ${normalizedFlespi}`,
+      //   });
+      // }
+    }
 
     let dbBody = {
       device_id,

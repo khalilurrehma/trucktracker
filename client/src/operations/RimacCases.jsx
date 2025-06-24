@@ -66,17 +66,19 @@ const RimacCases = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filter, setFilter] = useState("Salesforce");
+  const [filter, setFilter] = useState("");
 
-  const fetchFromApi = async (page = 1, search = "") => {
+  const fetchFromApi = async (page = 1, search = "", selectedFilter = "") => {
     try {
       setLoading(true);
       const { data } = await axios.get(`${url}/rimac/cases`, {
-        params: { page, limit: 10, search },
+        params: { page, limit: 10, search, filter: selectedFilter },
       });
 
       const now = dayjs();
       const mappedCases = data.data.map((item) => {
+        // console.log(item);
+
         const report =
           typeof item.report_data === "string"
             ? JSON.parse(item.report_data)
@@ -87,6 +89,8 @@ const RimacCases = () => {
 
         return {
           id: item.id,
+          caseId: item.case_id,
+          status: item.status,
           creationDate: new Date(item.created_at).toLocaleDateString(),
           code: safeValue(report.Informe),
           salesforce: safeValue(report.NomBrok),
@@ -111,8 +115,8 @@ const RimacCases = () => {
   };
 
   useEffect(() => {
-    fetchFromApi(page, searchQuery);
-  }, [page, searchQuery]);
+    fetchFromApi(page, searchQuery, filter);
+  }, [page, searchQuery, filter]);
 
   const handlePageChange = (event, value) => {
     setPage(value);
@@ -201,22 +205,11 @@ const RimacCases = () => {
               size="small"
               sx={{ minWidth: "120px" }}
             >
-              <MenuItem value="Salesforce">By Salesforce</MenuItem>
+              <MenuItem value="">All</MenuItem>
+              <MenuItem value="completed">Completed</MenuItem>
+              <MenuItem value="sent_to_rimac">Sent to Rimac</MenuItem>
+              <MenuItem value="pending">Pending</MenuItem>
             </Select>
-            <Button
-              variant="outlined"
-              startIcon={<FilterListIcon />}
-              sx={{
-                borderColor: "#E57373",
-                color: "#E57373",
-                "&:hover": {
-                  borderColor: "#E57373",
-                  backgroundColor: "#FFEBEE",
-                },
-              }}
-            >
-              FILTER
-            </Button>
           </Box>
         </Box>
 
@@ -308,22 +301,24 @@ const RimacCases = () => {
                     }}
                   >
                     <TableCell>
-                      {row.isNew && (
-                        <Box
-                          component="span"
-                          sx={{
-                            backgroundColor: "#E57373",
-                            color: "white",
-                            fontSize: "11px",
-                            borderRadius: "8px",
-                            px: 1,
-                            py: 0.2,
-                            fontWeight: "bold",
-                          }}
-                        >
-                          NEW
-                        </Box>
-                      )}{" "}
+                      <Box
+                        component="span"
+                        sx={{
+                          backgroundColor: "#E57373",
+                          color: "white",
+                          fontSize: "11px",
+                          borderRadius: "8px",
+                          px: 1,
+                          py: 0.2,
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {row.status === "completed"
+                          ? row.status
+                          : row.isNew
+                          ? "new"
+                          : row.status}
+                      </Box>
                     </TableCell>
                     <TableCell>{row.creationDate}</TableCell>
                     <TableCell>{row.code}</TableCell>

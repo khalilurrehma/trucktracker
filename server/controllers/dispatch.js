@@ -859,8 +859,9 @@ export const fetchAllRimacCases = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
     const search = req.query.search || "";
+    const filter = req.query.filter || "";
 
-    const { data, total } = await allRimacCases(offset, limit, search);
+    const { data, total } = await allRimacCases(offset, limit, search, filter);
 
     res.status(200).json({
       success: true,
@@ -899,9 +900,30 @@ export const getRimacReportById = async (req, res) => {
         .send({ status: false, message: "Report not found" });
     }
 
+    const response = {
+      rimac: {
+        ...report,
+      },
+      dispatch: null,
+    };
+
+    if (report.status === "completed") {
+      const dispatchReport = await fetchCaseReportById(report.case_id);
+
+      if (dispatchReport) {
+        response.dispatch = {
+          ...dispatchReport,
+          vehicles:
+            typeof dispatchReport.vehicles === "string"
+              ? JSON.parse(dispatchReport.vehicles)
+              : dispatchReport.vehicles,
+        };
+      }
+    }
+
     res.status(200).json({
       status: true,
-      message: report,
+      message: response,
     });
   } catch (error) {
     res.status(204).send({ status: false, message: error.message });
