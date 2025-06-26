@@ -35,7 +35,6 @@ const RimacCaseReport = () => {
         const parsedReportData = JSON.parse(data.message.rimac.report_data);
         setReport({
           ...parsedReportData,
-          dispatch: data.message.dispatch,
         });
       }
     } catch (error) {
@@ -78,108 +77,6 @@ const RimacCaseReport = () => {
       return "-";
     }
     return value ? String(value).trim() : "N/A";
-  };
-
-  const formatDeducible = (raw) => {
-    if (!raw) return "-";
-
-    return raw
-
-      .replace(/;/g, "\n\n")
-      .replace(/ -/g, "\n-")
-      .replace(/([a-z])([A-Z])/g, "$1 $2")
-      .trim();
-  };
-
-  const getOrderedPhotos = (photos) => {
-    if (!photos || !Array.isArray(photos)) return [];
-
-    const photoOrder = [
-      {
-        type: "front",
-        category: "Client Vehicle",
-        label: "Front (Client Vehicle)",
-      },
-      {
-        type: "back",
-        category: "Client Vehicle",
-        label: "Back (Client Vehicle)",
-      },
-      {
-        type: "sideleft",
-        category: "Client Vehicle",
-        label: "Sideleft (Client Vehicle)",
-      },
-      {
-        type: "damage",
-        category: "Client Vehicle",
-        label: "Damage (Client Vehicle)",
-      },
-      {
-        type: "photo",
-        category: "Client Vehicle",
-        label: "Photo (Client Vehicle)",
-      },
-      {
-        type: "other",
-        category: "Client Vehicle",
-        label: "Other (Client Vehicle)",
-      },
-      {
-        type: "vehicle_card_front",
-        category: "Client Document",
-        label: "Vehicle Card Front (Client Document)",
-      },
-      {
-        type: "driving_license_front",
-        category: "Client Document",
-        label: "Driving License Front (Client Document)",
-      },
-      {
-        type: "driving_license_back",
-        category: "Client Document",
-        label: "Driving License Back (Client Document)",
-      },
-      {
-        type: "other",
-        category: "Client Document",
-        label: "Other (Client Document)",
-      },
-      {
-        type: "",
-        category: "Additional Information",
-        label: "Multiple Images (Additional Information)",
-      },
-    ];
-
-    const orderedPhotos = [];
-    photoOrder.forEach(({ type, category, label }) => {
-      const matchingPhotos = photos.filter(
-        (photo) =>
-          photo.type.toLowerCase() === type.toLowerCase() &&
-          photo.category.toLowerCase() === category.toLowerCase()
-      );
-      matchingPhotos.forEach((photo) => {
-        orderedPhotos.push({ ...photo, label });
-      });
-    });
-
-    const unmatchedPhotos = photos.filter(
-      (photo) =>
-        !photoOrder.some(
-          (order) =>
-            photo.type.toLowerCase() === order.type.toLowerCase() &&
-            photo.category.toLowerCase() === order.category.toLowerCase()
-        )
-    );
-    unmatchedPhotos.forEach((photo) => {
-      orderedPhotos.push({
-        ...photo,
-        label: `${toSafeString(photo.type)} (${toSafeString(photo.category)})`,
-      });
-    });
-
-    return orderedPhotos;
   };
 
   return (
@@ -255,7 +152,7 @@ const RimacCaseReport = () => {
             <TextField
               label="Make/Model"
               value={
-                `${toSafeString(report.Marca)}/${toSafeString(
+                `${toSafeString(report.Marca)} / ${toSafeString(
                   report.Modelo
                 )}`.trim() || "N/A"
               }
@@ -401,7 +298,7 @@ const RimacCaseReport = () => {
             >
               <TextField
                 label="Simplified Deductibles"
-                value={formatDeducible(report.Deducible)}
+                value={report?.Deducible}
                 multiline
                 fullWidth
                 variant="outlined"
@@ -473,7 +370,7 @@ const RimacCaseReport = () => {
           >
             <TextField
               label="Simplified Deductibles"
-              value={formatDeducible(report.Deducible)}
+              value={report?.Deducible}
               multiline
               fullWidth
               variant="outlined"

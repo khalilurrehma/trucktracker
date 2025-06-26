@@ -22,6 +22,7 @@ import {
   findCaseByName,
   findCaseStatusById,
   findPendingApprovalSuggestedService,
+  findRimacReportByCaseId,
   findRimacReportById,
   getAllNotifications,
   getNotificationsByCompanyId,
@@ -549,11 +550,22 @@ export const getDispatchCaseReport = async (req, res) => {
   }
 
   try {
-    const report = await fetchCaseReportById(caseId);
+    const [report, rimacReport] = await Promise.all([
+      fetchCaseReportById(caseId),
+      findRimacReportByCaseId(caseId),
+    ]);
+
+    let response = {
+      ...report,
+    };
+
+    if (rimacReport.success) {
+      response.rimacReport = rimacReport.report;
+    }
 
     return res.status(200).json({
       status: true,
-      message: report || [],
+      message: response || [],
     });
   } catch (error) {
     return res.status(500).json({

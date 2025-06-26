@@ -127,6 +127,24 @@ export const findRimacReportById = async (report_id) => {
   }
 };
 
+export const findRimacReportByCaseId = async (case_id) => {
+  const sql = `SELECT * FROM rimac_reports WHERE case_id = ?`;
+  const values = [case_id];
+
+  try {
+    const result = await dbQuery(sql, values);
+
+    if (result) {
+      return { success: true, report: result };
+    } else {
+      return { success: false, report: {} };
+    }
+  } catch (error) {
+    console.error("Error fetching Rimac report by ID:", error);
+    throw error;
+  }
+};
+
 export const addNewCase = async (body) => {
   const {
     user_id,

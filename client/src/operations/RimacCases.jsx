@@ -25,6 +25,7 @@ import FilterListIcon from "@mui/icons-material/FilterList";
 import Tooltip from "@mui/material/Tooltip";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import SummarizeIcon from "@mui/icons-material/Summarize";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import axios from "axios";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -48,8 +49,8 @@ const mapIncomingReport = (report) => {
     districtOrigin: safeValue(report.Dist),
     destinationDistrict: safeValue(report.Dist),
     issue: safeValue(report.DescEnvio),
-    mode: report.LMDM === "S" ? "LMDM" : "Standard",
-    state: report.EstadoPoliza === "ACTIVA" ? "SECURED CONTACT" : "OTHER",
+    mode: report.LMDM === "S" ? "LMDM" : "Auctioned",
+    state: report.EstadoPoliza === "ACTIVA" ? "CULIMINATION" : "OTHER",
     accidentAddress: safeValue(report.DirSin),
     isNew: now.diff(createdAt, "hour") <= 24,
     isLive: true,
@@ -283,96 +284,100 @@ const RimacCases = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                cases.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    onClick={() => {
-                      navigate(
-                        `/operations/dispatch?address=${row.accidentAddress}&casenumber=${row.code}`
-                      );
-                    }}
-                    sx={{
-                      cursor: "pointer",
-                      backgroundColor: row.isLive ? "#FFF8E1" : "inherit",
-                      transition: "background-color 1s ease",
-                      "&:hover": {
-                        backgroundColor: "#F5F5F5",
-                      },
-                    }}
-                  >
-                    <TableCell>
-                      <Box
-                        component="span"
-                        sx={{
-                          backgroundColor: "#E57373",
-                          color: "white",
-                          fontSize: "11px",
-                          borderRadius: "8px",
-                          px: 1,
-                          py: 0.2,
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {row.status === "completed"
-                          ? row.status
-                          : row.isNew
-                          ? "new"
-                          : row.status}
-                      </Box>
-                    </TableCell>
-                    <TableCell>{row.creationDate}</TableCell>
-                    <TableCell>{row.code}</TableCell>
-                    <TableCell>{row.salesforce}</TableCell>
-                    <TableCell>{row.plate}</TableCell>
-                    <TableCell>{row.districtOrigin}</TableCell>
-                    <TableCell>{row.issue}</TableCell>
-                    <TableCell>{row.mode}</TableCell>
-                    <TableCell>
-                      <Box
-                        sx={{
-                          backgroundColor:
-                            row.state === "OTHER"
-                              ? "rgb(255 78 78)"
-                              : "rgb(97 255 139)",
-                          color:
-                            row.state === "OTHER" ? "#FFFFFF" : "rgb(0 0 0)",
-                          borderRadius: "12px",
-                          textAlign: "center",
-                          padding: "4px 8px",
-                          display: "inline-block",
-                        }}
-                      >
-                        {row.state}
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      {/* <IconButton
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          console.log("Info clicked");
-                        }}
-                      >
-                        <InfoOutlinedIcon />
-                      </IconButton> */}
-                      <IconButton
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/operations/rimac/case/report/${row.id}`);
-                        }}
-                      >
-                        <VisibilityOutlinedIcon />
-                      </IconButton>
-                      {/* <IconButton
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          console.log("Edit clicked");
-                        }}
-                      >
-                        <EditOutlinedIcon />
-                      </IconButton> */}
-                    </TableCell>
-                  </TableRow>
-                ))
+                cases.map((row) => {
+                  // console.log(row);
+
+                  return (
+                    <TableRow
+                      key={row.id}
+                      onClick={() => {
+                        navigate(
+                          `/operations/dispatch?address=${row.accidentAddress}&casenumber=${row.code}`
+                        );
+                      }}
+                      sx={{
+                        cursor: "pointer",
+                        backgroundColor: row.isLive ? "#FFF8E1" : "inherit",
+                        transition: "background-color 1s ease",
+                        "&:hover": {
+                          backgroundColor: "#F5F5F5",
+                        },
+                      }}
+                    >
+                      <TableCell>
+                        <Box
+                          component="span"
+                          sx={{
+                            backgroundColor: "#E57373",
+                            color: "white",
+                            fontSize: "11px",
+                            borderRadius: "8px",
+                            px: 1,
+                            py: 0.2,
+                            fontWeight: "bold",
+                          }}
+                        >
+                          {row.status === "completed"
+                            ? row.status
+                            : row.isNew
+                            ? "new"
+                            : row.status}
+                        </Box>
+                      </TableCell>
+                      <TableCell>{row.creationDate}</TableCell>
+                      <TableCell>{row.code}</TableCell>
+                      <TableCell>{row.salesforce}</TableCell>
+                      <TableCell>{row.plate}</TableCell>
+                      <TableCell>{row.districtOrigin}</TableCell>
+                      <TableCell>{row.issue}</TableCell>
+                      <TableCell>{row.mode}</TableCell>
+                      <TableCell>
+                        <Box
+                          sx={{
+                            backgroundColor:
+                              row.state === "OTHER"
+                                ? "rgb(255 78 78)"
+                                : "rgb(97 255 139)",
+                            color:
+                              row.state === "OTHER" ? "#FFFFFF" : "rgb(0 0 0)",
+                            borderRadius: "12px",
+                            textAlign: "center",
+                            padding: "4px 8px",
+                            display: "inline-block",
+                          }}
+                        >
+                          {row.state}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: "flex" }}>
+                          <IconButton
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(
+                                `/operations/rimac/case/report/${row.id}`
+                              );
+                            }}
+                          >
+                            <VisibilityOutlinedIcon />
+                          </IconButton>
+                          {row.caseId && row.status === "completed" && (
+                            <IconButton
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(
+                                  `/operations/rimac-case/report/final/${row.id}/caseId/${row.caseId}`
+                                );
+                              }}
+                            >
+                              <SummarizeIcon />
+                            </IconButton>
+                          )}
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>

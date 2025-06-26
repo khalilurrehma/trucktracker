@@ -132,6 +132,7 @@ import DispatchSearchHistory from "./operations/DispatchSearchHistory";
 import SnapshotsPage from "./settings/SnapshotsPage";
 import AddSnaphotsDevices from "./settings/AddSnaphotsDevices";
 import RemoveSnapshotsDevices from "./settings/RemoveSnapshotsDevices";
+import RimacFinalReportView from "./operations/RimacFinalReportView";
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -400,6 +401,10 @@ const Navigation = () => {
           <Route path="alerts" element={<MqttAlerts />} />
           <Route path="rimac/cases" element={<RimacCases />} />
           <Route path="rimac/case/report/:id" element={<RimacCaseReport />} />
+          <Route
+            path="rimac-case/report/final/:id/caseId/:caseId"
+            element={<RimacFinalReportView />}
+          />
         </Route>
 
         <Route path="reports">
