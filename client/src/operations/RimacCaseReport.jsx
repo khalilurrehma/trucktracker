@@ -73,15 +73,24 @@ const RimacCaseReport = () => {
     );
   }
 
-  // Helper function to safely convert values to string
   const toSafeString = (value) => {
     if (typeof value === "object" && value !== null) {
-      return "N/A"; // Handle objects (like empty {}) by returning "N/A"
+      return "-";
     }
     return value ? String(value).trim() : "N/A";
   };
 
-  // Helper function to sort and filter photos in the specified order
+  const formatDeducible = (raw) => {
+    if (!raw) return "-";
+
+    return raw
+
+      .replace(/;/g, "\n\n")
+      .replace(/ -/g, "\n-")
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .trim();
+  };
+
   const getOrderedPhotos = (photos) => {
     if (!photos || !Array.isArray(photos)) return [];
 
@@ -155,7 +164,6 @@ const RimacCaseReport = () => {
       });
     });
 
-    // Add any remaining photos that don't match the specified types/categories
     const unmatchedPhotos = photos.filter(
       (photo) =>
         !photoOrder.some(
@@ -184,7 +192,7 @@ const RimacCaseReport = () => {
         <Box sx={{ backgroundColor: "#F5F5F5", p: 2, borderRadius: 1, mb: 2 }}>
           <Typography variant="h6">Details of the Rimac Case</Typography>
           <Typography variant="body1" sx={{ color: "#E57373" }}>
-            C - {toSafeString(report.Caso)}
+            C - {toSafeString(report.Informe)}
           </Typography>
         </Box>
 
@@ -198,7 +206,7 @@ const RimacCaseReport = () => {
             <TextField
               label="Insured"
               value={
-                `${toSafeString(report.NomTit)} ${toSafeString(
+                `${toSafeString(report.NomCond)} ${toSafeString(
                   report.ApPatTit
                 )} ${toSafeString(report.ApMatTit)}`.trim() || "N/A"
               }
@@ -209,6 +217,13 @@ const RimacCaseReport = () => {
             <TextField
               label="Product"
               value={toSafeString(report.CodProd)}
+              variant="outlined"
+              fullWidth
+              InputProps={{ readOnly: true }}
+            />
+            <TextField
+              label="Policy and certificate"
+              value={toSafeString(report.NroPoliza)}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
@@ -304,26 +319,15 @@ const RimacCaseReport = () => {
             />
             <TextField
               label="Subtopic"
-              value={report.DatosDeduc ? "Pérdida Parcial" : "N/A"}
+              value={report.DatosDeduc ? "Pérdida Parcial" : "-"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
           </Box>
-          <Box sx={{ display: "flex", gap: 2 }}>
+          <Box sx={{ display: "flex", gap: 8, mb: 4 }}>
             <TextField
               label="Opening date and time"
-              value={
-                `${toSafeString(report.FecOcurr)} ${toSafeString(
-                  report.HorOcurr
-                )}`.trim() || "N/A"
-              }
-              variant="outlined"
-              fullWidth
-              InputProps={{ readOnly: true }}
-            />
-            <TextField
-              label="Date and time of assignment"
               value={
                 `${toSafeString(report.FecLlamada)} ${toSafeString(
                   report.HorLlamada
@@ -334,28 +338,32 @@ const RimacCaseReport = () => {
               InputProps={{ readOnly: true }}
             />
             <TextField
+              label="Date and time of assignment"
+              value={
+                `${toSafeString(report.FecOcurr)} ${toSafeString(
+                  report.HorOcurr
+                )}`.trim() || "N/A"
+              }
+              variant="outlined"
+              fullWidth
+              InputProps={{ readOnly: true }}
+            />
+            <TextField
               label="Programming date and time"
-              value="N/A"
+              value="-"
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
             <TextField
               label="Mode"
-              value={report.LMDM === "S" ? "Subasta" : "Standard"}
+              value={report.LMDM === "N" ? "Subastado" : "Standard"}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
           </Box>
-        </Box>
-
-        {/* Driver */}
-        <Box sx={{ border: "1px solid #E57373", p: 2, borderRadius: 1, mb: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-            <Typography variant="h6">Driver</Typography>
-          </Box>
-          <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+          <Box sx={{ display: "flex", gap: 8, mb: 4 }}>
             <TextField
               label="Driver Name"
               value={
@@ -374,15 +382,35 @@ const RimacCaseReport = () => {
               fullWidth
               InputProps={{ readOnly: true }}
             />
+            <TextField
+              label="Contracting segment"
+              value="-"
+              variant="outlined"
+              fullWidth
+              InputProps={{ readOnly: true }}
+            />
           </Box>
-        </Box>
-
-        {/* For Event */}
-        <Box sx={{ border: "1px solid #E57373", p: 2, borderRadius: 1, mb: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-            <Typography variant="h6">For event</Typography>
-          </Box>
-          <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+          <Box sx={{ display: "flex", gap: 8, mb: 4 }}>
+            <Box
+              sx={{
+                maxHeight: 100,
+                width: "100%",
+                overflowY: "auto",
+                padding: 1,
+              }}
+            >
+              <TextField
+                label="Simplified Deductibles"
+                value={formatDeducible(report.Deducible)}
+                multiline
+                fullWidth
+                variant="outlined"
+                InputProps={{
+                  readOnly: true,
+                  style: { whiteSpace: "pre-line" },
+                }}
+              />
+            </Box>
             <TextField
               label="Type care"
               value={toSafeString(report.DescEnvio)}
@@ -390,31 +418,20 @@ const RimacCaseReport = () => {
               fullWidth
               InputProps={{ readOnly: true }}
             />
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+            <Typography variant="h6" sx={{ color: "#E57373" }}>
+              - Origin address
+            </Typography>
+          </Box>
+          <Box sx={{ display: "flex", gap: 2, mb: 4 }}>
             <TextField
-              label="Procurator"
-              value={report.Proveedor ? report.Proveedor.split(" ")[0] : "ANR"}
+              label="Department of origin"
+              value={toSafeString(report.Dpto)}
               variant="outlined"
               fullWidth
               InputProps={{ readOnly: true }}
             />
-          </Box>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            Siniestros atendidos solo en red de talleres (clásico) 15% del monto
-            a indemnizar, mínimo US$ 300. Siniestros atendidos en talleres de la
-            red de talleres (clásico) 15% del monto a indemnizar, mínimo US$
-            150, excepto para pérdida parcial, 20% del monto a indemnizar,
-            mínimo US$ 150, excepto para pérdida parcial, 20% del monto a
-          </Typography>
-        </Box>
-
-        {/* Origin Address */}
-        <Box sx={{ border: "1px solid #E57373", p: 2, borderRadius: 1, mb: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-            <Typography variant="h6" sx={{ color: "#E57373" }}>
-              Origin address
-            </Typography>
-          </Box>
-          <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
             <TextField
               label="Province of origin"
               value={toSafeString(report.Prov)}
@@ -429,15 +446,8 @@ const RimacCaseReport = () => {
               fullWidth
               InputProps={{ readOnly: true }}
             />
-            <TextField
-              label="Department"
-              value={toSafeString(report.Dpto)}
-              variant="outlined"
-              fullWidth
-              InputProps={{ readOnly: true }}
-            />
           </Box>
-          <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+          <Box sx={{ display: "flex", gap: 2, mb: 4 }}>
             <TextField
               label="Origin address"
               value={toSafeString(report.DirSin)}
@@ -453,13 +463,26 @@ const RimacCaseReport = () => {
               InputProps={{ readOnly: true }}
             />
           </Box>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            {`${toSafeString(
-              report.FecOcurr
-            )} EVENTO Siniestros atendidos solo en red de talleres
-            (clásico) 15% del monto a indemnizar, mínimo US$ 300, excepto para
-            pérdida parcial, 20% del monto a indemnizar, mínimo US$ 150, excepto`}
-          </Typography>
+          <Box
+            sx={{
+              maxHeight: 100,
+              width: "100%",
+              overflowY: "auto",
+              padding: 1,
+            }}
+          >
+            <TextField
+              label="Simplified Deductibles"
+              value={formatDeducible(report.Deducible)}
+              multiline
+              fullWidth
+              variant="outlined"
+              InputProps={{
+                readOnly: true,
+                style: { whiteSpace: "pre-line" },
+              }}
+            />
+          </Box>
         </Box>
 
         {/* Comments to Send */}
@@ -473,7 +496,8 @@ const RimacCaseReport = () => {
             rows={4}
             fullWidth
             variant="outlined"
-            placeholder="Comments..."
+            placeholder="-"
+            InputProps={{ readOnly: true }}
           />
         </Box>
 
@@ -537,8 +561,7 @@ const RimacCaseReport = () => {
           </Box>
         </Box>
 
-        {/* Chong & Asociados Dispatch Section (Conditional) */}
-        {report.dispatch && (
+        {/* {report.dispatch && (
           <Box
             sx={{
               border: "1px solid #1976D2",
@@ -558,7 +581,6 @@ const RimacCaseReport = () => {
               </Typography>
             </Box>
 
-            {/* Damage Description */}
             <Box sx={{ mb: 2 }}>
               <Typography variant="h6" sx={{ mb: 1, fontWeight: "bold" }}>
                 Damage Description
@@ -574,7 +596,6 @@ const RimacCaseReport = () => {
               />
             </Box>
 
-            {/* Additional Information */}
             <Box sx={{ mb: 2 }}>
               <Typography variant="h6" sx={{ mb: 1, fontWeight: "bold" }}>
                 Additional Information
@@ -590,7 +611,6 @@ const RimacCaseReport = () => {
               />
             </Box>
 
-            {/* Photos */}
             <Box>
               <Typography variant="h6" sx={{ mb: 1, fontWeight: "bold" }}>
                 Photos
@@ -633,10 +653,9 @@ const RimacCaseReport = () => {
               </Grid>
             </Box>
           </Box>
-        )}
+        )} */}
 
-        {/* Footer Actions */}
-        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
+        {/* <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
           <Button
             variant="contained"
             sx={{
@@ -647,7 +666,7 @@ const RimacCaseReport = () => {
           >
             Send to Rimac
           </Button>
-        </Box>
+        </Box> */}
       </Box>
     </PageLayout>
   );

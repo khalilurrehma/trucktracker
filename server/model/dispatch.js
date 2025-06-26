@@ -33,20 +33,22 @@ export const allRimacCases = async (
   const conditions = [];
   const subConditions = [];
   const queryParams = [];
+  const subQueryParams = [];
 
   if (search.trim()) {
-    const searchCondition = `JSON_UNQUOTE(JSON_EXTRACT(report_data, '$.Informe')) LIKE ?`;
-    conditions.push(searchCondition);
-    subConditions.push(searchCondition);
+    const condition = `JSON_UNQUOTE(JSON_EXTRACT(report_data, '$.Informe')) LIKE ?`;
+    conditions.push(condition);
+    subConditions.push(condition);
     queryParams.push(`%${search}%`);
+    subQueryParams.push(`%${search}%`);
   }
 
   if (filter) {
-    subConditions.push(`status = ?`);
+    const condition = `status = ?`;
+    conditions.push(condition);
+    subConditions.push(condition);
     queryParams.push(filter);
-
-    conditions.push(`status = ?`);
-    queryParams.push(filter);
+    subQueryParams.push(filter);
   }
 
   const whereClause = conditions.length
@@ -70,10 +72,10 @@ export const allRimacCases = async (
     LIMIT ? OFFSET ?
   `;
 
-  queryParams.push(limit, offset);
+  const finalParams = [...subQueryParams, ...queryParams, limit, offset];
 
   try {
-    const rows = await dbQuery(baseQuery, queryParams);
+    const rows = await dbQuery(baseQuery, finalParams);
     const total = rows.length > 0 ? rows[0].total : 0;
     const cleanRows = rows.map(({ total, ...rest }) => rest);
     return { data: cleanRows, total };

@@ -72,7 +72,7 @@ const RimacCases = () => {
     try {
       setLoading(true);
       const { data } = await axios.get(`${url}/rimac/cases`, {
-        params: { page, limit: 10, search, filter: selectedFilter },
+        params: { page, limit: 8, search, filter: selectedFilter },
       });
 
       const now = dayjs();
@@ -98,8 +98,8 @@ const RimacCases = () => {
           districtOrigin: safeValue(report.Dist),
           destinationDistrict: safeValue(report.Dist),
           issue: safeValue(report.DescEnvio),
-          mode: report.LMDM === "S" ? "LMDM" : "Standard",
-          state: report.EstadoPoliza === "ACTIVA" ? "SECURED CONTACT" : "OTHER",
+          mode: report.LMDM === "S" ? "LMDM" : "Auctioned",
+          state: report.EstadoPoliza === "ACTIVA" ? "CULIMINATION" : "OTHER",
           accidentAddress: safeValue(report.DirSin),
           isNew,
         };
@@ -331,13 +331,11 @@ const RimacCases = () => {
                       <Box
                         sx={{
                           backgroundColor:
-                            row.state === "SECURED CONTACT"
-                              ? "#FFF3E0"
-                              : "#E8F5E9",
+                            row.state === "OTHER"
+                              ? "rgb(255 78 78)"
+                              : "rgb(97 255 139)",
                           color:
-                            row.state === "SECURED CONTACT"
-                              ? "#F57C00"
-                              : "#388E3C",
+                            row.state === "OTHER" ? "#FFFFFF" : "rgb(0 0 0)",
                           borderRadius: "12px",
                           textAlign: "center",
                           padding: "4px 8px",
