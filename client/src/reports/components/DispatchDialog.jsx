@@ -30,6 +30,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 const DispatchDialog = ({
   value,
   rimacCase,
+  rimacReportId,
   openAssignModal,
   setOpenAssignModal,
   assignedDevices,
@@ -78,7 +79,10 @@ const DispatchDialog = ({
       formData.append("files", file);
     });
 
-    if (rimacCase) formData.append("metadata", JSON.stringify({ rimacCase }));
+    if (rimacCase) {
+      formData.append("metadata", JSON.stringify({ rimacCase }));
+      formData.append("rimac_report_id", rimacReportId);
+    }
 
     try {
       setLoader(true);

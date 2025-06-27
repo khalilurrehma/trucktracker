@@ -114,6 +114,31 @@ export const updateRimacReportById = async (id, report_body) => {
   }
 };
 
+export const updateRimacReportStatus = async (case_id, status) => {
+  const sql = `UPDATE rimac_reports SET status = ? WHERE case_id = ?`;
+
+  let values = [status, case_id];
+  try {
+    await dbQuery(sql, values);
+  } catch (error) {
+    console.error("Error updating Rimac report status by case_id:", error);
+    throw error;
+  }
+};
+
+export const addCaseIdInRimacReport = async (rimac_report_id, case_id) => {
+  const sql = `UPDATE rimac_reports SET case_id = ? WHERE id = ?`;
+
+  const values = [parseInt(case_id), parseInt(rimac_report_id)];
+
+  try {
+    await dbQuery(sql, values);
+  } catch (error) {
+    console.error("Error adding case_id into rimac_report:", error);
+    throw error;
+  }
+};
+
 export const findRimacReportById = async (report_id) => {
   const sql = `SELECT * FROM rimac_reports WHERE id = ?`;
   const values = [report_id];

@@ -1,5 +1,6 @@
 import {
   actionSuggestionService,
+  addCaseIdInRimacReport,
   addNewCase,
   addNewTowCarServicePrice,
   allPendingSuggestedServices,
@@ -50,6 +51,7 @@ import {
   updateCaseStatusById,
   updateProviderPriceInDb,
   updateRimacReportById,
+  updateRimacReportStatus,
   updateSearchHistory,
 } from "../model/dispatch.js";
 import {
@@ -80,6 +82,8 @@ import {
 import { validateSubserviceType } from "../model/devices.js";
 import dayjs from "dayjs";
 import { rimacBodyValidFields } from "../utils/rimacBody.js";
+import { mapToRimacApiPayload } from "../utils/common.js";
+import axios from "axios";
 
 export const DispatchEmitter = new EventEmitter();
 
@@ -94,6 +98,7 @@ export const handleNewDispatchCase = async (req, res) => {
     message,
     devicesMeta,
     metadata,
+    rimac_report_id,
   } = req.body;
   let assignedDeviceIds = req.body.assignedDeviceIds;
   let files;
@@ -252,6 +257,10 @@ export const handleNewDispatchCase = async (req, res) => {
 
     await updateSearchHistory(searchId);
 
+    if (rimac_report_id) {
+      await addCaseIdInRimacReport(rimac_report_id, newCase_id);
+    }
+
     setTimeout(() => {
       checkAndMarkDelayedCase(newCase_id);
     }, expectedDuration * 1000);
@@ -366,6 +375,121 @@ export const getDispatchCaseTracking = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const sendReportToRimac = async (req, res) => {
+  const { report, rimacReport } = req.body;
+  const { rimac_report_caseId: caseId } = req.query;
+
+  if (!report || !rimacReport) {
+    return res.status(400).json({
+      success: false,
+      message: "Missing report or rimacReport in request body",
+    });
+  }
+
+  try {
+    let loginResponse;
+    try {
+      loginResponse = await axios.post(
+        "http://52.147.211.125/interplus-servicios/api/login?usuario=practicante&password=interplus"
+      );
+    } catch (loginError) {
+      return res.status(502).json({
+        success: false,
+        message: "Failed to reach Rimac login API.",
+        error: loginError?.response?.data || loginError.message,
+      });
+    }
+
+    const rimacToken = loginResponse?.data?.token;
+
+    if (!rimacToken) {
+      return res.status(502).json({
+        success: false,
+        message:
+          loginResponse?.data?.mensaje ||
+          "Rimac login API did not return a token.",
+        error: loginResponse?.data || null,
+      });
+    }
+
+    let payload;
+    try {
+      payload = mapToRimacApiPayload(report, rimacReport);
+    } catch (mapError) {
+      return res.status(400).json({
+        success: false,
+        message: "Failed to map report data to Rimac payload.",
+        error: mapError.message,
+      });
+    }
+
+    let rimacResponse;
+    try {
+      rimacResponse = await axios.post(
+        "http://52.147.211.125/interplus-servicios/api/informes/terminarinforme_nextop",
+        payload,
+        {
+          headers: {
+            token: rimacToken,
+            "Content-Type": "application/json",
+          },
+          timeout: 10000,
+        }
+      );
+    } catch (apiError) {
+      return res.status(502).json({
+        success: false,
+        message: "Failed to reach Rimac report API.",
+        error: apiError?.response?.data || apiError.message,
+      });
+    }
+
+    const rimac = rimacResponse?.data;
+    if (!rimac || typeof rimac !== "object") {
+      return res.status(502).json({
+        success: false,
+        message: "Malformed Rimac API response.",
+        error: rimacResponse?.data,
+      });
+    }
+
+    if (rimac.successful) {
+      try {
+        if (caseId) {
+          await updateRimacReportStatus(caseId, "sent_to_rimac");
+        }
+      } catch (statusUpdateError) {
+        console.warn(
+          "Warning: Sent to Rimac, but failed to update local case status.",
+          statusUpdateError.message
+        );
+      }
+
+      return res.status(200).json({
+        success: true,
+        rimac,
+        message: rimac.mensaje || "Report sent successfully to Rimac.",
+      });
+    }
+
+    return res.status(400).json({
+      success: false,
+      message: rimac.mensaje || "Rimac API rejected the report.",
+      rimac,
+    });
+  } catch (error) {
+    console.error(
+      "Error sending report to Rimac:",
+      error?.response?.data || error.message
+    );
+    return res.status(500).json({
+      success: false,
+      message: "Unexpected server error.",
+      error: error?.response?.data || error.message,
+    });
   }
 };
 
@@ -919,7 +1043,7 @@ export const getRimacReportById = async (req, res) => {
       dispatch: null,
     };
 
-    if (report.status === "completed") {
+    if (report?.case_id) {
       const dispatchReport = await fetchCaseReportById(report.case_id);
 
       if (dispatchReport) {
@@ -1045,6 +1169,7 @@ export const dispatchCaseCompleteService = async (req, res) => {
         updateCaseStatusById(caseId, "completed"),
         updateCaseCurrentProcess(caseId, "case_completed"),
         driverStatusAvailable(driverId),
+        updateRimacReportStatus(caseId, "completed"),
       ]);
     } else {
       console.warn(`Update failed for caseId ${caseId}`);

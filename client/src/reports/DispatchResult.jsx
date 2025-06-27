@@ -61,8 +61,10 @@ const DispatchResult = () => {
 
   const rimacAddress = query.get("address");
   const rimacCaseNumber = query.get("casenumber");
+  const rimacReportId = query.get("rimac_report_id");
 
-  let ifRimacCase = rimacAddress && rimacCaseNumber ? true : false;
+  let ifRimacCase =
+    rimacAddress && rimacCaseNumber && rimacReportId ? true : false;
 
   const userId = useSelector((state) => state.session.user.id);
   const userName = useSelector((state) => state.session.user.name);
@@ -791,6 +793,7 @@ const DispatchResult = () => {
               destinationDescription: destinationAddress,
             }}
             rimacCase={ifRimacCase}
+            rimacReportId={rimacReportId}
             openAssignModal={openAssignModal}
             setOpenAssignModal={setOpenAssignModal}
             assignedDevices={assignedDevices}

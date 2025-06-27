@@ -24,7 +24,6 @@ import chongLogo from "../../resources/images/chong_logo1.png";
 
 const RimacCaseReport = ({ setOpenAssignModal, caseDetails, report }) => {
   const parsedReport = JSON.parse(report.rimacReport.report_data);
-  //   console.log(parsedReport);
 
   const reportRef = useRef();
   const [zoomOpen, setZoomOpen] = useState(false);
@@ -34,8 +33,6 @@ const RimacCaseReport = ({ setOpenAssignModal, caseDetails, report }) => {
   const waitForImagesToLoad = (element) => {
     const images = element.querySelectorAll("img");
     const promises = [];
-
-    console.log(images);
 
     images.forEach((img) => {
       if (!img.complete || img.naturalHeight === 0) {

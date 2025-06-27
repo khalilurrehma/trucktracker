@@ -292,7 +292,7 @@ const RimacCases = () => {
                       key={row.id}
                       onClick={() => {
                         navigate(
-                          `/operations/dispatch?address=${row.accidentAddress}&casenumber=${row.code}`
+                          `/operations/dispatch?address=${row.accidentAddress}&casenumber=${row.code}&rimac_report_id=${row.id}`
                         );
                       }}
                       sx={{
@@ -349,7 +349,7 @@ const RimacCases = () => {
                           {row.state}
                         </Box>
                       </TableCell>
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <Box sx={{ display: "flex" }}>
                           <IconButton
                             onClick={(e) => {
@@ -361,18 +361,28 @@ const RimacCases = () => {
                           >
                             <VisibilityOutlinedIcon />
                           </IconButton>
-                          {row.caseId && row.status === "completed" && (
-                            <IconButton
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(
-                                  `/operations/rimac-case/report/final/${row.id}/caseId/${row.caseId}`
-                                );
-                              }}
-                            >
-                              <SummarizeIcon />
-                            </IconButton>
-                          )}
+                          <Tooltip
+                            title={
+                              !row.caseId
+                                ? "Disabled: This report cannot be viewed because the case is yet to be assigned."
+                                : "View detailed Rimac report"
+                            }
+                            arrow
+                          >
+                            <span>
+                              <IconButton
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(
+                                    `/operations/rimac-case/report/final/${row.id}/caseId/${row.caseId}`
+                                  );
+                                }}
+                                disabled={!row.caseId}
+                              >
+                                <SummarizeIcon />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
                         </Box>
                       </TableCell>
                     </TableRow>
