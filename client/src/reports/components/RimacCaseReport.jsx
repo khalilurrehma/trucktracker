@@ -18,17 +18,26 @@ import {
   CircularProgress,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import jsPDF from "jspdf";
+import { toast, ToastContainer } from "react-toastify";
+import axios from "axios";
 import html2pdf from "html2pdf.js";
 import chongLogo from "../../resources/images/chong_logo1.png";
+import { useAppContext } from "../../AppContext";
 
-const RimacCaseReport = ({ setOpenAssignModal, caseDetails, report }) => {
+const RimacCaseReport = ({
+  setOpenAssignModal,
+  caseDetails,
+  report,
+  setReport,
+}) => {
   const parsedReport = JSON.parse(report.rimacReport.report_data);
 
   const reportRef = useRef();
+  const { url } = useAppContext();
   const [zoomOpen, setZoomOpen] = useState(false);
   const [PDFLoader, setPDFLoader] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [authorizeLoader, setAuthorizeLoader] = useState(false);
 
   const waitForImagesToLoad = (element) => {
     const images = element.querySelectorAll("img");
@@ -81,8 +90,27 @@ const RimacCaseReport = ({ setOpenAssignModal, caseDetails, report }) => {
     return value ? String(value).trim() : "N/A";
   };
 
+  const handleAuthorizeReport = async (report) => {
+    setAuthorizeLoader(true);
+    try {
+      const { data } = await axios.post(
+        `${url}/dispatch/case/report/authorize/${report.report_id}/${report.driver_id}`
+      );
+      if (data.status) {
+        setAuthorizeLoader(false);
+        toast.success(data.message || "Report authorized successfully");
+        setReport((prev) => ({ ...prev, authorized_status: 1 }));
+      } else {
+        toast.error(data.message || "Failed to authorize report");
+      }
+    } catch (error) {
+      toast.error("Error authorizing report: " + error.message);
+    }
+  };
+
   return (
     <>
+      <ToastContainer />
       <AppBar sx={{ position: "relative" }}>
         <Toolbar>
           <IconButton
@@ -99,6 +127,16 @@ const RimacCaseReport = ({ setOpenAssignModal, caseDetails, report }) => {
           {report && (
             <Button color="inherit" onClick={handleDownloadPDF}>
               Descargar PDF
+            </Button>
+          )}
+          {report && report.authorized_status == 0 && (
+            <Button
+              color="info"
+              variant="contained"
+              onClick={() => handleAuthorizeReport(report)}
+              sx={{ ml: 2 }}
+            >
+              {authorizeLoader ? "Authorizing..." : "Authorize Report"}
             </Button>
           )}
         </Toolbar>

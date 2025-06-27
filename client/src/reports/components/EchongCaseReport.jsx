@@ -26,7 +26,12 @@ import { useEffect, useState, useRef } from "react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
-const EchongCaseReport = ({ setOpenAssignModal, caseDetails, report }) => {
+const EchongCaseReport = ({
+  setOpenAssignModal,
+  caseDetails,
+  report,
+  setReport,
+}) => {
   const { url } = useAppContext();
   const reportRef = useRef(null);
   const [zoomOpen, setZoomOpen] = useState(false);

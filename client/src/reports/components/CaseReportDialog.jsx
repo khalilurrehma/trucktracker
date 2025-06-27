@@ -97,6 +97,7 @@ const CaseReportDialog = ({
           setOpenAssignModal={setOpenAssignModal}
           caseDetails={caseDetails}
           report={report}
+          setReport={setReport}
         />
       )}
       {rimacReportCase && (
@@ -104,6 +105,7 @@ const CaseReportDialog = ({
           setOpenAssignModal={setOpenAssignModal}
           caseDetails={caseDetails}
           report={report}
+          setReport={setReport}
         />
       )}
     </Dialog>

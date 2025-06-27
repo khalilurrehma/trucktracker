@@ -290,17 +290,21 @@ const RimacCases = () => {
                   return (
                     <TableRow
                       key={row.id}
-                      onClick={() => {
-                        navigate(
-                          `/operations/dispatch?address=${row.accidentAddress}&casenumber=${row.code}&rimac_report_id=${row.id}`
-                        );
-                      }}
+                      onClick={
+                        !row.caseId
+                          ? () => {
+                              navigate(
+                                `/operations/dispatch?address=${row.accidentAddress}&casenumber=${row.code}&rimac_report_id=${row.id}`
+                              );
+                            }
+                          : undefined
+                      }
                       sx={{
-                        cursor: "pointer",
+                        cursor: !row.caseId ? "pointer" : "not-allowed",
                         backgroundColor: row.isLive ? "#FFF8E1" : "inherit",
                         transition: "background-color 1s ease",
                         "&:hover": {
-                          backgroundColor: "#F5F5F5",
+                          backgroundColor: !row.caseId ? "#F5F5F5" : "inherit",
                         },
                       }}
                     >
