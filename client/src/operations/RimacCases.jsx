@@ -32,6 +32,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAppContext } from "../AppContext";
 import dayjs from "dayjs";
 import { toast, ToastContainer } from "react-toastify";
+import { useTheme } from "@mui/material";
 
 const safeValue = (value) =>
   typeof value === "string" || typeof value === "number" ? value : "N/A";
@@ -58,6 +59,8 @@ const mapIncomingReport = (report) => {
 };
 
 const RimacCases = () => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const { url, liveRimacCases } = useAppContext();
   const navigate = useNavigate();
   const location = useLocation();
@@ -88,13 +91,15 @@ const RimacCases = () => {
         const createdAt = dayjs(item.created_at);
         const isNew = now.diff(createdAt, "hour") <= 24;
 
+        // console.log(report);
+
         return {
           id: item.id,
           caseId: item.case_id,
           status: item.status,
           creationDate: new Date(item.created_at).toLocaleDateString(),
           code: safeValue(report.Informe),
-          salesforce: safeValue(report.NomBrok),
+          salesforce: safeValue(report.Caso),
           plate: safeValue(report.NroPlaca),
           districtOrigin: safeValue(report.Dist),
           destinationDistrict: safeValue(report.Dist),
@@ -301,10 +306,20 @@ const RimacCases = () => {
                       }
                       sx={{
                         cursor: !row.caseId ? "pointer" : "not-allowed",
-                        backgroundColor: row.isLive ? "#FFF8E1" : "inherit",
-                        transition: "background-color 1s ease",
+                        backgroundColor: row.isLive
+                          ? isDark
+                            ? "#3b3b3b"
+                            : "#FFF8E1"
+                          : "inherit",
+                        transition: "background-color 0.3s ease",
                         "&:hover": {
-                          backgroundColor: !row.caseId ? "#F5F5F5" : "inherit",
+                          backgroundColor: !row.caseId
+                            ? isDark
+                              ? "#2e2e2e"
+                              : "#f5f5f5"
+                            : isDark
+                            ? "#ff6666"
+                            : "red",
                         },
                       }}
                     >

@@ -20,8 +20,11 @@ import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import { useParams } from "react-router-dom";
 import { useAppContext } from "../AppContext";
 import axios from "axios";
+import { useTheme } from "@mui/material";
 
 const RimacCaseReport = () => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const { id } = useParams();
   const { url } = useAppContext();
   const [report, setReport] = useState(null);
@@ -84,9 +87,16 @@ const RimacCaseReport = () => {
       menu={<OperationsMenu />}
       breadcrumbs2={["Operations", "Rimac Cases Report"]}
     >
-      <Box sx={{ p: 3, backgroundColor: "#F9FAFB", minHeight: "100vh" }}>
+      <Box sx={{ p: 3, minHeight: "100vh" }}>
         {/* Rimac Case Header */}
-        <Box sx={{ backgroundColor: "#F5F5F5", p: 2, borderRadius: 1, mb: 2 }}>
+        <Box
+          sx={{
+            backgroundColor: isDark ? "#2e2e2e" : "#F5F5F5",
+            p: 2,
+            borderRadius: 1,
+            mb: 2,
+          }}
+        >
           <Typography variant="h6">Details of the Rimac Case</Typography>
           <Typography variant="body1" sx={{ color: "#E57373" }}>
             C - {toSafeString(report.Informe)}

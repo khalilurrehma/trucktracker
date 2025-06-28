@@ -411,6 +411,26 @@ const CustomReport = () => {
       col.toLowerCase().includes("date") || col.toLowerCase().includes("time")
   );
 
+  if (loading) {
+    return (
+      <PageLayout menu={<ReportsMenu />} breadcrumbs2={["reportTitle", "Wait"]}>
+        <TableContainer sx={{ mt: 3, p: 2 }}>
+          <TableShimmer columns={8} />
+        </TableContainer>
+      </PageLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <PageLayout menu={<ReportsMenu />} breadcrumbs2={["reportTitle", "Wait"]}>
+        <Typography sx={{ mt: 3, p: 2 }} color="error">
+          {error}
+        </Typography>
+      </PageLayout>
+    );
+  }
+
   return (
     <PageLayout menu={<ReportsMenu />} breadcrumbs2={["reportTitle", "Wait"]}>
       <div style={{ display: "flex", gap: "20px", padding: "30px" }}>
@@ -457,65 +477,57 @@ const CustomReport = () => {
       </div>
 
       <TableContainer sx={{ mt: 3, p: 2 }}>
-        {loading ? (
-          <TableShimmer columns={columns.length} />
-        ) : error ? (
-          <Typography color="error">{error}</Typography>
-        ) : (
-          <Table>
-            <TableHead>
-              <TableRow>
-                {sortedMappedColumns?.map((index, col) => (
-                  <TableCell key={col}>{index}</TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredData
-                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                .map((row, index) => {
-                  return (
-                    <TableRow key={index}>
-                      {sortedOriginalColumns.map((col) => {
-                        let value = formatValue(col, row[col], language);
-                        value =
-                          value === true
-                            ? "True"
-                            : value === false
-                            ? "False"
-                            : value;
+        <Table>
+          <TableHead>
+            <TableRow>
+              {sortedMappedColumns?.map((index, col) => (
+                <TableCell key={col}>{index}</TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredData
+              .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+              .map((row, index) => (
+                <TableRow key={index}>
+                  {sortedOriginalColumns.map((col) => {
+                    let value = formatValue(col, row[col], language);
+                    value =
+                      value === true
+                        ? "True"
+                        : value === false
+                        ? "False"
+                        : value;
 
-                        return <TableCell key={col}>{value}</TableCell>;
-                      })}
-                      <TableCell>
-                        {row.route && (
-                          <IconButton
-                            onClick={() => handleShowRoute(row.route)}
-                            aria-label="Show route"
-                          >
-                            <MapIcon />
-                          </IconButton>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-            </TableBody>
-          </Table>
-        )}
-
-        <TablePagination
-          rowsPerPageOptions={[10, 25, 50]}
-          component="div"
-          count={filteredData.length}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={(e, newPage) => setPage(newPage)}
-          onRowsPerPageChange={(e) =>
-            setRowsPerPage(parseInt(e.target.value, 10))
-          }
-        />
+                    return <TableCell key={col}>{value}</TableCell>;
+                  })}
+                  <TableCell>
+                    {row.route && (
+                      <IconButton
+                        onClick={() => handleShowRoute(row.route)}
+                        aria-label="Show route"
+                      >
+                        <MapIcon />
+                      </IconButton>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+          </TableBody>
+        </Table>
       </TableContainer>
+
+      <TablePagination
+        rowsPerPageOptions={[10, 25, 50]}
+        component="div"
+        count={filteredData.length}
+        rowsPerPage={rowsPerPage}
+        page={page}
+        onPageChange={(e, newPage) => setPage(newPage)}
+        onRowsPerPageChange={(e) =>
+          setRowsPerPage(parseInt(e.target.value, 10))
+        }
+      />
 
       {showMap && selectedRoute && (
         <Dialog

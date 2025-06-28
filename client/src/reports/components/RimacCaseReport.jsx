@@ -23,6 +23,7 @@ import axios from "axios";
 import html2pdf from "html2pdf.js";
 import chongLogo from "../../resources/images/chong_logo1.png";
 import { useAppContext } from "../../AppContext";
+import { useTheme } from "@mui/material";
 
 const RimacCaseReport = ({
   setOpenAssignModal,
@@ -32,6 +33,8 @@ const RimacCaseReport = ({
 }) => {
   const parsedReport = JSON.parse(report.rimacReport.report_data);
 
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const reportRef = useRef();
   const { url } = useAppContext();
   const [zoomOpen, setZoomOpen] = useState(false);
@@ -141,7 +144,10 @@ const RimacCaseReport = ({
           )}
         </Toolbar>
       </AppBar>
-      <Box ref={reportRef} sx={{ p: 3, backgroundColor: "#F9FAFB" }}>
+      <Box
+        ref={reportRef}
+        sx={{ p: 3, backgroundColor: isDark ? "#2e2e2e" : "#F5F5F5" }}
+      >
         <Box sx={{ p: 4, maxWidth: 1000, mx: "auto" }}>
           {/* Header */}
           <Grid container justifyContent="space-between" alignItems="center">
@@ -149,9 +155,9 @@ const RimacCaseReport = ({
               <img src={chongLogo} alt="Chong Logo" style={{ height: 100 }} />
             </Grid>
             <Grid item>
-              <Typography variant="body2">
+              {/* <Typography variant="body2">
                 Fecha y Hora: 20/06/2025 10:26:01
-              </Typography>
+              </Typography> */}
             </Grid>
           </Grid>
 
@@ -165,7 +171,10 @@ const RimacCaseReport = ({
           </Typography>
 
           {/* Case Info */}
-          <Paper sx={{ p: 2, my: 2 }} variant="outlined">
+          <Paper
+            sx={{ p: 2, my: 2, backgroundColor: isDark && "#3b3b3b" }}
+            variant="outlined"
+          >
             <Grid container spacing={2}>
               <Grid item xs={6}>
                 <Typography>
@@ -334,7 +343,10 @@ const RimacCaseReport = ({
           <Typography variant="h6" gutterBottom>
             DAÑOS VEHÍCULO
           </Typography>
-          <Paper sx={{ p: 2, mb: 3 }} variant="outlined">
+          <Paper
+            sx={{ p: 2, mb: 3, backgroundColor: isDark && "#3b3b3b" }}
+            variant="outlined"
+          >
             <Typography>
               MÁSCARA ANTERIOR ROTO, FUNDA DEL PARACHOQUE ANTERIOR ROTO RASPADO.
             </Typography>
@@ -346,7 +358,10 @@ const RimacCaseReport = ({
           <Typography variant="h6" gutterBottom>
             INSPECCIÓN OCULAR
           </Typography>
-          <Paper sx={{ p: 2, mb: 3 }} variant="outlined">
+          <Paper
+            sx={{ p: 2, mb: 3, backgroundColor: isDark && "#3b3b3b" }}
+            variant="outlined"
+          >
             <Grid container spacing={2}>
               <Grid item xs={4}>
                 <Typography>
@@ -477,7 +492,10 @@ const RimacCaseReport = ({
           <Typography variant="h6" gutterBottom>
             ANÁLISIS INTEGRAL DE LOS HECHOS
           </Typography>
-          <Paper sx={{ p: 2 }} variant="outlined">
+          <Paper
+            sx={{ p: 2, backgroundColor: isDark && "#3b3b3b" }}
+            variant="outlined"
+          >
             <Typography paragraph>
               El día 18 de Junio del 2025 a las 09:50 horas aproximadamente, se
               produjo un accidente de tránsito (choque en circulación - choque
@@ -488,12 +506,15 @@ const RimacCaseReport = ({
               de Surco
             </Typography>
           </Paper>
-          <Box sx={{ pageBreakBefore: "always" }} />
+          <Box sx={{ pageBreakBefore: "always", mt: 3 }} />
 
           <Typography variant="h6" gutterBottom>
             DETALLES ADICIONALES DEL INFORME
           </Typography>
-          <Paper sx={{ p: 2, mb: 3 }} variant="outlined">
+          <Paper
+            sx={{ p: 2, mb: 3, backgroundColor: isDark && "#3b3b3b" }}
+            variant="outlined"
+          >
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <Typography>
@@ -644,10 +665,13 @@ const RimacCaseReport = ({
                       "https://via.placeholder.com/800x600?text=Image+Not+Found";
                   }}
                 />
-                <Typography variant="subtitle1" sx={{ mt: 1 }}>
+                <Typography
+                  variant="subtitle1"
+                  sx={{ mt: 1, color: isDark && "black" }}
+                >
                   {selectedImage.type} ({selectedImage.category})
                 </Typography>
-                <Typography variant="body2">
+                <Typography variant="body2" sx={{ color: isDark && "black" }}>
                   Uploaded:{" "}
                   {new Date(selectedImage.created_at).toLocaleString()}
                 </Typography>

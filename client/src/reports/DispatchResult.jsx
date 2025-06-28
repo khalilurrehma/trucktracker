@@ -30,6 +30,7 @@ import DispatchDialog from "./components/DispatchDialog";
 import dayjs from "dayjs";
 import { useTranslation } from "../common/components/LocalizationProvider";
 import { useLocation } from "react-router-dom";
+import { useTheme } from "@mui/material";
 
 const debounce = (func, wait) => {
   let timeout;
@@ -66,6 +67,8 @@ const DispatchResult = () => {
   let ifRimacCase =
     rimacAddress && rimacCaseNumber && rimacReportId ? true : false;
 
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const userId = useSelector((state) => state.session.user.id);
   const userName = useSelector((state) => state.session.user.name);
   const t = useTranslation();
@@ -696,7 +699,15 @@ const DispatchResult = () => {
                   }}
                   onCloseClick={() => setSelectedDeviceId(null)}
                 >
-                  <div>
+                  <div
+                    style={{
+                      backgroundColor: isDark ? "#1e1e1e" : "#ffffff",
+                      color: isDark ? "#ffffff" : "#000000",
+                      padding: "10px",
+                      borderRadius: "8px",
+                      maxWidth: "250px",
+                    }}
+                  >
                     <h1>Name: {selectedDevice.name ?? selectedDevice.id}</h1>
                     <p>
                       Address:{" "}
