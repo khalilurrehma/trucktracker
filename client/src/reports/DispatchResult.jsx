@@ -182,7 +182,7 @@ const DispatchResult = () => {
     try {
       const response = await autocompleteService.getPlacePredictions({
         input: cleanedInput,
-        componentRestrictions: { country: ["PE", "PT"] },
+        componentRestrictions: { country: ["PE"] },
         types: ["geocode", "establishment"],
         sessionToken,
         location: new window.google.maps.LatLng(-12.0464, -77.0428),
@@ -212,7 +212,7 @@ const DispatchResult = () => {
         geocoder.geocode(
           {
             address: cleanedInput,
-            componentRestrictions: { country: ["PE", "PT"] },
+            componentRestrictions: { country: ["PE"] },
           },
           (results, status) => {
             if (status === "OK" && results[0]) {
@@ -299,7 +299,7 @@ const DispatchResult = () => {
           geocoder.geocode(
             {
               address: newValue.label,
-              componentRestrictions: { country: ["PE", "PT"] },
+              componentRestrictions: { country: ["PE"] },
             },
             (results, status) => {
               if (status === "OK" && results[0]) {
@@ -340,7 +340,7 @@ const DispatchResult = () => {
     try {
       const geocoder = new window.google.maps.Geocoder();
       const cleanedAddress = preprocessAddress(address);
-      const countryCode = cleanedAddress.includes("Peru") ? "PE" : "PT";
+      const countryCode = cleanedAddress.includes("Peru") ? "PE" : "PE";
 
       const geocodeResults = await new Promise((resolve, reject) => {
         geocoder.geocode(
