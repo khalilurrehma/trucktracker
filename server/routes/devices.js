@@ -35,6 +35,7 @@ import {
   devicesNotifications,
   extractDeviceIMEIS,
   getAllDevicesWithServices,
+  getAllSnapshots,
   getDeviceServiceType,
   newDeviceById,
   newDeviceByUserId,
@@ -123,5 +124,9 @@ router.get("/service-type/subservice/:id", subServiceById);
 router.get("/service-type/subservices/user/:userId", allSubServicesByUserId);
 router.put("/service-type/subservice/:id", updateSubService);
 router.delete("/service-type/subservice/:id", deleteSubService);
+
+//  ------------------------------------------------------------------------------------------ DEVICE SNAPSHOTS
+
+router.get("/devices/snapshots/:userId", getAllSnapshots);
 
 export default router;

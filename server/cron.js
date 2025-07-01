@@ -1,26 +1,31 @@
 import dotenv from "dotenv";
 dotenv.config();
-
 import { CronJob } from "cron";
-import { runMonthlyBackup } from "./jobs/flespiMonthlyBackup.js";
+import { runDailyBackup } from "./jobs/dailyBackup.job.js";
 
 function startBackupCron() {
   const job = new CronJob(
-    "0 2 1 * *",
+    "50 10 1 7 *",
     async () => {
-      console.log("🕓 Starting monthly Flespi backup...");
-
+      console.log(
+        `[${new Date().toLocaleString("en-US", {
+          timeZone: "America/Lima",
+        })}] 🕓 Starting daily Flespi backup...`
+      );
       try {
-        await runMonthlyBackup();
-        console.log("✅ Backup completed.");
-
-        job.stop();
-        console.log("🛑 Backup cron job stopped after run.");
+        await runDailyBackup();
+        console.log(
+          `[${new Date().toLocaleString("en-US", {
+            timeZone: "America/Lima",
+          })}] ✅ Backup completed.`
+        );
       } catch (err) {
-        console.error("❌ Backup failed:", err.message);
-
-        job.stop();
-        console.log("🛑 Cron job stopped after failure.");
+        console.error(
+          `[${new Date().toLocaleString("en-US", {
+            timeZone: "America/Lima",
+          })}] ❌ Backup failed:`,
+          err.message
+        );
       }
     },
     null,
@@ -29,19 +34,20 @@ function startBackupCron() {
   );
 
   job.start();
-  console.log("✅ Cron job registered (1st of month @ 2:00 AM).");
+  console.log("✅ Cron job registered: daily at 1:00 AM (America/Lima).");
 }
 
 startBackupCron();
 
+// For test runs only! (Remove/comment for production.)
 // setTimeout(async () => {
 //   console.log("🕓 Starting Flespi backup test...");
 //   try {
-//     await runMonthlyBackup();
+//     await runDailyBackup();
 //     console.log("✅ Backup completed successfully.");
-//     process.exit(0); // exit after done
+//     process.exit(0);
 //   } catch (err) {
 //     console.error("❌ Backup failed:", err.message);
-//     process.exit(1); // exit with error code
+//     process.exit(1);
 //   }
 // }, 2000);

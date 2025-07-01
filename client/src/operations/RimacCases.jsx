@@ -81,8 +81,6 @@ const RimacCases = () => {
 
       const now = dayjs();
       const mappedCases = data.data.map((item) => {
-        // console.log(item);
-
         const report =
           typeof item.report_data === "string"
             ? JSON.parse(item.report_data)
@@ -91,13 +89,26 @@ const RimacCases = () => {
         const createdAt = dayjs(item.created_at);
         const isNew = now.diff(createdAt, "hour") <= 24;
 
-        // console.log(report);
+        const echong_created_at = dayjs(item.created_at).format(
+          "YYYY-MM-DD HH:mm"
+        );
+
+        let rimac_created_at = "";
+        if (report.FecEnvio && report.HorEnvio) {
+          const hor = report.HorEnvio.padStart(6, "0");
+          const rimacDateStr = `${report.FecEnvio}${hor}`;
+          rimac_created_at = dayjs(rimacDateStr, "YYYYMMDDHHmmss").format(
+            "YYYY-MM-DD HH:mm"
+          );
+        }
 
         return {
           id: item.id,
           caseId: item.case_id,
           status: item.status,
           creationDate: new Date(item.created_at).toLocaleDateString(),
+          echong_created_at,
+          rimac_created_at,
           code: safeValue(report.Informe),
           salesforce: safeValue(report.Caso),
           plate: safeValue(report.NroPlaca),
@@ -247,7 +258,10 @@ const RimacCases = () => {
                   sx={{ color: "#E57373", fontWeight: "bold" }}
                 ></TableCell>
                 <TableCell sx={{ color: "#E57373", fontWeight: "bold" }}>
-                  CREATION DATE
+                  Echong created at
+                </TableCell>
+                <TableCell sx={{ color: "#E57373", fontWeight: "bold" }}>
+                  Rimac created at
                 </TableCell>
                 <TableCell sx={{ color: "#E57373", fontWeight: "bold" }}>
                   CODE
@@ -343,7 +357,8 @@ const RimacCases = () => {
                             : row.status}
                         </Box>
                       </TableCell>
-                      <TableCell>{row.creationDate}</TableCell>
+                      <TableCell>{row.echong_created_at}</TableCell>
+                      <TableCell>{row.rimac_created_at}</TableCell>
                       <TableCell>{row.code}</TableCell>
                       <TableCell>{row.salesforce}</TableCell>
                       <TableCell>{row.plate}</TableCell>

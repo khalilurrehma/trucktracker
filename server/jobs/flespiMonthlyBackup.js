@@ -3,6 +3,8 @@ import pool from "../config/dbConfig.js";
 import util from "util";
 import moment from "moment";
 const dbQuery = util.promisify(pool.query).bind(pool);
+import { messagesToCsvZipBuffer } from "../utils/excelExport.js";
+import { uploadBackupFileToS3 } from "../utils/backupS3upload.js";
 
 const FLESPI_TOKEN = process.env.FlespiToken;
 
@@ -46,7 +48,7 @@ export async function runMonthlyBackup() {
   const { from, to, monthYear } = getLastMonthTimeRange();
 
   const devices = await dbQuery(
-    `SELECT id, flespiId FROM new_settings_devices WHERE flespiId = 6075754`
+    `SELECT id, flespiId, name FROM new_settings_devices WHERE flespiId = ?`
   );
 
   for (const device of devices) {
@@ -86,32 +88,31 @@ export async function runMonthlyBackup() {
         [device.id, device.id]
       );
 
-      for (const msg of messages) {
+      if (messages.length > 0) {
+        const csvFilename = `device_${device.name}_${monthYear}.csv`;
+        const zipFilename = `device_${device.name}_${monthYear}.zip`;
+
+        const zipBuffer = await messagesToCsvZipBuffer(messages, csvFilename);
+
+        const s3Key = zipFilename;
+        const fileUrl = await uploadBackupFileToS3(
+          zipBuffer,
+          process.env.CONTABO_BACKUP_BUCKET_NAME,
+          s3Key
+        );
+
         await dbQuery(
           `
-              INSERT INTO device_messages (
-                device_id, flespi_id, timestamp,
-                latitude, longitude, speed,
-                ignition_status, alarm_code, mileage, raw
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `,
-          [
-            device.id,
-            device.flespiId,
-            msg.timestamp,
-            msg["position.latitude"] || null,
-            msg["position.longitude"] || null,
-            msg["position.speed"] || null,
-            msg["engine.ignition.status"] || false,
-            msg["alarm.code"] || null,
-            msg["vehicle.mileage"] || null,
-            JSON.stringify(msg),
-          ]
+      INSERT INTO device_backup_files (device_id, flespi_id, backup_month, file_name, file_url)
+      VALUES (?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE file_name = VALUES(file_name), file_url = VALUES(file_url)
+    `,
+          [device.id, device.flespiId, monthYear, zipFilename, fileUrl]
         );
       }
 
       console.log(
-        `✅ Device ${device.flespiId} — ${messages.length} messages stored`
+        `✅ Device ${device.flespiId} — ${messages.length} messages stored & Excel backed up`
       );
     } catch (err) {
       console.error(`❌ Error for device ${device.flespiId}: ${err.message}`);

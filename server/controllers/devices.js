@@ -1,14 +1,19 @@
 import axios from "axios";
+import pool from "../config/dbConfig.js";
+import util from "util";
+const dbQuery = util.promisify(pool.query).bind(pool);
 import {
   allDevicesIdName,
   bulkServiceUpdate,
   createDevice,
+  deviceIdByUserId,
   devicesWithServices,
   existingCombination,
   fetchAllServiceTypes,
   fetchAllServiceTypesByUserId,
   fetchAllSubServices,
   fetchAllSubServicesByUserId,
+  fetchDeviceSnapshots,
   getAllDevices,
   getAssignedServicesByDeviceId,
   getDeviceById,
@@ -1383,5 +1388,73 @@ export const deleteSubService = async (req, res) => {
       status: false,
       message: error.message,
     });
+  }
+};
+
+// --------------------------------- SNAPSHOTS
+
+export const getAllSnapshots = async (req, res) => {
+  const { userId } = req.params;
+  let { page = 1, limit = 20, search } = req.query;
+
+  if (!userId || userId === "") {
+    return res
+      .status(400)
+      .json({ success: false, message: "User Id is required" });
+  }
+
+  const parsedUserId = parseInt(userId);
+  page = parseInt(page);
+  limit = parseInt(limit);
+  const offset = (page - 1) * limit;
+
+  try {
+    let response, total;
+    if (parsedUserId === 1) {
+      const countResult = await dbQuery(
+        `SELECT COUNT(*) as total FROM device_backup_files`
+      );
+      total = countResult[0].total;
+      response = await fetchDeviceSnapshots(
+        parsedUserId,
+        null,
+        limit,
+        offset,
+        search
+      );
+    } else {
+      const userDevices = await deviceIdByUserId(parsedUserId);
+      const deviceIds = userDevices.map((device) => device.id);
+
+      if (deviceIds.length === 0) {
+        return res.json({ success: true, snapshots: [], total: 0 });
+      }
+
+      const placeholders = deviceIds.map(() => "?").join(",");
+      const countSql = `SELECT COUNT(*) as total FROM device_backup_files WHERE device_id IN (${placeholders})`;
+      const countResult = await dbQuery(countSql, deviceIds);
+      total = countResult[0].total;
+
+      response = await fetchDeviceSnapshots(
+        parsedUserId,
+        deviceIds,
+        limit,
+        offset,
+        search
+      );
+    }
+
+    return res.json({
+      success: true,
+      snapshots: response,
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, message: "Server Error", error: error.message });
   }
 };

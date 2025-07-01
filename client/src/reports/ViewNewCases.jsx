@@ -37,6 +37,7 @@ import TableShimmer from "../common/components/TableShimmer";
 import { useSuperVisor } from "../common/util/permissions";
 import { useAppContext } from "../AppContext";
 import SuggestedServicesModal from "../operations/components/SuggestedServicesModal";
+import { useTheme } from "@mui/material";
 
 const blinkAnimation = keyframes`
   0% { background-color: #fff3cd; }
@@ -51,6 +52,8 @@ const ViewNewCases = () => {
   } else {
     url = import.meta.env.VITE_PROD_BACKEND_URL;
   }
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const [searchInput, setSearchInput] = useState("");
   const debounceTimeout = useRef(null);
   const { subprocessEvents, liveSuggestedServices } = useAppContext();
@@ -418,7 +421,15 @@ const ViewNewCases = () => {
               return (
                 <MenuItem
                   key={note.id}
-                  sx={{ bgcolor: note.read ? "white" : "#f0f4ff" }}
+                  sx={{
+                    bgcolor: note.read
+                      ? theme.palette.background.paper
+                      : theme.palette.action.hover,
+                    color: theme.palette.text.primary,
+                    "&:hover": {
+                      bgcolor: theme.palette.action.selected,
+                    },
+                  }}
                   onClick={async () => {
                     setCaseDetails({ id: note?.case_id });
                     setOpenAssignModal(true);

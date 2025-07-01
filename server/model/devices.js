@@ -349,6 +349,18 @@ export async function subaccountDeviceCount(userId) {
   }
 }
 
+export const deviceIdByUserId = async (user_id) => {
+  const sql = "SELECT id,name FROM new_settings_devices WHERE userId = ?";
+  const values = [user_id];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export async function updateDeviceById(id, data) {
   let updateSql = `
     UPDATE new_settings_devices
@@ -862,6 +874,55 @@ export const associatedDevices = async () => {
   try {
     const result = await dbQuery(sql);
 
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const fetchDeviceSnapshots = async (
+  user_id,
+  device_ids = null,
+  limit = 20,
+  offset = 0,
+  search = ""
+) => {
+  let sql, params;
+
+  const searchTerm = `%${search}%`;
+
+  if (user_id === 1) {
+    sql = `
+      SELECT 
+        dbf.*,
+        nsd.name AS device_name 
+      FROM device_backup_files dbf
+      LEFT JOIN new_settings_devices nsd ON dbf.device_id = nsd.id
+      WHERE (? = "" OR nsd.name LIKE ? OR dbf.file_name LIKE ?)
+      ORDER BY backup_date DESC, created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+    params = [search, searchTerm, searchTerm, limit, offset];
+  } else if (Array.isArray(device_ids) && device_ids.length > 0) {
+    const placeholders = device_ids.map(() => "?").join(",");
+    sql = `
+      SELECT 
+        dbf.*,
+        nsd.name AS device_name 
+      FROM device_backup_files dbf
+      LEFT JOIN new_settings_devices nsd ON dbf.device_id = nsd.id
+      WHERE device_id IN (${placeholders})
+        AND (? = "" OR nsd.name LIKE ? OR dbf.file_name LIKE ?)
+      ORDER BY backup_date DESC, created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+    params = [...device_ids, search, searchTerm, searchTerm, limit, offset];
+  } else {
+    return [];
+  }
+
+  try {
+    const result = await dbQuery(sql, params);
     return result;
   } catch (error) {
     throw error;
