@@ -11,8 +11,10 @@ dayjs.extend(timezone);
 // RIMAC CASE
 
 export const saveRimacCase = async (body) => {
-  const query = `INSERT INTO rimac_reports (report_data) VALUES (?)`;
-  let values = [JSON.stringify(body)];
+  let now = dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss");
+
+  const query = `INSERT INTO rimac_reports (report_data, created_at) VALUES (?, ?)`;
+  let values = [JSON.stringify(body), now];
 
   try {
     const result = await dbQuery(query, values);

@@ -5,7 +5,7 @@ import { runDailyBackup } from "./jobs/dailyBackup.job.js";
 
 function startBackupCron() {
   const job = new CronJob(
-    "50 10 1 7 *",
+    "0 1 * * *",
     async () => {
       console.log(
         `[${new Date().toLocaleString("en-US", {

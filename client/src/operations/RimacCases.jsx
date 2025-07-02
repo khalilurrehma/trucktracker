@@ -40,12 +40,30 @@ const safeValue = (value) =>
 const mapIncomingReport = (report) => {
   const now = dayjs();
   const createdAt = dayjs(report.created_at || new Date());
+  const isNew = now.diff(createdAt, "hour") <= 24;
+
+  const echong_created_at = createdAt.format("YYYY-MM-DD HH:mm");
+
+  let rimac_created_at = "";
+  if (report.FecEnvio && report.HorEnvio) {
+    const readbleFecEnvio = dayjs(report.FecEnvio, "YYYYMMDD").format(
+      "YYYY-MM-DD"
+    );
+
+    rimac_created_at = `${readbleFecEnvio} ${report.HorEnvio}`;
+  }
 
   return {
     id: report.id,
-    creationDate: createdAt.format("DD/MM/YYYY"),
+    caseId: report.case_id,
+    status: report.status,
+    creationDate: new Date(
+      report.created_at || new Date()
+    ).toLocaleDateString(),
+    echong_created_at,
+    rimac_created_at,
     code: safeValue(report.Informe),
-    salesforce: safeValue(report.NomBrok),
+    salesforce: safeValue(report.Caso),
     plate: safeValue(report.NroPlaca),
     districtOrigin: safeValue(report.Dist),
     destinationDistrict: safeValue(report.Dist),
@@ -53,7 +71,7 @@ const mapIncomingReport = (report) => {
     mode: report.LMDM === "S" ? "LMDM" : "Auctioned",
     state: report.EstadoPoliza === "ACTIVA" ? "CULIMINATION" : "OTHER",
     accidentAddress: safeValue(report.DirSin),
-    isNew: now.diff(createdAt, "hour") <= 24,
+    isNew,
     isLive: true,
   };
 };
@@ -95,11 +113,11 @@ const RimacCases = () => {
 
         let rimac_created_at = "";
         if (report.FecEnvio && report.HorEnvio) {
-          const hor = report.HorEnvio.padStart(6, "0");
-          const rimacDateStr = `${report.FecEnvio}${hor}`;
-          rimac_created_at = dayjs(rimacDateStr, "YYYYMMDDHHmmss").format(
-            "YYYY-MM-DD HH:mm"
+          const readbleFecEnvio = dayjs(report.FecEnvio, "YYYYMMDD").format(
+            "YYYY-MM-DD"
           );
+
+          rimac_created_at = `${readbleFecEnvio} ${report.HorEnvio}`;
         }
 
         return {
@@ -313,7 +331,7 @@ const RimacCases = () => {
                         !row.caseId
                           ? () => {
                               navigate(
-                                `/operations/dispatch?address=${row.accidentAddress}&casenumber=${row.code}&rimac_report_id=${row.id}`
+                                `/operations/dispatch?address=${row.accidentAddress}&casenumber=${row.salesforce}&rimac_report_id=${row.id}`
                               );
                             }
                           : undefined
