@@ -9,6 +9,7 @@ import {
   Paper,
   Modal,
   CircularProgress,
+  useTheme,
 } from "@mui/material";
 import ForwardIcon from "@mui/icons-material/Forward";
 import PageLayout from "../common/components/PageLayout";
@@ -21,6 +22,8 @@ import { toast, ToastContainer } from "react-toastify";
 import html2pdf from "html2pdf.js";
 
 const RimacFinalReportView = () => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const reportRef = useRef();
   const { id, caseId } = useParams();
   const { url } = useAppContext();
@@ -28,6 +31,7 @@ const RimacFinalReportView = () => {
   const [detailedReport, setDetailedReport] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sendLoader, setSendLoader] = useState(false);
+  const [hideButton, setHideButton] = useState(false);
 
   const fetchReport = async () => {
     try {
@@ -175,6 +179,7 @@ const RimacFinalReportView = () => {
       const rimac = data.rimac || data;
 
       if (rimac.successful) {
+        setHideButton(true);
         toast.success(rimac.mensaje || "Report sent successfully to Rimac!");
         if (rimac.errores && rimac.errores.length > 0) {
           toast.warn("Some warnings: " + rimac.errores.join(", "));
@@ -219,7 +224,7 @@ const RimacFinalReportView = () => {
             INFORME - SERVICIO SPEED AMPLIADO
           </Typography>
 
-          {detailedReport?.rimac?.status !== "sent_to_rimac" && (
+          {detailedReport?.rimac?.status !== "sent_to_rimac" && !hideButton && (
             <Button
               variant="contained"
               sx={{
@@ -228,9 +233,7 @@ const RimacFinalReportView = () => {
                 "&:hover": { bgcolor: "error.dark" },
               }}
               endIcon={<ForwardIcon />}
-              onClick={() => {
-                handleClickSend();
-              }}
+              onClick={handleClickSend}
             >
               Send to Rimac
             </Button>
@@ -1144,7 +1147,8 @@ const RimacFinalReportView = () => {
       >
         <Box
           sx={{
-            backgroundColor: "#fff",
+            backgroundColor: isDark ? "#1e1e1e" : "#fff",
+            color: isDark ? "#fff" : "#000",
             p: 4,
             borderRadius: 2,
             boxShadow: 24,

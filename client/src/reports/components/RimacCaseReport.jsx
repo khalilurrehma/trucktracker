@@ -24,6 +24,7 @@ import html2pdf from "html2pdf.js";
 import chongLogo from "../../resources/images/chong_logo1.png";
 import { useAppContext } from "../../AppContext";
 import { useTheme } from "@mui/material";
+import dayjs from "dayjs";
 
 const RimacCaseReport = ({
   setOpenAssignModal,
@@ -32,6 +33,8 @@ const RimacCaseReport = ({
   setReport,
 }) => {
   const parsedReport = JSON.parse(report.rimacReport.report_data);
+
+  // console.log(parsedReport);
 
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -90,7 +93,17 @@ const RimacCaseReport = ({
     if (typeof value === "object" && value !== null) {
       return "-";
     }
-    return value ? String(value).trim() : "N/A";
+    return value ? String(value).trim() : "-";
+  };
+
+  const toSafeDate = (value, format = "YYYY-MM-DD") => {
+    if (!value || typeof value !== "string") {
+      return "Invalid Date";
+    }
+
+    const date = dayjs(value, "YYYYMMDD", true);
+
+    return date.isValid() ? date.format(format) : "Invalid Date";
   };
 
   const handleAuthorizeReport = async (report) => {
@@ -178,31 +191,37 @@ const RimacCaseReport = ({
             <Grid container spacing={2}>
               <Grid item xs={6}>
                 <Typography>
-                  <strong>Nro. de Informe:</strong> {parsedReport.Informe}
+                  <strong>Nro. de Informe:</strong>{" "}
+                  {toSafeString(parsedReport.Informe)}
                 </Typography>
                 <Typography>
-                  <strong>Fecha Siniestro:</strong> {parsedReport.FecOcurr}
+                  <strong>Fecha Siniestro:</strong>{" "}
+                  {toSafeDate(parsedReport.FecOcurr)}
                 </Typography>
                 <Typography>
                   <strong>Fecha Solicitud:</strong>{" "}
                   {parsedReport.FechaCobertura}
                 </Typography>
                 <Typography>
-                  <strong>Fecha Atención:</strong> {parsedReport.FecEnvio}
+                  <strong>Fecha Atención:</strong>{" "}
+                  {toSafeDate(parsedReport.FecEnvio)}
                 </Typography>
                 <Typography>
-                  <strong>Tipo Siniestro:</strong> CHOQUE Y FUGA
+                  <strong>Tipo Siniestro:</strong>{" "}
+                  {toSafeString(parsedReport.Ejecutivo)}
                 </Typography>
                 <Typography>
                   <strong>Placa:</strong> {parsedReport.NroPlaca}
                 </Typography>
                 <Typography>
-                  <strong>Ejecutivo:</strong> AMARANTO CECILIA
+                  <strong>Ejecutivo:</strong>{" "}
+                  {toSafeString(parsedReport.Ejecutivo)}
                 </Typography>
               </Grid>
               <Grid item xs={6}>
                 <Typography>
-                  <strong>Nro. de Siniestro:</strong> 688064
+                  <strong>Nro. de Siniestro:</strong>{" "}
+                  {toSafeString(parsedReport.Ejecutivo)}
                 </Typography>
                 <Typography>
                   <strong>Hora Siniestro:</strong> {parsedReport.HorOcurr}
@@ -214,13 +233,18 @@ const RimacCaseReport = ({
                   <strong>Departamento:</strong> {parsedReport.Dpto}
                 </Typography>
                 <Typography>
-                  <strong>Asegurado:</strong> SARA DOMEQ ORTEGA
+                  <strong>Asegurado:</strong>{" "}
+                  {`${toSafeString(parsedReport.NomCond)} ${toSafeString(
+                    parsedReport.ApPatTit
+                  )} ${toSafeString(parsedReport.ApMatTit)}`.trim() || "N/A"}
                 </Typography>
                 <Typography>
-                  <strong>Comisaria:</strong> AV EL DERBY 150
+                  <strong>Comisaria:</strong>{" "}
+                  {toSafeString(parsedReport.Ejecutivo)}
                 </Typography>
                 <Typography>
-                  <strong>Analista:</strong> MARLON CARRASCO
+                  <strong>Analista:</strong>{" "}
+                  {toSafeString(parsedReport.Ejecutivo)}
                 </Typography>
               </Grid>
             </Grid>
@@ -259,7 +283,7 @@ const RimacCaseReport = ({
             </TableHead>
             <TableBody>
               <TableRow>
-                <TableCell>ASEGURADO</TableCell>
+                <TableCell>{toSafeString(parsedReport.Marca)}</TableCell>
                 <TableCell>
                   {`${toSafeString(parsedReport.Marca)} / ${toSafeString(
                     parsedReport.Modelo
@@ -296,10 +320,14 @@ const RimacCaseReport = ({
             </TableHead>
             <TableBody>
               <TableRow>
-                <TableCell>SARA CAROLA DOMEQ ORTEGA</TableCell>
-                <TableCell>ASEGURADO</TableCell>
-                <TableCell>67</TableCell>
-                <TableCell>NO REGISTRADO</TableCell>
+                <TableCell>
+                  {`${toSafeString(parsedReport.NomCond)} ${toSafeString(
+                    parsedReport.ApPatTit
+                  )} ${toSafeString(parsedReport.ApMatTit)}`.trim() || "N/A"}
+                </TableCell>
+                <TableCell>{toSafeString(parsedReport.Marca)}</TableCell>
+                <TableCell>{toSafeString(parsedReport.Ejecutivo)}</TableCell>
+                <TableCell>{toSafeString(parsedReport.Ejecutivo)}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -330,11 +358,11 @@ const RimacCaseReport = ({
             </TableHead>
             <TableBody>
               <TableRow>
-                <TableCell>ASEGURADO</TableCell>
-                <TableCell>Q32990941</TableCell>
-                <TableCell>A-I</TableCell>
-                <TableCell>24/04/1999</TableCell>
-                <TableCell>05/06/2028</TableCell>
+                <TableCell>{toSafeString(parsedReport.Ejecutivo)}</TableCell>
+                <TableCell>{toSafeString(parsedReport.Ejecutivo)}</TableCell>
+                <TableCell>{toSafeString(parsedReport.Ejecutivo)}</TableCell>
+                <TableCell>{toSafeString(parsedReport.Ejecutivo)}</TableCell>
+                <TableCell>{toSafeString(parsedReport.Ejecutivo)}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -347,9 +375,7 @@ const RimacCaseReport = ({
             sx={{ p: 2, mb: 3, backgroundColor: isDark && "#3b3b3b" }}
             variant="outlined"
           >
-            <Typography>
-              MÁSCARA ANTERIOR ROTO, FUNDA DEL PARACHOQUE ANTERIOR ROTO RASPADO.
-            </Typography>
+            <Typography>{toSafeString(report?.damage)}</Typography>
           </Paper>
 
           <Box sx={{ pageBreakBefore: "always" }} />
@@ -536,9 +562,6 @@ const RimacCaseReport = ({
                 </Typography>
                 <Typography>
                   <strong>Damage:</strong> {report?.damage || "—"}
-                </Typography>
-                <Typography>
-                  <strong>Meta:</strong> {report?.meta_information || "—"}
                 </Typography>
               </Grid>
             </Grid>

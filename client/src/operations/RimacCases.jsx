@@ -33,6 +33,11 @@ import { useAppContext } from "../AppContext";
 import dayjs from "dayjs";
 import { toast, ToastContainer } from "react-toastify";
 import { useTheme } from "@mui/material";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const safeValue = (value) =>
   typeof value === "string" || typeof value === "number" ? value : "N/A";
@@ -42,7 +47,7 @@ const mapIncomingReport = (report) => {
   const createdAt = dayjs(report.created_at || new Date());
   const isNew = now.diff(createdAt, "hour") <= 24;
 
-  const echong_created_at = createdAt.format("YYYY-MM-DD HH:mm");
+  const echong_created_at = dayjs(createdAt).format("YYYY-MM-DD HH:mm");
 
   let rimac_created_at = "";
   if (report.FecEnvio && report.HorEnvio) {
@@ -107,9 +112,7 @@ const RimacCases = () => {
         const createdAt = dayjs(item.created_at);
         const isNew = now.diff(createdAt, "hour") <= 24;
 
-        const echong_created_at = dayjs(item.created_at).format(
-          "YYYY-MM-DD HH:mm"
-        );
+        const echong_created_at = dayjs(createdAt).format("YYYY-MM-DD HH:mm");
 
         let rimac_created_at = "";
         if (report.FecEnvio && report.HorEnvio) {
@@ -136,6 +139,7 @@ const RimacCases = () => {
           mode: report.LMDM === "S" ? "LMDM" : "Auctioned",
           state: report.EstadoPoliza === "ACTIVA" ? "CULIMINATION" : "OTHER",
           accidentAddress: safeValue(report.DirSin),
+          reference: safeValue(report.RefSin),
           isNew,
         };
       });
@@ -331,7 +335,7 @@ const RimacCases = () => {
                         !row.caseId
                           ? () => {
                               navigate(
-                                `/operations/dispatch?address=${row.accidentAddress}&casenumber=${row.salesforce}&rimac_report_id=${row.id}`
+                                `/operations/dispatch?address=${row.accidentAddress}&casenumber=${row.salesforce}&rimac_report_id=${row.id}&reference=${row?.reference}`
                               );
                             }
                           : undefined
