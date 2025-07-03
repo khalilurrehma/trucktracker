@@ -37,6 +37,7 @@ import {
   getAllDevicesWithServices,
   getAllSnapshots,
   getDeviceServiceType,
+  getDevicesMessages,
   newDeviceById,
   newDeviceByUserId,
   subServiceById,
@@ -91,6 +92,7 @@ router.post(
 router.get("/new-devices", allNewDevices);
 router.get("/new-devices/:id", newDeviceById);
 router.get("/new-devices/user/:userId", newDeviceByUserId);
+router.get("/new-devices/device/messages/:id", getDevicesMessages);
 router.put("/new-devices/:id", updateNewDevice);
 router.delete("/new-devices/:id", deleteNewDevice);
 

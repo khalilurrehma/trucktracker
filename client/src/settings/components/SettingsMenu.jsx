@@ -20,6 +20,7 @@ import NotificationsIcon from "@mui/icons-material/Notifications";
 import SupervisedUserCircleIcon from "@mui/icons-material/SupervisedUserCircle";
 import FolderIcon from "@mui/icons-material/Folder";
 import PersonIcon from "@mui/icons-material/Person";
+import ReplayIcon from "@mui/icons-material/Replay";
 import StorageIcon from "@mui/icons-material/Storage";
 import BuildIcon from "@mui/icons-material/Build";
 import PeopleIcon from "@mui/icons-material/People";
@@ -337,6 +338,16 @@ const SettingsMenu = () => {
                     icon={<PersonIcon sx={{ ml: 2 }} />}
                     selected={location.pathname.startsWith(
                       "/settings/new-drivers"
+                    )}
+                  />
+                )}
+                {!traccarUser?.attributes.non_admin && (
+                  <MenuItem
+                    title="Nextop Replay"
+                    link="/settings/nextop/replays"
+                    icon={<ReplayIcon sx={{ ml: 2 }} />}
+                    selected={location.pathname.startsWith(
+                      "/settings/nextop/replays"
                     )}
                   />
                 )}

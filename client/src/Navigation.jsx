@@ -133,6 +133,7 @@ import SnapshotsPage from "./settings/SnapshotsPage";
 import AddSnaphotsDevices from "./settings/AddSnaphotsDevices";
 import RemoveSnapshotsDevices from "./settings/RemoveSnapshotsDevices";
 import RimacFinalReportView from "./operations/RimacFinalReportView";
+import DeviceTrackPage from "./other/DeviceTrackPage";
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -189,6 +190,7 @@ const Navigation = () => {
         {/* <Route path="geofences" element={<GeofencesPage />} /> */}
 
         <Route path="settings">
+          <Route path="nextop/replays" element={<DeviceTrackPage />} />
           <Route path="categories" element={<Categories />} />
           <Route path="new-category" element={<NewCategory />} />
           <Route path="new-category/:categoryId" element={<NewCategory />} />

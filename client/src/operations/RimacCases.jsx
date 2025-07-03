@@ -18,6 +18,7 @@ import {
   MenuItem,
   IconButton,
   Typography,
+  Chip,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import notificationSound from "./../resources/clicking-412.mp3";
@@ -79,6 +80,39 @@ const mapIncomingReport = (report) => {
     isNew,
     isLive: true,
   };
+};
+
+const STATUS_CONFIG = {
+  new: {
+    label: "New",
+    sx: { backgroundColor: "#ffdddd", color: "#c62828", fontWeight: 500 },
+  },
+  pending: {
+    label: "Pending",
+    sx: {
+      backgroundColor: "#fdecea",
+      color: "#d32f2f",
+      fontWeight: 500,
+      border: "1px solid #f5c6cb",
+    },
+  },
+  completed: {
+    label: "Completed",
+    sx: { backgroundColor: "#fff4cc", color: "#ef6c00", fontWeight: 500 },
+  },
+  sent_to_rimac: {
+    label: "Sent to Rimac",
+    sx: { backgroundColor: "#e3f2fd", color: "#1565c0", fontWeight: 500 },
+  },
+  unknown: {
+    label: "Unknown",
+    sx: { backgroundColor: "#e0e0e0", color: "#999", fontWeight: 500 },
+  },
+};
+
+const getStatusChip = (status) => {
+  const config = STATUS_CONFIG[status] || STATUS_CONFIG.unknown;
+  return <Chip label={config.label} sx={config.sx} />;
 };
 
 const RimacCases = () => {
@@ -245,9 +279,9 @@ const RimacCases = () => {
               sx={{ minWidth: "120px" }}
             >
               <MenuItem value="">All</MenuItem>
+              <MenuItem value="pending">Pending</MenuItem>
               <MenuItem value="completed">Completed</MenuItem>
               <MenuItem value="sent_to_rimac">Sent to Rimac</MenuItem>
-              <MenuItem value="pending">Pending</MenuItem>
             </Select>
           </Box>
         </Box>
@@ -276,9 +310,6 @@ const RimacCases = () => {
           <Table>
             <TableHead>
               <TableRow sx={{ backgroundColor: "#FFEBEE" }}>
-                <TableCell
-                  sx={{ color: "#E57373", fontWeight: "bold" }}
-                ></TableCell>
                 <TableCell sx={{ color: "#E57373", fontWeight: "bold" }}>
                   Echong created at
                 </TableCell>
@@ -299,9 +330,6 @@ const RimacCases = () => {
                 </TableCell>
                 <TableCell sx={{ color: "#E57373", fontWeight: "bold" }}>
                   ISSUE
-                </TableCell>
-                <TableCell sx={{ color: "#E57373", fontWeight: "bold" }}>
-                  MODE
                 </TableCell>
                 <TableCell sx={{ color: "#E57373", fontWeight: "bold" }}>
                   STATE
@@ -359,26 +387,6 @@ const RimacCases = () => {
                         },
                       }}
                     >
-                      <TableCell>
-                        <Box
-                          component="span"
-                          sx={{
-                            backgroundColor: "#E57373",
-                            color: "white",
-                            fontSize: "11px",
-                            borderRadius: "8px",
-                            px: 1,
-                            py: 0.2,
-                            fontWeight: "bold",
-                          }}
-                        >
-                          {row.status === "completed"
-                            ? row.status
-                            : row.isNew
-                            ? "new"
-                            : row.status}
-                        </Box>
-                      </TableCell>
                       <TableCell>{row.echong_created_at}</TableCell>
                       <TableCell>{row.rimac_created_at}</TableCell>
                       <TableCell>{row.code}</TableCell>
@@ -386,25 +394,16 @@ const RimacCases = () => {
                       <TableCell>{row.plate}</TableCell>
                       <TableCell>{row.districtOrigin}</TableCell>
                       <TableCell>{row.issue}</TableCell>
-                      <TableCell>{row.mode}</TableCell>
                       <TableCell>
-                        <Box
-                          sx={{
-                            backgroundColor:
-                              row.state === "OTHER"
-                                ? "rgb(255 78 78)"
-                                : "rgb(97 255 139)",
-                            color:
-                              row.state === "OTHER" ? "#FFFFFF" : "rgb(0 0 0)",
-                            borderRadius: "12px",
-                            textAlign: "center",
-                            padding: "4px 8px",
-                            display: "inline-block",
-                          }}
-                        >
-                          {row.state}
-                        </Box>
+                        {getStatusChip(
+                          row.status === "completed"
+                            ? row.status
+                            : row.isNew
+                            ? "new"
+                            : row.status
+                        )}
                       </TableCell>
+
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <Box sx={{ display: "flex" }}>
                           <IconButton

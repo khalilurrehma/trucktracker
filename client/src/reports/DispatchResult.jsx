@@ -40,6 +40,17 @@ const debounce = (func, wait) => {
   };
 };
 
+function isLatLng(str) {
+  // Match "-12.12345,-77.12345"
+  const latLngRegex = /^\s*\(?\s*-?\d{1,3}\.\d+\s*,\s*-?\d{1,3}\.\d+\s*\)?\s*$/;
+  return latLngRegex.test(str);
+}
+
+function parseLatLng(str) {
+  const [lat, lng] = str.split(",").map(Number);
+  return { lat, lng };
+}
+
 const GOOGLE_MAPS_LIBRARIES = ["places", "geometry", "maps"];
 const radiusOptions = [
   { label: "500m", value: 500 },
@@ -63,6 +74,7 @@ const DispatchResult = () => {
   const rimacAddress = query.get("address");
   const rimacCaseNumber = query.get("casenumber");
   const rimacReportId = query.get("rimac_report_id");
+  const reference = query.get("reference");
 
   let ifRimacCase =
     rimacAddress && rimacCaseNumber && rimacReportId ? true : false;
@@ -337,33 +349,42 @@ const DispatchResult = () => {
     }
 
     setLoading(true);
+
     try {
-      const geocoder = new window.google.maps.Geocoder();
-      const cleanedAddress = preprocessAddress(address);
-      const countryCode = cleanedAddress.includes("Peru") ? "PE" : "PE";
+      let newPosition;
+      if (isLatLng(address)) {
+        // User entered (or RefSin provided) pure lat,lng string
+        newPosition = parseLatLng(address);
+        console.log(newPosition);
+      } else {
+        // Geocode the entered address
+        const geocoder = new window.google.maps.Geocoder();
+        const cleanedAddress = preprocessAddress(address);
 
-      const geocodeResults = await new Promise((resolve, reject) => {
-        geocoder.geocode(
-          {
-            address: cleanedAddress,
-            componentRestrictions: { country: countryCode },
-          },
-          (results, status) => {
-            if (status === "OK") resolve(results);
-            else reject(new Error(`Geocode failed: ${status}`));
-          }
-        );
-      });
+        const geocodeResults = await new Promise((resolve, reject) => {
+          geocoder.geocode(
+            {
+              address: cleanedAddress,
+              componentRestrictions: { country: "PE" },
+            },
+            (results, status) => {
+              if (status === "OK") resolve(results);
+              else reject(new Error(`Geocode failed: ${status}`));
+            }
+          );
+        });
 
-      const { lat, lng } = geocodeResults[0].geometry.location;
-      const newPosition = { lat: lat(), lng: lng() };
+        const { lat, lng } = geocodeResults[0].geometry.location;
+        newPosition = { lat: lat(), lng: lng() };
+      }
+
       setMapCenter(newPosition);
       setMarkerPosition(newPosition);
       if (map) map.panTo(newPosition);
 
       const currentDate = dayjs().format("YYYY-MM-DD");
       const encodedAddress = encodeURIComponent(address);
-      let apiUrl = `${url}/new-devices?date=${currentDate}&deviceLocation=true&address=${encodedAddress}&radius=${radius}&lat=${lat()}&lng=${lng()}&userId=${userId}&userName=${userName}`;
+      let apiUrl = `${url}/new-devices?date=${currentDate}&deviceLocation=true&address=${encodedAddress}&radius=${radius}&lat=${newPosition.lat}&lng=${newPosition.lng}&userId=${userId}&userName=${userName}`;
 
       // if (selectedServiceType[0]?.name === "GRUA" && destinationPosition) {
       //   apiUrl += `&destinationLat=${destinationPosition.lat}&destinationLng=${destinationPosition.lng}`;
@@ -461,12 +482,19 @@ const DispatchResult = () => {
   };
 
   useEffect(() => {
-    if (rimacCaseNumber && rimacAddress) {
-      setCaseNumber(rimacCaseNumber);
+    setCaseNumber(rimacCaseNumber || "");
+    if (reference && isLatLng(reference)) {
+      setAddress(reference);
+      const coords = parseLatLng(reference);
+      setMapCenter(coords);
+      setMarkerPosition(coords);
+    } else if (rimacAddress) {
       setAddress(rimacAddress);
       handlePlaceSelect({ label: rimacAddress, placeId: null });
     }
-  }, [rimacCaseNumber, rimacAddress]);
+    // else leave search field empty and center default
+    // eslint-disable-next-line
+  }, [isLoaded, rimacCaseNumber]);
 
   return (
     <PageLayout

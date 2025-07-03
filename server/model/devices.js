@@ -806,8 +806,13 @@ export const getDeviceInitialGeofence = async (
     dbQuery(sql, values, (err, results) => {
       if (err) {
         reject(err);
+        return;
       }
-      resolve(results[0]);
+      if (Array.isArray(results) && results.length > 0 && results[0]) {
+        resolve(results[0]);
+      } else {
+        resolve(null);
+      }
     });
   });
 };
@@ -924,6 +929,26 @@ export const fetchDeviceSnapshots = async (
   try {
     const result = await dbQuery(sql, params);
     return result;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const fetchDevicesMessages = async (device_id, date) => {
+  const sql = `SELECT flespi_id, data FROM device_daily_data WHERE device_id = ? AND backup_date = ? LIMIT 1`;
+
+  let values = [device_id, date];
+
+  try {
+    let result = await dbQuery(sql, values);
+
+    const formattedResult = result.map((message) => {
+      const parsedData = message.data ? JSON.parse(message.data) : [];
+
+      return { ...message, data: parsedData };
+    });
+
+    return formattedResult[0];
   } catch (error) {
     throw error;
   }

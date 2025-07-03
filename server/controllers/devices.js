@@ -13,10 +13,12 @@ import {
   fetchAllServiceTypesByUserId,
   fetchAllSubServices,
   fetchAllSubServicesByUserId,
+  fetchDevicesMessages,
   fetchDeviceSnapshots,
   getAllDevices,
   getAssignedServicesByDeviceId,
   getDeviceById,
+  getDeviceFlespiIdById,
   getDeviceInitialGeofence,
   getDevicesByIds,
   getDevicesByIMEI,
@@ -608,6 +610,31 @@ export const newDeviceByUserId = async (req, res) => {
       status: false,
       error: "Internal Server Error",
     });
+  }
+};
+
+export const getDevicesMessages = async (req, res) => {
+  const { id } = req.params;
+  const { date } = req.query;
+
+  if (!id) {
+    return res.status(404).json({
+      status: false,
+      error: "Device id is required",
+    });
+  }
+
+  try {
+    const deviceMessages = await fetchDevicesMessages(parseInt(id), date);
+
+    res.status(200).json({
+      status: true,
+      message: "Messages fetched.",
+      messages: deviceMessages,
+      // device
+    });
+  } catch (error) {
+    res.status(500).json({ status: false, message: error.message });
   }
 };
 
