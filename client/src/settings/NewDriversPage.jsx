@@ -29,6 +29,7 @@ import {
   Typography,
   Box,
   Paper,
+  useTheme,
 } from "@mui/material";
 import { deleteDriverById, getDrivers, getDriversByUserId } from "../apis/api";
 import { toast, ToastContainer } from "react-toastify";
@@ -38,6 +39,7 @@ import { useSelector } from "react-redux";
 import DriverSlotPicker from "./components/DriverSlotPicker";
 import { useTranslation } from "../common/components/LocalizationProvider";
 import axios from "axios";
+import TableShimmer from "../common/components/TableShimmer";
 
 const NewDriversPage = () => {
   let url;
@@ -46,6 +48,8 @@ const NewDriversPage = () => {
   } else {
     url = import.meta.env.VITE_PROD_BACKEND_URL;
   }
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const t = useTranslation();
   const [drivers, setDrivers] = useState([]);
   const [filteredDrivers, setFilteredDrivers] = useState([]);
@@ -308,11 +312,7 @@ const NewDriversPage = () => {
           </TableHead>
           <TableBody>
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={12} align="center">
-                  <SettingLoader />
-                </TableCell>
-              </TableRow>
+              <TableShimmer columns={12} />
             ) : filteredDrivers.length > 0 ? (
               filteredDrivers
                 .slice((page - 1) * rows, page * rows)
@@ -327,19 +327,26 @@ const NewDriversPage = () => {
                     <TableCell>{driver.phone}</TableCell>
                     <TableCell>{driver.email}</TableCell>
                     <TableCell>{driver.station}</TableCell>
-                    <TableCell sx={{ display: "flex", gap: "8px" }}>
-                      <EditIcon
-                        sx={{ cursor: "pointer" }}
-                        onClick={() => {
-                          navigate(`/settings/new-driver/${driver.id}`);
-                        }}
-                      />
-                      <DeleteIcon
-                        sx={{ cursor: "pointer" }}
-                        onClick={() => {
-                          handleDelete(driver.id);
-                        }}
-                      />
+                    <TableCell>
+                      <Box sx={{ display: "flex" }}>
+                        <IconButton
+                          sx={{ cursor: "pointer" }}
+                          onClick={() => {
+                            navigate(`/settings/new-driver/${driver.id}`);
+                          }}
+                        >
+                          <EditIcon />
+                        </IconButton>
+
+                        <IconButton
+                          sx={{ cursor: "pointer" }}
+                          onClick={() => {
+                            handleDelete(driver.id);
+                          }}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Box>
                     </TableCell>
                     <TableCell>
                       <IconButton onClick={() => handleClickOpen(driver)}>
@@ -375,16 +382,19 @@ const NewDriversPage = () => {
           PaperProps={{
             sx: {
               borderRadius: 2,
-              boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+              boxShadow: isDark
+                ? "0 4px 24px rgba(0,0,0,0.7)"
+                : "0 4px 20px rgba(0,0,0,0.1)",
               maxHeight: "90vh",
               overflowY: "auto",
+              bgcolor: theme.palette.background.paper,
             },
           }}
         >
           <DialogTitle
             sx={{
-              bgcolor: "#f5f5f5",
-              borderBottom: "1px solid #e0e0e0",
+              bgcolor: theme.palette.background.default,
+              borderBottom: `1px solid ${theme.palette.divider}`,
               py: 2,
             }}
           >
@@ -396,7 +406,12 @@ const NewDriversPage = () => {
               <Typography variant="h5" fontWeight="600">
                 App logs for {selectedDriver?.name}
               </Typography>
-              <IconButton onClick={handleCloseLogsModal} sx={{ color: "#666" }}>
+              <IconButton
+                onClick={handleCloseLogsModal}
+                sx={{
+                  color: theme.palette.text.secondary,
+                }}
+              >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="24"
@@ -414,7 +429,9 @@ const NewDriversPage = () => {
               </IconButton>
             </Box>
           </DialogTitle>
-          <DialogContent sx={{ p: 3, bgcolor: "#fafafa" }}>
+          <DialogContent
+            sx={{ p: 3, bgcolor: theme.palette.background.default }}
+          >
             {logsLoading ? (
               <Box
                 display="flex"
@@ -422,13 +439,13 @@ const NewDriversPage = () => {
                 justifyContent="center"
                 alignItems="center"
                 minHeight="300px"
-                bgcolor="rgba(0,0,0,0.05)"
+                bgcolor={isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.05)"}
                 borderRadius={2}
               >
                 <CircularProgress
                   size={40}
                   thickness={4}
-                  sx={{ color: "#1976d2" }}
+                  sx={{ color: theme.palette.primary.main }}
                 />
                 <Typography variant="body2" color="text.secondary" mt={2}>
                   Loading logs...
@@ -452,7 +469,7 @@ const NewDriversPage = () => {
                       p: 3,
                       mb: 3,
                       borderRadius: 2,
-                      bgcolor: "#fff",
+                      bgcolor: theme.palette.background.paper,
                       transition: "transform 0.2s ease-in-out",
                       "&:hover": { transform: "translateY(-2px)" },
                     }}
@@ -485,7 +502,13 @@ const NewDriversPage = () => {
                 ) : (
                   <Paper
                     elevation={1}
-                    sx={{ p: 2, mb: 3, borderRadius: 2, textAlign: "center" }}
+                    sx={{
+                      p: 2,
+                      mb: 3,
+                      borderRadius: 2,
+                      textAlign: "center",
+                      bgcolor: theme.palette.background.paper,
+                    }}
                   >
                     <Typography variant="body1" color="text.secondary">
                       No vehicle details available.
@@ -504,19 +527,31 @@ const NewDriversPage = () => {
                   component={Paper}
                   sx={{
                     borderRadius: 2,
-                    boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+                    boxShadow: isDark
+                      ? "0 2px 12px rgba(0,0,0,0.4)"
+                      : "0 2px 10px rgba(0,0,0,0.05)",
+                    bgcolor: theme.palette.background.paper,
                   }}
                 >
                   <Table>
                     <TableHead>
-                      <TableRow sx={{ bgcolor: "#f5f5f5" }}>
-                        <TableCell sx={{ fontWeight: "600", color: "#333" }}>
-                          ID
-                        </TableCell>
-                        <TableCell sx={{ fontWeight: "600", color: "#333" }}>
+                      <TableRow
+                        sx={{ bgcolor: theme.palette.background.default }}
+                      >
+                        <TableCell
+                          sx={{
+                            fontWeight: "600",
+                            color: theme.palette.text.primary,
+                          }}
+                        >
                           Device accessed
                         </TableCell>
-                        <TableCell sx={{ fontWeight: "600", color: "#333" }}>
+                        <TableCell
+                          sx={{
+                            fontWeight: "600",
+                            color: theme.palette.text.primary,
+                          }}
+                        >
                           Login Time
                         </TableCell>
                       </TableRow>
@@ -527,11 +562,14 @@ const NewDriversPage = () => {
                           <TableRow
                             key={log.id}
                             sx={{
-                              "&:hover": { bgcolor: "#f9f9f9" },
+                              "&:hover": {
+                                bgcolor: isDark
+                                  ? "rgba(255,255,255,0.03)"
+                                  : "#f9f9f9",
+                              },
                               transition: "background-color 0.2s",
                             }}
                           >
-                            <TableCell>{log.id}</TableCell>
                             <TableCell>{log.device_id}</TableCell>
                             <TableCell>
                               {new Date(log.login_time).toLocaleString()}
@@ -553,7 +591,9 @@ const NewDriversPage = () => {
               </>
             )}
           </DialogContent>
-          <DialogActions sx={{ p: 2, borderTop: "1px solid #e0e0e0" }}>
+          <DialogActions
+            sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}
+          >
             <Button
               onClick={handleCloseLogsModal}
               variant="contained"
@@ -562,8 +602,8 @@ const NewDriversPage = () => {
                 textTransform: "none",
                 px: 3,
                 py: 1,
-                bgcolor: "#1976d2",
-                "&:hover": { bgcolor: "#1565c0" },
+                bgcolor: theme.palette.primary.main,
+                "&:hover": { bgcolor: theme.palette.primary.dark },
               }}
             >
               Close

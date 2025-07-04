@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  allDriversVehicles,
   assignDriverToVehicle,
   deleteDriver,
   dispatchCasesForDriver,
@@ -46,6 +47,8 @@ router.get("/drivers/shifts", getDriversShiftDetails);
 router.get("/driver/availability/view/:id", getDriverAvailability);
 
 router.get("/driver/associated/vehicles", authDriver, driverAssociateVehicles);
+
+router.get("/driver/all/associated", allDriversVehicles);
 
 router.get("/driver/login/logs/:driverId", driversLoginLogs);
 

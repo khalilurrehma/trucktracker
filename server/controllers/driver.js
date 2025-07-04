@@ -11,6 +11,7 @@ import {
   fetchDriverLoginLogs,
   fetchDrivers,
   fetchDriversByUserId,
+  fetchDriversWithVehicle,
   findAssociateVehicleByDriverId,
   findVehiclesByDriverId,
   getDriverCompletedCases,
@@ -295,6 +296,19 @@ export const driverAssociateVehicles = async (req, res) => {
     }
 
     res.status(200).json({ status: true, message: driverVehicles });
+  } catch (error) {
+    res.status(500).json({ status: false, message: error.message });
+  }
+};
+
+export const allDriversVehicles = async (req, res) => {
+  try {
+    const results = await fetchDriversWithVehicle();
+
+    res.status(201).json({
+      status: true,
+      message: results,
+    });
   } catch (error) {
     res.status(500).json({ status: false, message: error.message });
   }

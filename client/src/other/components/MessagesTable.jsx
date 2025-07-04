@@ -1,23 +1,24 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
-  TableContainer,
   Table,
-  TableHead,
-  TableBody,
-  TableRow,
   TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TableBody,
   Paper,
-  styled,
-  tableCellClasses,
   Typography,
-  Tooltip,
   IconButton,
+  Tooltip,
   Box,
 } from "@mui/material";
-import { TableVirtuoso } from "react-virtuoso";
+import { styled, useTheme, alpha } from "@mui/material/styles";
+import { TableVirtuoso } from "react-virtuoso"; // Make sure you have this installed
 
 const MessagesTable = ({ messages, player }) => {
+  const theme = useTheme();
   const virtuoso = useRef(null);
+
   const allFields = [
     "ain.1",
     "ain.2",
@@ -80,10 +81,15 @@ const MessagesTable = ({ messages, player }) => {
     if (player && player.value != null) {
       setHighlightedIndex(player.value);
     }
-  }, [player.value]);
+  }, [player?.value]);
 
+  // Auto-scroll to highlighted message
   useEffect(() => {
-    if (highlightedIndex !== null && virtuoso?.current) {
+    if (
+      highlightedIndex !== null &&
+      virtuoso.current &&
+      typeof virtuoso.current.scrollToIndex === "function"
+    ) {
       virtuoso.current.scrollToIndex({
         index: highlightedIndex,
         align: "center",
@@ -93,6 +99,7 @@ const MessagesTable = ({ messages, player }) => {
   }, [highlightedIndex, messages]);
 
   const formatDate = (timestamp) => {
+    if (!timestamp) return "-";
     const date = new Date(timestamp * 1000);
     const day = date.getDate().toString().padStart(2, "0");
     const month = (date.getMonth() + 1).toString().padStart(2, "0");
@@ -104,55 +111,51 @@ const MessagesTable = ({ messages, player }) => {
   };
 
   const StyledTableCell = styled(TableCell)(({ theme }) => ({
-    [`&.${tableCellClasses.head}`]: {
+    [`&.${TableCell.head}`]: {
       backgroundColor: theme.palette.common.black,
       color: theme.palette.common.white,
       padding: "5px 5px",
     },
-    [`&.${tableCellClasses.body}`]: {
+    [`&.${TableCell.body}`]: {
       padding: "0px 5px",
     },
   }));
-  const tableRef = useRef(null);
 
   const etcFields = allFields.filter(
     (field) => !selectedFields.includes(field)
   );
 
-  const renderEtcField = (message) => {
-    return (
-      <StyledTableCell>
-        {etcFields.map((field) => {
-          if (message[field] !== undefined) {
-            return (
-              <Typography
-                key={field}
-                sx={{
-                  whiteSpace: "nowrap",
-                  display: "inline",
-                  fontSize: "12px",
-                }}
-              >{`${field}: ${message[field]};`}</Typography>
-            );
-          }
-          return null;
-        })}
-      </StyledTableCell>
-    );
-  };
+  const renderEtcField = (message) => (
+    <StyledTableCell>
+      {etcFields.map((field) => {
+        if (message[field] !== undefined) {
+          return (
+            <Typography
+              key={field}
+              sx={{
+                whiteSpace: "nowrap",
+                display: "inline",
+                fontSize: "12px",
+              }}
+            >{`${field}: ${message[field]}; `}</Typography>
+          );
+        }
+        return null;
+      })}
+    </StyledTableCell>
+  );
 
+  // Virtuoso MUI table mapping (unchanged)
   const VirtuosoTableComponents = {
     Scroller: React.forwardRef((props, ref) => (
-      <>
-        <TableContainer
-          component={Paper}
-          {...props}
-          ref={ref}
-          id="tableContainer"
-        />
-      </>
+      <TableContainer
+        component={Paper}
+        {...props}
+        ref={ref}
+        id="tableContainer"
+      />
     )),
-    Table: (props) => <Table {...props} sx={{}} />,
+    Table: (props) => <Table {...props} />,
     TableHead,
     TableRow: ({ item: _item, ...props }) => <TableRow {...props} />,
     TableBody: React.forwardRef((props, ref) => (
@@ -170,30 +173,51 @@ const MessagesTable = ({ messages, player }) => {
   );
 
   const rowContent = (index, message) => (
-    <React.Fragment>
-      {selectedFields.map((field) => {
-        if (message[field] !== undefined) {
-          return (
-            <StyledTableCell
-              key={field}
-              sx={{
-                whiteSpace: "nowrap",
-                fontSize: "12px",
-                backgroundColor:
-                  index === highlightedIndex ? "gray" : "inherit",
-              }}
-            >
-              {field === "timestamp" || field === "server.timestamp"
-                ? formatDate(message[field])
-                : message[field]}
-            </StyledTableCell>
-          );
-        }
-        return null;
-      })}
+    <>
+      {selectedFields.map((field) => (
+        <StyledTableCell
+          key={field}
+          sx={{
+            whiteSpace: "nowrap",
+            fontSize: "12px",
+            backgroundColor:
+              index === highlightedIndex
+                ? alpha(
+                    theme.palette.primary.main,
+                    theme.palette.mode === "dark" ? 0.3 : 0.12
+                  )
+                : "inherit",
+            color:
+              index === highlightedIndex
+                ? theme.palette.getContrastText(theme.palette.primary.main)
+                : "inherit",
+            transition: "background 0.2s",
+          }}
+        >
+          {field === "timestamp" || field === "server.timestamp"
+            ? formatDate(message[field])
+            : message[field] !== undefined
+            ? message[field]
+            : "-"}
+        </StyledTableCell>
+      ))}
       {renderEtcField(message)}
-    </React.Fragment>
+    </>
   );
+
+  const handleMoveToCurrent = () => {
+    if (
+      virtuoso.current &&
+      typeof virtuoso.current.scrollToIndex === "function" &&
+      highlightedIndex != null
+    ) {
+      virtuoso.current.scrollToIndex({
+        index: highlightedIndex,
+        align: "center",
+        behavior: "smooth",
+      });
+    }
+  };
 
   return (
     <>
@@ -202,7 +226,10 @@ const MessagesTable = ({ messages, player }) => {
           <IconButton
             sx={{ fontSize: "12px" }}
             onClick={() => {
-              if (virtuoso?.current) {
+              if (
+                virtuoso.current &&
+                typeof virtuoso.current.scrollToIndex === "function"
+              ) {
                 virtuoso.current.scrollToIndex({
                   index: highlightedIndex,
                   align: "center",
@@ -231,12 +258,9 @@ const MessagesTable = ({ messages, player }) => {
         ) : (
           <TableVirtuoso
             data={messages}
-            components={VirtuosoTableComponents}
+            // components={VirtuosoTableComponents}
             fixedHeaderContent={fixedHeaderContent}
             itemContent={rowContent}
-            scrollerRef={(ref) => {
-              tableRef.current = ref;
-            }}
             ref={virtuoso}
           />
         )}

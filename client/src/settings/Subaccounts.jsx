@@ -33,6 +33,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useCatch } from "../reactHelper";
 import { useTranslation } from "../common/components/LocalizationProvider";
+import TableShimmer from "../common/components/TableShimmer";
 
 const Subaccounts = () => {
   const [subaccounts, setSubaccounts] = useState([]);
@@ -213,9 +214,7 @@ const Subaccounts = () => {
 
           <TableBody>
             {loading ? (
-              <TableCell content="center">
-                <SettingLoader />
-              </TableCell>
+              <TableShimmer columns={7} />
             ) : (
               filteredSubaccounts.map((row, idx) => {
                 console.log(row);
