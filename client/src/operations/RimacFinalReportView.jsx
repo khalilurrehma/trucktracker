@@ -15,7 +15,7 @@ import ForwardIcon from "@mui/icons-material/Forward";
 import PageLayout from "../common/components/PageLayout";
 import OperationsMenu from "../settings/components/OperationsMenu";
 import { useAppContext } from "../AppContext";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import axios from "axios";
 import DispatchReportViewer from "./components/DispatchReportViewer";
 import { toast, ToastContainer } from "react-toastify";
@@ -26,12 +26,18 @@ const RimacFinalReportView = () => {
   const isDark = theme.palette.mode === "dark";
   const reportRef = useRef();
   const { id, caseId } = useParams();
+  const { search } = useLocation();
+  const query = new URLSearchParams(search);
   const { url } = useAppContext();
   const [report, setReport] = useState(null);
   const [detailedReport, setDetailedReport] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sendLoader, setSendLoader] = useState(false);
   const [hideButton, setHideButton] = useState(false);
+  const [isModified, setIsModified] = useState(false);
+  const [originalReport, setOriginalReport] = useState(null);
+
+  let disableEdit = query.get("disable_edit") === "true";
 
   const fetchReport = async () => {
     try {
@@ -39,10 +45,12 @@ const RimacFinalReportView = () => {
       const { data } = await axios.get(`${url}/rimac/case/report/${id}`);
       if (data.status) {
         const parsedReportData = JSON.parse(data.message.rimac.report_data);
-        setReport({
+        const reportData = {
           ...parsedReportData,
           dispatch: data.message.dispatch || {},
-        });
+        };
+        setReport(reportData);
+        setOriginalReport(reportData);
         setDetailedReport(data.message);
       }
     } catch (error) {
@@ -58,6 +66,33 @@ const RimacFinalReportView = () => {
     }
   }, [id, caseId]);
 
+  const handleFieldChange = (key, value) => {
+    setReport((prev) => {
+      const updated = { ...prev, [key]: value };
+      setIsModified(JSON.stringify(updated) !== JSON.stringify(originalReport));
+      return updated;
+    });
+  };
+
+  const handleSaveChanges = async () => {
+    try {
+      const response = await axios.put(`${url}/rimac/case/report/${id}`, {
+        report_data: JSON.stringify(report),
+      });
+      if (response.data.status) {
+        toast.success("Changes saved successfully!");
+        setOriginalReport(report);
+        setIsModified(false);
+        await fetchReport(); // Refresh the report to ensure consistency
+      } else {
+        toast.error("Failed to save changes.");
+      }
+    } catch (error) {
+      console.error("Error saving changes:", error);
+      toast.error("Error saving changes.");
+    }
+  };
+
   const getValue = (key) => {
     const val = report && report[key];
     if (
@@ -67,11 +102,10 @@ const RimacFinalReportView = () => {
         Object.keys(val).length === 0) ||
       (Array.isArray(val) && val.length === 0)
     ) {
-      return "-";
+      return "";
     }
-    // If it's any non-empty object or array, still show "-" (to avoid [object Object] or joined array)
     if (typeof val === "object" || Array.isArray(val)) {
-      return "-";
+      return "";
     }
     return val;
   };
@@ -223,21 +257,38 @@ const RimacFinalReportView = () => {
           <Typography variant="h6">
             INFORME - SERVICIO SPEED AMPLIADO
           </Typography>
-
-          {detailedReport?.rimac?.status !== "sent_to_rimac" && !hideButton && (
-            <Button
-              variant="contained"
-              sx={{
-                bgcolor: "error.main",
-                color: "white",
-                "&:hover": { bgcolor: "error.dark" },
-              }}
-              endIcon={<ForwardIcon />}
-              onClick={handleClickSend}
-            >
-              Send to Rimac
-            </Button>
-          )}
+          <Box sx={{ display: "flex", gap: 1 }}>
+            {isModified && (
+              <Button
+                variant="contained"
+                sx={{
+                  bgcolor: "success.main",
+                  color: "white",
+                  "&:hover": { bgcolor: "success.dark" },
+                }}
+                // endIcon={<SaveIcon />}
+                onClick={handleSaveChanges}
+              >
+                Save Changes
+              </Button>
+            )}
+            {detailedReport?.rimac?.status !== "sent_to_rimac" &&
+              !hideButton && (
+                <Button
+                  variant="contained"
+                  sx={{
+                    bgcolor: "error.main",
+                    color: "white",
+                    "&:hover": { bgcolor: "error.dark" },
+                  }}
+                  endIcon={<ForwardIcon />}
+                  onClick={handleClickSend}
+                  disabled={isModified}
+                >
+                  Send to Rimac
+                </Button>
+              )}
+          </Box>
         </Box>
 
         <Box>
@@ -246,36 +297,40 @@ const RimacFinalReportView = () => {
               <TextField
                 label="Fecha Servicio"
                 value={getValue("FecOcurr")}
+                onChange={(e) => handleFieldChange("FecOcurr", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="Hora de llegada"
                 value={getValue("HorOcurr")}
+                onChange={(e) => handleFieldChange("HorOcurr", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="Hora de salida"
                 value={getValue("HorEnvio")}
+                onChange={(e) => handleFieldChange("HorEnvio", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="Lugar del Accidente"
                 value={getValue("DirSin")}
+                onChange={(e) => handleFieldChange("DirSin", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
 
@@ -283,36 +338,40 @@ const RimacFinalReportView = () => {
               <TextField
                 label="Departamento"
                 value={getValue("Dpto")}
+                onChange={(e) => handleFieldChange("Dpto", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="Provincia"
                 value={getValue("Prov")}
+                onChange={(e) => handleFieldChange("Prov", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="Distrito"
                 value={getValue("Dist")}
+                onChange={(e) => handleFieldChange("Dist", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="Señal Telefónica"
                 value={getValue("TelfCont")}
+                onChange={(e) => handleFieldChange("TelfCont", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
           </Grid>
@@ -327,36 +386,42 @@ const RimacFinalReportView = () => {
               <TextField
                 label="Fecha"
                 value={getValue("FecEnvio")}
+                onChange={(e) => handleFieldChange("FecEnvio", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="Tipo de Servicio"
                 value={getValue("CodProd")}
+                onChange={(e) => handleFieldChange("CodProd", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="Hora de solicitud"
                 value={getValue("HorLlamada")}
+                onChange={(e) =>
+                  handleFieldChange("HorLlamada", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="Hora de atención"
                 value={getValue("HorEnvio")}
+                onChange={(e) => handleFieldChange("HorEnvio", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
 
@@ -364,36 +429,44 @@ const RimacFinalReportView = () => {
               <TextField
                 label="Domicilio"
                 value={getValue("DirSin")}
+                onChange={(e) => handleFieldChange("DirSin", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="Documento Nro"
                 value={getValue("ContactoNroDoc")}
+                onChange={(e) =>
+                  handleFieldChange("ContactoNroDoc", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="Tipo Documento"
                 value={getValue("ContactoTipoDoc")}
+                onChange={(e) =>
+                  handleFieldChange("ContactoTipoDoc", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="Asegurado"
                 value={getValue("NomTit")}
+                onChange={(e) => handleFieldChange("NomTit", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
 
@@ -401,36 +474,40 @@ const RimacFinalReportView = () => {
               <TextField
                 label="Nombre del Asegurado"
                 value={getValue("NomTit")}
+                onChange={(e) => handleFieldChange("NomTit", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="Teléfono"
                 value={getValue("TelfCont")}
+                onChange={(e) => handleFieldChange("TelfCont", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="Nombre de Contacto"
                 value={getValue("NomCont")}
+                onChange={(e) => handleFieldChange("NomCont", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="Teléfono Contacto"
                 value={getValue("TelfCont")}
+                onChange={(e) => handleFieldChange("TelfCont", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
 
@@ -438,63 +515,72 @@ const RimacFinalReportView = () => {
               <TextField
                 label="Referencia"
                 value={getValue("RefSin")}
+                onChange={(e) => handleFieldChange("RefSin", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="Departamento"
                 value={getValue("Dpto")}
+                onChange={(e) => handleFieldChange("Dpto", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="Provincia"
                 value={getValue("Prov")}
+                onChange={(e) => handleFieldChange("Prov", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="Distrito"
                 value={getValue("Dist")}
+                onChange={(e) => handleFieldChange("Dist", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={4}>
               <TextField
                 label="TIPO DE ASESORÍA"
                 value={getValue("NomProd")}
+                onChange={(e) => handleFieldChange("NomProd", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={4}>
               <TextField
                 label="TIPO DE SINIESTRO"
                 value={getValue("DescEnvio")}
+                onChange={(e) => handleFieldChange("DescEnvio", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={4}>
               <TextField
                 label="CRITICIDAD DEL SNTRO"
                 value={getValue("ConfiandoPalabra")}
+                onChange={(e) =>
+                  handleFieldChange("ConfiandoPalabra", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
           </Grid>
@@ -508,35 +594,49 @@ const RimacFinalReportView = () => {
             <Grid item xs={6}>
               <TextField
                 label="DEPENDENCIA POLICIAL"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("DependenciaPolicial")}
+                onChange={(e) =>
+                  handleFieldChange("DependenciaPolicial", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={6}>
               <TextField
                 label="DENUNCIA POLICIAL/LIBRO DE OCURRENCIA"
+                value={getValue("DenunciaPolicial")}
+                onChange={(e) =>
+                  handleFieldChange("DenunciaPolicial", e.target.value)
+                }
                 fullWidth
                 size="small"
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="VEHICULO RETENIDO"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("VehiculoRetenido")}
+                onChange={(e) =>
+                  handleFieldChange("VehiculoRetenido", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="CONDUCTOR RETENIDO"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("ConductorRetenido")}
+                onChange={(e) =>
+                  handleFieldChange("ConductorRetenido", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
           </Grid>
@@ -551,72 +651,80 @@ const RimacFinalReportView = () => {
               <TextField
                 label="Tipo de vehículo"
                 value={getValue("TipVehic")}
+                onChange={(e) => handleFieldChange("TipVehic", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={1.4}>
               <TextField
                 label="Marca"
                 value={getValue("Marca")}
+                onChange={(e) => handleFieldChange("Marca", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={1.4}>
               <TextField
                 label="Modelo"
                 value={getValue("Modelo")}
+                onChange={(e) => handleFieldChange("Modelo", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={1.4}>
               <TextField
                 label="Color"
                 value={getValue("Color")}
+                onChange={(e) => handleFieldChange("Color", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={1.4}>
               <TextField
                 label="PLACA"
                 value={getValue("NroPlaca")}
+                onChange={(e) => handleFieldChange("NroPlaca", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={1.4}>
               <TextField
                 label="AÑO"
                 value={getValue("AnioVehic")}
+                onChange={(e) => handleFieldChange("AnioVehic", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={1.4}>
               <TextField
                 label="USO VEH"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("UsoVeh")}
+                onChange={(e) => handleFieldChange("UsoVeh", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={1.6}>
               <TextField
                 label="SIST.GAS"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("SistGas")}
+                onChange={(e) => handleFieldChange("SistGas", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
 
@@ -624,222 +732,288 @@ const RimacFinalReportView = () => {
               <TextField
                 label="NOMBRE DEL CONDUCTOR"
                 value={getValue("NomCond")}
+                onChange={(e) => handleFieldChange("NomCond", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={2}>
               <TextField
                 label="APELLIDOS"
                 value={getValue("ApPatCond")}
+                onChange={(e) => handleFieldChange("ApPatCond", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={2}>
               <TextField
                 label="DOCUMENTO"
                 value={getValue("ConductorTipoDoc")}
+                onChange={(e) =>
+                  handleFieldChange("ConductorTipoDoc", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={2}>
               <TextField
                 label="NRO"
                 value={getValue("ConductorNroDoc")}
+                onChange={(e) =>
+                  handleFieldChange("ConductorNroDoc", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={1}>
               <TextField
                 label="EDAD"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("EdadConductor")}
+                onChange={(e) =>
+                  handleFieldChange("EdadConductor", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={1.5}>
               <TextField
                 label="NRO CELULAR"
-                value={getValue("TelfCont")}
+                value={getValue("TelfConductor")}
+                onChange={(e) =>
+                  handleFieldChange("TelfConductor", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
 
             <Grid item xs={1}>
               <TextField
-                label="PARESTESCO"
-                value={getValue("SeñalTelefónica")}
+                label="PARENTESCO"
+                value={getValue("Parentesco")}
+                onChange={(e) =>
+                  handleFieldChange("Parentesco", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={1}>
               <TextField
                 label="Especificar"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("ParentescoEspecificar")}
+                onChange={(e) =>
+                  handleFieldChange("ParentescoEspecificar", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
 
             <Grid item xs={2.5}>
               <TextField
                 label="APRECIACION ETILICA"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("ApreciacionEtilica")}
+                onChange={(e) =>
+                  handleFieldChange("ApreciacionEtilica", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={2.5}>
               <TextField
                 label="LESIONADOS"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("Lesionados")}
+                onChange={(e) =>
+                  handleFieldChange("Lesionados", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={2.5}>
               <TextField
                 label="CANTIDAD"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("CantidadLesionados")}
+                onChange={(e) =>
+                  handleFieldChange("CantidadLesionados", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
 
             <Grid item xs={2.2}>
               <TextField
                 label="CÍA SEG - SOAT"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("CiaSegSoat")}
+                onChange={(e) =>
+                  handleFieldChange("CiaSegSoat", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
 
             <Grid item xs={2}>
               <TextField
                 label="TIPO DE LICENCIA"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("TipoLicencia")}
+                onChange={(e) =>
+                  handleFieldChange("TipoLicencia", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={2}>
               <TextField
                 label="NRO LICENCIA"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("NroLicencia")}
+                onChange={(e) =>
+                  handleFieldChange("NroLicencia", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={2}>
               <TextField
                 label="CATEGORIA"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("CategoriaLicencia")}
+                onChange={(e) =>
+                  handleFieldChange("CategoriaLicencia", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={2}>
               <TextField
                 label="VIGENTE"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("LicenciaVigente")}
+                onChange={(e) =>
+                  handleFieldChange("LicenciaVigente", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={2}>
               <TextField
                 label="FECHA REVALIDACION"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("FechaRevalidacion")}
+                onChange={(e) =>
+                  handleFieldChange("FechaRevalidacion", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={2}>
               <TextField
                 label="RESTRICCIONES"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("RestriccionesLicencia")}
+                onChange={(e) =>
+                  handleFieldChange("RestriccionesLicencia", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
 
             <Grid item xs={4}>
               <TextField
                 label="VEHÍCULO OPERATIVO"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("VehiculoOperativo")}
+                onChange={(e) =>
+                  handleFieldChange("VehiculoOperativo", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={4}>
               <TextField
                 label="PROVEEDOR GRÚA"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("ProveedorGrua")}
+                onChange={(e) =>
+                  handleFieldChange("ProveedorGrua", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={4}>
               <TextField
                 label="ESPECIFICAR"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("EspecificarGrua")}
+                onChange={(e) =>
+                  handleFieldChange("EspecificarGrua", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
 
             <Grid item xs={3.5}>
               <TextField
                 label="PLACA"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("PlacaGrua")}
+                onChange={(e) => handleFieldChange("PlacaGrua", e.target.value)}
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={5}>
               <TextField
                 label="CONDUCTOR"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("ConductorGrua")}
+                onChange={(e) =>
+                  handleFieldChange("ConductorGrua", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3.5}>
               <TextField
                 label="TELEFONO"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("TelefonoGrua")}
+                onChange={(e) =>
+                  handleFieldChange("TelefonoGrua", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
           </Grid>
@@ -852,11 +1026,14 @@ const RimacFinalReportView = () => {
           <Grid container spacing={2}>
             <Grid item xs={12}>
               <TextField
-                label="TELEFONO"
-                value={getValue("SeñalTelefónica")}
+                label="Daños"
+                value={getValue("DaniosVehiculoAsegurado")}
+                onChange={(e) =>
+                  handleFieldChange("DaniosVehiculoAsegurado", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
           </Grid>
@@ -870,37 +1047,49 @@ const RimacFinalReportView = () => {
             <Grid item xs={3}>
               <TextField
                 label="PREEXISTENCIAS"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("Preexistencias")}
+                onChange={(e) =>
+                  handleFieldChange("Preexistencias", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="ASUME RESPONSABILIDAD"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("AsumeResponsabilidad")}
+                onChange={(e) =>
+                  handleFieldChange("AsumeResponsabilidad", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="TALLER ELEGIDO"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("TallerElegido")}
+                onChange={(e) =>
+                  handleFieldChange("TallerElegido", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="Especificar"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("EspecificarTaller")}
+                onChange={(e) =>
+                  handleFieldChange("EspecificarTaller", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
           </Grid>
@@ -914,188 +1103,257 @@ const RimacFinalReportView = () => {
             <Grid item xs={4}>
               <TextField
                 label="Tipo de vehículo"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("TipoVehiculoInspeccion1")}
+                onChange={(e) =>
+                  handleFieldChange("TipoVehiculoInspeccion1", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={4}>
               <TextField
                 label="Marca"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("MarcaInspeccion1")}
+                onChange={(e) =>
+                  handleFieldChange("MarcaInspeccion1", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={4}>
               <TextField
                 label="Modelo"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("ModeloInspeccion1")}
+                onChange={(e) =>
+                  handleFieldChange("ModeloInspeccion1", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
 
             <Grid item xs={3}>
               <TextField
                 label="Color"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("ColorInspeccion1")}
+                onChange={(e) =>
+                  handleFieldChange("ColorInspeccion1", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={8}>
               <TextField
                 label="PLACA"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("PlacaInspeccion1")}
+                onChange={(e) =>
+                  handleFieldChange("PlacaInspeccion1", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
 
             <Grid item xs={4}>
               <TextField
                 label="AÑO"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("AnioInspeccion1")}
+                onChange={(e) =>
+                  handleFieldChange("AnioInspeccion1", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={4}>
               <TextField
                 label="USO VEH"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("UsoVehInspeccion1")}
+                onChange={(e) =>
+                  handleFieldChange("UsoVehInspeccion1", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={4}>
               <TextField
                 label="SIST.GAS"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("SistGasInspeccion1")}
+                onChange={(e) =>
+                  handleFieldChange("SistGasInspeccion1", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
 
             <Grid item xs={4}>
               <TextField
                 label="NOMBRE DEL CONDUCTOR"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("NomConductorInspeccion1")}
+                onChange={(e) =>
+                  handleFieldChange("NomConductorInspeccion1", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={4}>
               <TextField
                 label="APELLIDOS"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("ApConductorInspeccion1")}
+                onChange={(e) =>
+                  handleFieldChange("ApConductorInspeccion1", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={4}>
               <TextField
                 label="DOCUMENTO"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("DocumentoConductorInspeccion1")}
+                onChange={(e) =>
+                  handleFieldChange(
+                    "DocumentoConductorInspeccion1",
+                    e.target.value
+                  )
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
 
             <Grid item xs={4}>
               <TextField
                 label="NRO"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("NroDocConductorInspeccion1")}
+                onChange={(e) =>
+                  handleFieldChange(
+                    "NroDocConductorInspeccion1",
+                    e.target.value
+                  )
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={4}>
               <TextField
                 label="EDAD"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("EdadConductorInspeccion1")}
+                onChange={(e) =>
+                  handleFieldChange("EdadConductorInspeccion1", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={4}>
               <TextField
                 label="NRO CELULAR"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("TelfConductorInspeccion1")}
+                onChange={(e) =>
+                  handleFieldChange("TelfConductorInspeccion1", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
 
             <Grid item xs={12}>
               <TextField
-                label="PARESTESCO"
-                value={getValue("SeñalTelefónica")}
+                label="PARENTESCO"
+                value={getValue("ParentescoInspeccion1")}
+                onChange={(e) =>
+                  handleFieldChange("ParentescoInspeccion1", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
 
             <Grid item xs={3}>
               <TextField
                 label="Especificar"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("EspecificarInspeccion1")}
+                onChange={(e) =>
+                  handleFieldChange("EspecificarInspeccion1", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="APRECIACION ETILICA"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("ApreciacionEtilicaInspeccion1")}
+                onChange={(e) =>
+                  handleFieldChange(
+                    "ApreciacionEtilicaInspeccion1",
+                    e.target.value
+                  )
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="LESIONADOS"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("LesionadosInspeccion1")}
+                onChange={(e) =>
+                  handleFieldChange("LesionadosInspeccion1", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
             <Grid item xs={3}>
               <TextField
                 label="CANTIDAD"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("CantidadInspeccion1")}
+                onChange={(e) =>
+                  handleFieldChange("CantidadInspeccion1", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
 
             <Grid item xs={12}>
               <TextField
                 label="CÍA SEG - SOAT"
-                value={getValue("SeñalTelefónica")}
+                value={getValue("CiaSegSoatInspeccion1")}
+                onChange={(e) =>
+                  handleFieldChange("CiaSegSoatInspeccion1", e.target.value)
+                }
                 fullWidth
                 size="small"
-                InputProps={{ readOnly: true }}
+                InputProps={{ readOnly: disableEdit }}
               />
             </Grid>
           </Grid>
@@ -1109,9 +1367,12 @@ const RimacFinalReportView = () => {
             label="Observaciones"
             multiline
             rows={8}
+            value={getValue("Observaciones")}
+            onChange={(e) => handleFieldChange("Observaciones", e.target.value)}
             fullWidth
             variant="outlined"
             size="small"
+            InputProps={{ readOnly: disableEdit }}
           />
 
           <Divider sx={{ my: 3 }} />
@@ -1123,9 +1384,14 @@ const RimacFinalReportView = () => {
             label="Observaciones"
             multiline
             rows={4}
+            value={getValue("ObservacionesProcurador")}
+            onChange={(e) =>
+              handleFieldChange("ObservacionesProcurador", e.target.value)
+            }
             fullWidth
             variant="outlined"
             size="small"
+            InputProps={{ readOnly: disableEdit }}
           />
 
           {report && report.dispatch && (
@@ -1137,7 +1403,7 @@ const RimacFinalReportView = () => {
       <Modal
         open={sendLoader}
         onClose={() => {}}
-        aria-labelledby="pdf-loader-title"
+        aria-labelledby="pdf-loader-modal-title"
         sx={{
           display: "flex",
           alignItems: "center",
@@ -1160,8 +1426,8 @@ const RimacFinalReportView = () => {
           }}
         >
           <CircularProgress />
-          <Typography id="pdf-loader-title" variant="body1">
-            Sending, please wait...
+          <Typography id="pdf-loader-modal-title" variant="body1">
+            Sending PDF, please wait...
           </Typography>
         </Box>
       </Modal>

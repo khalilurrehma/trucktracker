@@ -31,6 +31,7 @@ import {
   initialCaseStageStatus,
   insertDispatchCompleteCase,
   insertDriverServiceTime,
+  modifyRimacReportById,
   onTheWayCaseStageStatus,
   processTemplateForAdmin,
   processTimeTemplate,
@@ -758,8 +759,13 @@ export const suggestedServicesApproval = async (req, res) => {
 export const dispatchCaseReport = async (req, res) => {
   const driverId = req.userId;
   const { caseId, companyId } = req.params;
-  const { suggestedServices, subservices, additionalInformation, vehicles } =
-    req.body;
+  const {
+    suggestedServices,
+    subservices,
+    additionalInformation,
+    vehicles,
+    OCR_meta_data,
+  } = req.body;
 
   if (!caseId || !driverId || !companyId) {
     return res.status(400).json({
@@ -782,6 +788,22 @@ export const dispatchCaseReport = async (req, res) => {
     });
   }
 
+  if (!Array.isArray(OCR_meta_data)) {
+    return res.status(400).json({
+      status: false,
+      message: "OCR_meta_data must be an array",
+    });
+  }
+
+  for (const ocr of OCR_meta_data) {
+    if (!ocr.plateNumber) {
+      return res.status(400).json({
+        status: false,
+        message: "Each OCR_meta_data item must have a plateNumber",
+      });
+    }
+  }
+
   try {
     const caseCheck = await findCaseStatusById(caseId);
 
@@ -800,6 +822,7 @@ export const dispatchCaseReport = async (req, res) => {
       suggested_services: suggestedServices || null,
       subservices: subservices || null,
       additional_information: additionalInformation || null,
+      meta_data: JSON.stringify(OCR_meta_data),
     };
 
     const reportId = await saveDispatchCaseReport(reportData);
@@ -1060,6 +1083,40 @@ export const getRimacReportById = async (req, res) => {
     res.status(200).json({
       status: true,
       message: response,
+    });
+  } catch (error) {
+    res.status(204).send({ status: false, message: error.message });
+  }
+};
+
+export const saveChangesOfRimacReport = async (req, res) => {
+  const { id } = req.params;
+  const { report_data } = req.body;
+
+  if (!id || id === "") {
+    return res
+      .status(404)
+      .send({ status: false, message: "Invalid report ID" });
+  }
+
+  if (!report_data) {
+    return res
+      .status(404)
+      .send({ status: false, message: "Invalid Report Data" });
+  }
+
+  try {
+    const updatedResult = await modifyRimacReportById(report_data, id);
+
+    if (updatedResult.affectedRows === 0) {
+      return res
+        .status(404)
+        .send({ status: false, message: "Cannot save changes." });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: "Changes saved successfully!",
     });
   } catch (error) {
     res.status(204).send({ status: false, message: error.message });

@@ -30,6 +30,7 @@ import {
   saveSubservicePrices,
   getZoneRates,
   sendReportToRimac,
+  saveChangesOfRimacReport,
 } from "../controllers/dispatch.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { authDriver } from "../middlewares/auth.middleware.js";
@@ -69,7 +70,7 @@ router.get("/rimac/case/report/:id", getRimacReportById);
 
 router.get("/dispatch/zone-rates/:userId", getZoneRates);
 
-router.post("/dispatch/send/report-to-rimac", sendReportToRimac)
+router.post("/dispatch/send/report-to-rimac", sendReportToRimac);
 
 router.post(
   "/dispatch/case/:caseId/action/:companyId",
@@ -119,6 +120,8 @@ router.patch(
   "/dispatch/update/report/notification/:id",
   notificationStatusUpdate
 );
+
+router.put("/rimac/case/report/:id", saveChangesOfRimacReport);
 
 router.patch("/dispatch/service-approvals/:id", responseSuggestedService);
 export default router;

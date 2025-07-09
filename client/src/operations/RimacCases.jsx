@@ -363,7 +363,7 @@ const RimacCases = () => {
                         !row.caseId
                           ? () => {
                               navigate(
-                                `/operations/dispatch?address=${row.accidentAddress}&casenumber=${row.salesforce}&rimac_report_id=${row.id}&reference=${row?.reference}`
+                                `/operations/dispatch?address=${row.accidentAddress}&casenumber=${row.salesforce}&rimac_report_id=${row.id}&reference=${row.reference}`
                               );
                             }
                           : undefined
@@ -429,7 +429,13 @@ const RimacCases = () => {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   navigate(
-                                    `/operations/rimac-case/report/final/${row.id}/caseId/${row.caseId}`
+                                    `/operations/rimac-case/report/final/${
+                                      row.id
+                                    }/caseId/${row.caseId}?disable_edit=${
+                                      row.status === "sent_to_rimac"
+                                        ? true
+                                        : false
+                                    }`
                                   );
                                 }}
                                 disabled={!row.caseId}

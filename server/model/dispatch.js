@@ -154,6 +154,19 @@ export const findRimacReportById = async (report_id) => {
   }
 };
 
+export const modifyRimacReportById = async (report_data, report_id) => {
+  const sql = `UPDATE rimac_reports SET report_data = ? WHERE id = ?`;
+  const values = [report_data, report_id];
+
+  try {
+    const result = await dbQuery(sql, values);
+    return result;
+  } catch (error) {
+    console.error("Error fetching Rimac report by ID:", error);
+    throw error;
+  }
+};
+
 export const findRimacReportByCaseId = async (case_id) => {
   const sql = `SELECT * FROM rimac_reports WHERE case_id = ?`;
   const values = [case_id];
@@ -651,8 +664,8 @@ export const actionSuggestionService = async (id, action) => {
 export const saveDispatchCaseReport = async (reportData) => {
   const query = `
       INSERT INTO dispatch_case_reports (
-        case_id, driver_id, suggested_services, subservices, additional_information
-      ) VALUES (?, ?, ?, ?, ?)
+        case_id, driver_id, suggested_services, subservices, additional_information, meta_data
+      ) VALUES (?, ?, ?, ?, ?, ?)
     `;
   const values = [
     reportData.case_id,
@@ -660,6 +673,7 @@ export const saveDispatchCaseReport = async (reportData) => {
     reportData.suggested_services,
     reportData.subservices,
     reportData.additional_information,
+    reportData.meta_data,
   ];
 
   try {
