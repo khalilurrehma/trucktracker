@@ -523,13 +523,7 @@ const RimacCaseReport = ({
             variant="outlined"
           >
             <Typography paragraph>
-              El día 18 de Junio del 2025 a las 09:50 horas aproximadamente, se
-              produjo un accidente de tránsito (choque en circulación - choque
-              por alcance) participando el vehículo asegurado de placa ASJ-559 y
-              el vehículo tercero de placa no identificado (fugó), hecho
-              ocurrido en la Av. Encalada altura con Av. El Polo, jurisdicción
-              policial de la comisaría de Monterrico en el distrito de Santiago
-              de Surco
+              {report?.additional_information || "—"}
             </Typography>
           </Paper>
           <Box sx={{ pageBreakBefore: "always", mt: 3 }} />

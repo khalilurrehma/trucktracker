@@ -362,6 +362,7 @@ export const deviceIdByUserId = async (user_id) => {
 };
 
 export async function updateDeviceById(id, data) {
+  let parsedCostByKM = data.costByKm ? parseInt(data.costByKm) : null;
   let updateSql = `
     UPDATE new_settings_devices
     SET
@@ -411,7 +412,7 @@ export async function updateDeviceById(id, data) {
     data.flespi.media_ttl,
     data.flespi.messages_ttl,
     JSON.stringify(data.flespi.metadata),
-    parseInt(data.costByKm),
+    parsedCostByKM,
     // data.service_type,
     id,
   ];

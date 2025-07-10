@@ -805,8 +805,11 @@ export const updateNewDevice = async (req, res) => {
           req.body.messages_ttl !== undefined ? req.body.messages_ttl : 3,
       },
       // service_type: serviceType.id,
-      costByKm: requestData.cost_by_km,
     };
+
+    if (requestData.cost_by_km) {
+      responses.costByKm = requestData.cost_by_km;
+    }
 
     const update = await updateDeviceById(device.id, responses);
 

@@ -43,6 +43,7 @@ const NewDevicePage = () => {
   const { traccarUser, flespiToken, traccarToken } = useAppContext();
 
   const userName = useSelector((state) => state.session.user.name);
+  const userId = useSelector((state) => state.session.user.id);
 
   const classes = useStyles();
   const t = useTranslation();
@@ -91,21 +92,17 @@ const NewDevicePage = () => {
 
   const fetchGroups = async () => {
     try {
-      const apiUrl = `${url}/new-groups`;
+      const apiUrl =
+        userId === 1 ? `${url}/new-groups` : `${url}/new-groups/user/${userId}`;
 
       const [newGroupsResponse, permissionGroupsResponse] = await Promise.all([
         axios.get(apiUrl),
         fetch("/api/groups"),
       ]);
 
-      if (newGroupsResponse.status === 200 && permissionGroupsResponse.ok) {
+      if (newGroupsResponse.status === 200) {
         const newGroups = newGroupsResponse.data.data;
-
-        const permissionGroups = await permissionGroupsResponse.json();
-        const matchedGroups = findMatchingGroups(newGroups, permissionGroups);
-        // console.log("matched groups :", matchedGroups);
-        // setGroups(newGroups); // for test
-        setGroups(matchedGroups); // for build
+        setGroups(newGroups); // for build
       } else {
         throw new Error("Failed to fetch data from one of the APIs");
       }

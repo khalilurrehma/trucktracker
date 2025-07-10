@@ -273,8 +273,6 @@ const NewDevicesPage = () => {
             filteredData.slice(startIndex, endIndex).map((item) => (
               <TableRow key={item.id}>
                 {selectedColumns.map((column) => {
-                  console.log(item);
-
                   return (
                     <TableCell
                       key={column}
@@ -367,7 +365,6 @@ const NewDevicesPage = () => {
                                   gap: "6px",
                                 }}
                               >
-                                <Typography color="black">Calc</Typography>
                                 <AddLinkIcon fontSize="small" />
                               </Box>
                             </IconButton>
