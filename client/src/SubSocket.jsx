@@ -129,6 +129,8 @@ const SubSocket = () => {
             (Array.isArray(recievedData?.superVisorIds) &&
               recievedData.superVisorIds.includes(sessionUserId))
           ) {
+            console.log(recievedData);
+            
             updateMqttMessage(recievedData, "suggestedServices");
             addNotification(recievedData.message);
           }

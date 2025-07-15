@@ -26,6 +26,8 @@ const SuggestedServicesModal = ({
   caseId,
   caseName,
   services,
+  onApproved,
+  onRejected,
 }) => {
   const { url } = useAppContext();
   const [loading, setLoading] = useState({});
@@ -48,6 +50,8 @@ const SuggestedServicesModal = ({
         setLocalServices((prev) =>
           prev.filter((item) => item.id !== serviceId)
         );
+        if (action === "approved" && onApproved) onApproved(serviceId);
+        if (action === "rejected" && onRejected) onRejected(serviceId);
       }
     } catch (error) {
       toast.error(`Failed to ${action} service: ${error.message}`);
@@ -61,7 +65,7 @@ const SuggestedServicesModal = ({
       <ToastContainer />
       <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
         <DialogTitle>
-          Pending Suggested Services for Case: {caseName} (ID: {caseId})
+          Pending sub services for case: {caseName} (ID: {caseId})
         </DialogTitle>
         <DialogContent>
           {localServices.length === 0 ? (

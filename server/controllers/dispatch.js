@@ -1357,8 +1357,8 @@ export const responseSuggestedService = async (req, res) => {
 
     const fcmToken = await getFcmTokensByDriverIds(driver_id);
     if (fcmToken.length > 0) {
-      const notificationTitle = `Suggested Services ${action}`;
-      const notificationBody = `Supervisor has ${action} you suggested services.`;
+      const notificationTitle = `Sub Services ${action}`;
+      const notificationBody = `Supervisor has ${action} your sub services.`;
 
       const { successCount, failureCount } = await sendPushNotification(
         fcmToken,
@@ -1375,7 +1375,7 @@ export const responseSuggestedService = async (req, res) => {
 
     return res.status(200).json({
       status: true,
-      message: `Suggested service ${action} successfully`,
+      message: `Sub service ${action} successfully`,
     });
   } catch (error) {
     res.status(204).send({ status: false, message: error.message });

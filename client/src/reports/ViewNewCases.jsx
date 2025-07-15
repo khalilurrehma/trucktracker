@@ -385,6 +385,27 @@ const ViewNewCases = () => {
     }, 400);
   };
 
+  const handleRemoveSuggestedService = (caseId, serviceId) => {
+    setSuggestedServices((prev) => {
+      const updated = (prev[caseId] || []).filter((s) => s.id !== serviceId);
+      return { ...prev, [caseId]: updated };
+    });
+  };
+
+  const handleApprove = (serviceId) => {
+    if (selectedCase?.id) {
+      handleRemoveSuggestedService(selectedCase.id, serviceId);
+    }
+  };
+
+  const handleReject = (serviceId) => {
+    if (selectedCase?.id) {
+      handleRemoveSuggestedService(selectedCase.id, serviceId);
+    }
+    // optionally track rejected ids:
+    // setRejectedServiceIds((prev) => [...prev, serviceId]);
+  };
+
   return (
     <PageLayout
       menu={<OperationsMenu />}
@@ -473,7 +494,7 @@ const ViewNewCases = () => {
                   <b>Service Type</b>
                 </TableCell>
                 <TableCell>
-                  <b>Suggested Services</b>
+                  <b>Sub Services</b>
                 </TableCell>
                 <TableCell>
                   <b>Driver</b>
@@ -636,8 +657,8 @@ const ViewNewCases = () => {
           caseId={selectedCase?.id}
           caseName={selectedCase?.name}
           services={suggestedServices[selectedCase?.id] || []}
-          userId={userId}
-          onReject={(id) => setRejectedServiceIds((prev) => [...prev, id])}
+          onApproved={handleApprove}
+          onRejected={handleReject}
         />
       </Box>
     </PageLayout>

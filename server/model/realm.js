@@ -167,7 +167,9 @@ export const realmUserTraccarIdByflespiId = (flespiId) => {
       if (err) {
         reject(err);
       }
-      resolve(results[0]?.traccar_id ? Number(results[0].traccar_id) : null);
+      resolve(
+        results && results[0]?.traccar_id ? Number(results[0].traccar_id) : null
+      );
     });
   });
 };
