@@ -16,6 +16,7 @@ import {
   fetchCaseReportById,
   fetchDispatchCases,
   fetchDispatchCasesByUserId,
+  fetchKnackVehicle,
   fetchSubserviceLocationData,
   fetchTowCarServiceLocationData,
   fetchZoneRatesByUserId,
@@ -40,12 +41,14 @@ import {
   saveCaseReportNotification,
   saveDispatchCaseAction,
   saveDispatchCaseReport,
+  saveDriverOdometerEntry,
   saveInvolvedVehicle,
   saveOrUpdateZonePrices,
   saveRequestedSuggestedService,
   saveRimacCase,
   saveVehiclePhoto,
   setNewStatusNotification,
+  unBlockingDriver,
   updateCaseCurrentProcess,
   updateCaseReportStatus,
   updateCaseServiceById,
@@ -58,6 +61,7 @@ import {
 import {
   driverStatusAvailable,
   driverStatusInService,
+  findVehiclesByDriverId,
   getDriverIdsByDeviceIds,
   getFcmTokensByDriverIds,
 } from "../model/driver.js";
@@ -83,7 +87,11 @@ import {
 import { validateSubserviceType } from "../model/devices.js";
 import dayjs from "dayjs";
 import { rimacBodyValidFields } from "../utils/rimacBody.js";
-import { mapToRimacApiPayload } from "../utils/common.js";
+import {
+  formatKnackPlateNumber,
+  knackHeaders,
+  mapToRimacApiPayload,
+} from "../utils/common.js";
 import axios from "axios";
 
 export const DispatchEmitter = new EventEmitter();
@@ -1728,6 +1736,186 @@ export const addTowCarServicePrice = async (req, res) => {
       success: false,
       message: "Failed to save tow car service price",
       error: error.message,
+    });
+  }
+};
+
+export const getKnackVehicleOdometer = async (req, res) => {
+  const driverId = req.userId;
+
+  try {
+    const driverVehicle = await findVehiclesByDriverId(driverId);
+
+    if (!driverVehicle || driverVehicle.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Cannot fetch driver vehicle",
+      });
+    }
+
+    const { device_name } = driverVehicle[0];
+    const formattedDeviceName = formatKnackPlateNumber(device_name);
+
+    const knackDetails = await fetchKnackVehicle(formattedDeviceName);
+    const knackIdToUse = knackDetails?.knack_id;
+
+    if (!knackIdToUse) {
+      return res.status(404).json({
+        success: false,
+        message: "Vehicle not found in Knack table",
+      });
+    }
+
+    const { data: knackData } = await axios.get(
+      `https://api.knack.com/v1/objects/object_5/records/${knackIdToUse}`,
+      { headers: knackHeaders }
+    );
+
+    if (!knackData || !knackData.field_23) {
+      return res.status(404).json({
+        success: false,
+        message: "Vehicle name field not found in Knack data",
+      });
+    }
+
+    let responseBody = {
+      current_reading: knackData.field_30 || "",
+      device_name: knackData.field_23,
+    };
+
+    res.status(200).json({
+      success: true,
+      message: "fetched current reading",
+      data: responseBody,
+    });
+  } catch (error) {
+    console.error("Error fetching current reading:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetched current reading",
+      error: error.message,
+    });
+  }
+};
+
+export const postVehicleOdometerReading = async (req, res) => {
+  const driverId = req.userId;
+  const { odometer_reading, reading_date } = req.body;
+
+  if (!reading_date || !dayjs(reading_date, "YYYY-MM-DD", true).isValid()) {
+    return res.status(400).json({
+      success: false,
+      message: "reading_date must be a valid date in format YYYY-MM-DD",
+    });
+  }
+
+  // For local testing
+  const testPlate_number = "TEST1";
+  const testknack_id = "686eb869aff93e02f4ad81e8";
+
+  const numericReading = Number(odometer_reading);
+  if (!numericReading || numericReading <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Odometer reading must be a positive number",
+    });
+  }
+
+  try {
+    const driverVehicle = await findVehiclesByDriverId(driverId);
+
+    if (!driverVehicle || driverVehicle.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Cannot fetch driver vehicle",
+      });
+    }
+
+    const { device_name, device_id } = driverVehicle[0];
+    const formattedDeviceName = formatKnackPlateNumber(device_name);
+
+    const knackDetails = await fetchKnackVehicle(formattedDeviceName);
+    // const knackIdToUse = knackDetails?.id || testknack_id;
+    const knackIdToUse = testknack_id;
+
+    if (!knackIdToUse) {
+      return res.status(404).json({
+        success: false,
+        message: "Vehicle not found in Knack table",
+      });
+    }
+
+    const { data: knackData } = await axios.get(
+      `https://api.knack.com/v1/objects/object_5/records/${knackIdToUse}`,
+      { headers: knackHeaders }
+    );
+
+    if (!knackData || !knackData.field_23) {
+      return res.status(404).json({
+        success: false,
+        message: "Vehicle name field not found in Knack data",
+      });
+    }
+
+    const nowFormatted = dayjs().tz("America/Lima").format("DD/MM/YYYY HH:mm");
+    const oldOdometer = Number(knackData.field_30_raw) || 0;
+
+    if (numericReading < oldOdometer) {
+      return res.status(400).json({
+        success: false,
+        message: "New odometer reading cannot be less than current odometer",
+      });
+    }
+
+    const updateKnackBody = {
+      field_149: nowFormatted,
+      field_30: numericReading,
+    };
+
+    await axios.put(
+      `https://api.knack.com/v1/objects/object_5/records/${knackIdToUse}`,
+      updateKnackBody,
+      { headers: knackHeaders }
+    );
+
+    const insertKnackBody = {
+      field_156: knackData.field_23,
+      field_158: numericReading,
+      field_159: nowFormatted,
+    };
+
+    const { data: insertResponse } = await axios.post(
+      `https://api.knack.com/v1/objects/object_15/records`,
+      insertKnackBody,
+      { headers: knackHeaders }
+    );
+
+    let dbBody = {
+      driver_id: driverId,
+      vehicle_id: device_id,
+      reading_date,
+      odometer_reading: numericReading,
+    };
+
+    await saveDriverOdometerEntry(dbBody);
+
+    await unBlockingDriver(driverId, reading_date);
+
+    res.status(200).json({
+      success: true,
+      message: "Odometer reading updated successfully",
+      data: insertResponse,
+      reading_date: reading_date,
+    });
+  } catch (error) {
+    console.error(
+      "Error saving vehicle odometer reading:",
+      error?.response?.data || error.message
+    );
+    res.status(500).json({
+      success: false,
+      message: "Failed to save vehicle odometer reading",
+      error: error?.response?.data || error.message,
     });
   }
 };

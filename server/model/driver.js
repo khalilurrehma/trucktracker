@@ -135,7 +135,7 @@ export const fetchDriver = async (id) => {
   });
 };
 
-export const driverByEmail = async (email) => {
+export const fetchDriverByEmail = async (email) => {
   const sql =
     "SELECT * FROM drivers WHERE JSON_EXTRACT(attributes, '$.email') = ?";
   return new Promise((resolve, reject) => {
@@ -366,6 +366,17 @@ export const findAssociateVehicleByDriverId = async (driver_id) => {
     pool.query(sql, [driver_id], (err, results) => {
       if (err) return reject(err);
       resolve(results[0]?.device_id);
+    });
+  });
+};
+
+export const associatedDriverIds = async () => {
+  const sql = `SELECT DISTINCT driver_id FROM vehicle_driver_association`;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, (err, results) => {
+      if (err) return reject(err);
+      resolve(results.map((row) => row.driver_id));
     });
   });
 };

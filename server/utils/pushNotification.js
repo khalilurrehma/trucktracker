@@ -41,7 +41,6 @@ export const sendPushNotification = async (
     };
 
     const response = await messaging.sendEachForMulticast(message);
-    console.log("Successfully sent notifications:", response);
 
     return {
       successCount: response.successCount,

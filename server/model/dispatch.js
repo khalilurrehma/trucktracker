@@ -1409,3 +1409,50 @@ export const fetchZoneRatesByUserId = async (userId, districtName) => {
     throw error;
   }
 };
+
+export const fetchKnackVehicle = async (plate_number) => {
+  const query = `
+    SELECT 
+      id,
+      knack_id,
+      plate_number
+    FROM 
+      knack_vehicles
+    WHERE 
+      plate_number = ?
+  `;
+
+  try {
+    const rows = await dbQuery(query, [plate_number]);
+    return rows[0] || null;
+  } catch (error) {
+    console.error("Error fetching knack vehicle:", error);
+    throw error;
+  }
+};
+
+export const saveDriverOdometerEntry = async (dbBody) => {
+  const query = `
+    INSERT INTO odometer_readings (driver_id, vehicle_id, reading_date, odometer_reading)
+    VALUES (?, ?, ?, ?)
+  `;
+
+  await dbQuery(query, [
+    dbBody.driver_id,
+    dbBody.vehicle_id,
+    dbBody.reading_date,
+    dbBody.odometer_reading,
+  ]);
+};
+
+export const unBlockingDriver = async (driver_id, reading_date) => {
+  const unBlockQuery = `UPDATE drivers SET is_blocked=0 WHERE id=?`;
+  const auditBlockQuery = `UPDATE driver_block_records
+  SET resolved_at=NOW() 
+  WHERE driver_id=? AND missing_reading_date=? AND resolved_at IS NULL`;
+
+  await Promise.all([
+    await dbQuery(unBlockQuery, [driver_id]),
+    await dbQuery(auditBlockQuery, [driver_id, reading_date]),
+  ]);
+};

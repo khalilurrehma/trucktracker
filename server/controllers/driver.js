@@ -2,7 +2,7 @@ import {
   addDriver,
   checkAlreadyAssociatedVehicle,
   clearOldSessions,
-  driverByEmail,
+  fetchDriverByEmail,
   driversShiftDetails,
   driverStatus,
   existingFCMToken,
@@ -718,7 +718,7 @@ export const driverLogin = async (req, res) => {
   }
 
   try {
-    const driver = await driverByEmail(email);
+    const driver = await fetchDriverByEmail(email);
 
     if (!driver) {
       return res.status(404).json({
@@ -772,6 +772,7 @@ export const driverLogin = async (req, res) => {
       uniqueId: driver.uniqueId,
       companyId: driver.user_id,
       device_id: driverVehicle?.device_id,
+      blocked: driver.is_blocked === 1 ? true : false,
       isVehicleAssigned,
       token,
       fcmToken,
@@ -816,7 +817,7 @@ export const driverForgotPassword = async (req, res) => {
   }
 
   try {
-    const driver = await driverByEmail(email);
+    const driver = await fetchDriverByEmail(email);
 
     if (!driver) {
       return res.status(404).json({

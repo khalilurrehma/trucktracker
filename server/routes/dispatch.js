@@ -31,6 +31,8 @@ import {
   getZoneRates,
   sendReportToRimac,
   saveChangesOfRimacReport,
+  getKnackVehicleOdometer,
+  postVehicleOdometerReading,
 } from "../controllers/dispatch.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { authDriver } from "../middlewares/auth.middleware.js";
@@ -124,4 +126,18 @@ router.patch(
 router.put("/rimac/case/report/:id", saveChangesOfRimacReport);
 
 router.patch("/dispatch/service-approvals/:id", responseSuggestedService);
+
+//! -------------------------------- KNACK APIs --------------------------------
+
+router.get(
+  "/dispatch/vehicle/odometer-reading/current",
+  authDriver,
+  getKnackVehicleOdometer
+);
+
+router.post(
+  "/dispatch/vehicle/odometer-reading",
+  authDriver,
+  postVehicleOdometerReading
+);
 export default router;

@@ -321,3 +321,16 @@ export function mapToRimacApiPayload(report, rimacReport) {
     ],
   };
 }
+
+export function formatKnackPlateNumber(plateNumber) {
+  if (typeof plateNumber !== "string") return plateNumber;
+  return plateNumber.includes("-")
+    ? plateNumber.replace(/-/g, "")
+    : plateNumber;
+}
+
+export const knackHeaders = {
+  "X-Knack-Application-Id": process.env.KNACK_APP_ID,
+  "X-Knack-REST-API-Key": process.env.KNACK_API_KEY,
+  "Content-Type": "application/json",
+};
