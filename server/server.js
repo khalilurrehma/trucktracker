@@ -75,27 +75,40 @@ app.post("/api/upload/photo", upload.any(), async (req, res) => {
         .json({ status: false, message: "No photo uploaded" });
     }
 
-    const uploadedFile = await s3
-      .upload({
-        Bucket: process.env.CONTABO_BUCKET_NAME,
-        Key: `vehicle-report-image/${Date.now()}-${req.files[0]?.originalname}`,
-        Body: req.files[0].buffer,
-        ContentType: req.files[0].mimetype,
-        ACL: "public-read",
-      })
-      .promise();
+    const uploadedFiles = await Promise.all(
+      req.files.map(async (file) => {
+        const uploaded = await s3
+          .upload({
+            Bucket: process.env.CONTABO_BUCKET_NAME,
+            Key: `vehicle-report-image/${Date.now()}-${file.originalname}`,
+            Body: file.buffer,
+            ContentType: file.mimetype,
+            ACL: "public-read",
+          })
+          .promise();
 
-    if (!uploadedFile) {
+        return uploaded;
+      })
+    );
+
+    const imageUrls = uploadedFiles
+      .filter((file) => file && file.Location)
+      .map((file) => getAuthenticatedS3String(file.Location));
+
+    if (imageUrls.length === 0) {
       return res.status(500).json({
         status: false,
-        message: "Failed to upload image",
+        message: "Failed to upload images",
       });
     }
 
-    const imageUrl = getAuthenticatedS3String(uploadedFile.Location);
+    if (imageUrls.length === 1) {
+      return res.status(200).json({ status: true, url: imageUrls[0] });
+    }
 
-    res.status(200).json({ status: true, url: imageUrl });
+    res.status(200).json({ status: true, urls: imageUrls });
   } catch (error) {
+    console.error("Upload photo error:", error);
     res.status(500).json({ status: false, message: error.message });
   }
 });

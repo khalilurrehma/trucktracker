@@ -199,91 +199,99 @@ const EchongCaseReport = ({
               Involved Vehicles
             </Typography>
             {report.vehicles && report.vehicles.length > 0 ? (
-              report.vehicles.map((vehicle, index) => (
-                <Paper key={vehicle.vehicle_id} sx={{ p: 2, mb: 3 }}>
-                  <Typography variant="h6" gutterBottom>
-                    Vehicle {index + 1}: {vehicle.plate_number}
-                  </Typography>
-                  <Typography variant="subtitle1">
-                    <strong>Vehicle ID:</strong> {vehicle.vehicle_id}
-                  </Typography>
-                  <Typography variant="subtitle1">
-                    <strong>Created:</strong> {formatDate(vehicle.created_at)}
-                  </Typography>
+              report.vehicles.map((vehicle, index) => {
+                // console.log(vehicle);
 
-                  <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-                    Photos/Documents
-                  </Typography>
-                  {vehicle.photos && vehicle.photos.length > 0 ? (
-                    <>
-                      {[
-                        "Client Vehicle",
-                        "Client Document",
-                        "Additional Information",
-                      ].map((category) => {
-                        const categoryPhotos = vehicle.photos.filter(
-                          (photo) => photo.category === category
-                        );
-                        return categoryPhotos.length > 0 ? (
-                          <Box key={category} sx={{ mb: 2 }}>
-                            <Typography variant="subtitle1" gutterBottom>
-                              <strong>{category}</strong>
-                            </Typography>
-                            <Grid container spacing={2}>
-                              {categoryPhotos.map((photo, photoIndex) => (
-                                <Grid
-                                  item
-                                  xs={12}
-                                  sm={6}
-                                  md={4}
-                                  key={photo.photo_id}
-                                >
-                                  <Card
-                                    sx={{ cursor: "pointer" }}
-                                    onClick={() =>
-                                      handleImageClick(
-                                        photo,
-                                        categoryPhotos,
-                                        photoIndex
-                                      )
-                                    }
-                                  >
-                                    <CardMedia
-                                      component="img"
-                                      height="140"
-                                      image={photo.url}
-                                      alt={photo.type}
-                                      loading="lazy"
-                                      sx={{ objectFit: "cover" }}
-                                      onError={(e) => {
-                                        e.target.src =
-                                          "https://via.placeholder.com/140?text=Image+Not+Found";
-                                      }}
-                                    />
-                                    <CardContent>
-                                      <Typography variant="body2">
-                                        <strong>Type:</strong> {photo.type}
-                                      </Typography>
-                                      <Typography variant="body2">
-                                        <strong>Uploaded:</strong>{" "}
-                                        {formatDate(photo.created_at)}
-                                      </Typography>
-                                    </CardContent>
-                                  </Card>
-                                </Grid>
-                              ))}
-                            </Grid>
-                          </Box>
-                        ) : null;
-                      })}
-                    </>
-                  ) : (
-                    <Typography>
-                      No photos available for this vehicle.
+                return (
+                  <Paper key={vehicle.vehicle_id} sx={{ p: 2, mb: 3 }}>
+                    <Typography variant="h6" gutterBottom>
+                      Vehicle {index + 1}: {vehicle.plate_number}
                     </Typography>
-                  )}
-                </Paper>
-              ))
+                    <Typography variant="subtitle1">
+                      <strong>Vehicle ID:</strong> {vehicle.vehicle_id}
+                    </Typography>
+                    <Typography variant="subtitle1">
+                      <strong>Created:</strong> {formatDate(vehicle.created_at)}
+                    </Typography>
+
+                    <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+                      Photos/Documents
+                    </Typography>
+                    {vehicle.photos && vehicle.photos.length > 0 ? (
+                      <>
+                        {[
+                          "Client Vehicle",
+                          "Client Document",
+                          "Additional Information",
+                        ].map((category) => {
+                          const categoryPhotos = vehicle.photos.filter(
+                            (photo) => photo.category === category
+                          );
+                          return categoryPhotos.length > 0 ? (
+                            <Box key={category} sx={{ mb: 2 }}>
+                              <Typography variant="subtitle1" gutterBottom>
+                                <strong>{category}</strong>
+                              </Typography>
+                              <Grid container spacing={2}>
+                                {categoryPhotos.map((photo, photoIndex) => {
+                                  // console.log(photo);
+
+                                  return (
+                                    <Grid
+                                      item
+                                      xs={12}
+                                      sm={6}
+                                      md={4}
+                                      key={photo.photo_id}
+                                    >
+                                      <Card
+                                        sx={{ cursor: "pointer" }}
+                                        onClick={() =>
+                                          handleImageClick(
+                                            photo,
+                                            categoryPhotos,
+                                            photoIndex
+                                          )
+                                        }
+                                      >
+                                        <CardMedia
+                                          component="img"
+                                          height="140"
+                                          image={photo.url}
+                                          alt={photo.type}
+                                          loading="lazy"
+                                          sx={{ objectFit: "cover" }}
+                                          onError={(e) => {
+                                            e.target.src =
+                                              "https://via.placeholder.com/140?text=Image+Not+Found";
+                                          }}
+                                        />
+                                        <CardContent>
+                                          <Typography variant="body2">
+                                            <strong>Type:</strong> {photo.type}
+                                          </Typography>
+                                          <Typography variant="body2">
+                                            <strong>Uploaded:</strong>{" "}
+                                            {formatDate(photo.created_at)}
+                                          </Typography>
+                                        </CardContent>
+                                      </Card>
+                                    </Grid>
+                                  );
+                                })}
+                              </Grid>
+                            </Box>
+                          ) : null;
+                        })}
+                      </>
+                    ) : (
+                      <Typography>
+                        No photos available for this vehicle.
+                      </Typography>
+                    )}
+                  </Paper>
+                );
+              })
             ) : (
               <Typography>No vehicles associated with this report.</Typography>
             )}

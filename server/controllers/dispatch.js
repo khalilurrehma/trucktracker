@@ -812,6 +812,8 @@ export const dispatchCaseReport = async (req, res) => {
     }
   }
 
+  // console.log(req.body.vehicles[0].photos);
+
   try {
     const caseCheck = await findCaseStatusById(caseId);
 
@@ -837,7 +839,7 @@ export const dispatchCaseReport = async (req, res) => {
 
     for (const vehicle of vehicles) {
       const vehicleId = await saveInvolvedVehicle(reportId, vehicle);
-      if (Array.isArray(vehicle.photos)) {
+      if (Array.isArray(vehicle.photos)) {  
         const validPhotos = vehicle.photos.filter(
           (photo) => photo.category && photo.type && photo.url
         );
