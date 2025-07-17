@@ -812,8 +812,6 @@ export const dispatchCaseReport = async (req, res) => {
     }
   }
 
-  // console.log(req.body.vehicles[0].photos);
-
   try {
     const caseCheck = await findCaseStatusById(caseId);
 
@@ -839,11 +837,36 @@ export const dispatchCaseReport = async (req, res) => {
 
     for (const vehicle of vehicles) {
       const vehicleId = await saveInvolvedVehicle(reportId, vehicle);
-      if (Array.isArray(vehicle.photos)) {  
+      if (Array.isArray(vehicle.photos)) {
         const validPhotos = vehicle.photos.filter(
           (photo) => photo.category && photo.type && photo.url
         );
-        const savePhotos = validPhotos.map((photo) =>
+
+        const allPhotosToSave = [];
+
+        for (const photo of validPhotos) {
+          if (
+            photo.category === "Additional Information" &&
+            photo.type === "Multiple Images" &&
+            photo.url.includes(",")
+          ) {
+            const urls = photo.url
+              .split(",")
+              .map((u) => u.trim())
+              .filter(Boolean);
+            for (const singleUrl of urls) {
+              allPhotosToSave.push({
+                category: photo.category,
+                type: photo.type,
+                url: singleUrl,
+              });
+            }
+          } else {
+            allPhotosToSave.push(photo);
+          }
+        }
+
+        const savePhotos = allPhotosToSave.map((photo) =>
           saveVehiclePhoto(vehicleId, photo)
         );
         await Promise.all(savePhotos);
