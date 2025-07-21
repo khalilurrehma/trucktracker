@@ -13,77 +13,59 @@ const dbQuery = util.promisify(pool.query).bind(pool);
 export const sendOdometerReminder = async () => {
   try {
     const limaNow = dayjs().tz("America/Lima");
-    const startOfDay = limaNow.startOf("day").format("YYYY-MM-DD HH:mm:ss");
-    const endOfDay = limaNow.endOf("day").format("YYYY-MM-DD HH:mm:ss");
+    const todayDate = limaNow.format("YYYY-MM-DD");
 
-    console.log(
-      `Checking login between ${startOfDay} and ${endOfDay} (America/Lima)`
-    );
+    console.log(`🚀 Checking active dispatch drivers on ${todayDate}`);
 
-    const drivers = await dbQuery(`
-      SELECT DISTINCT driver_id 
-      FROM vehicle_driver_association
-    `);
-
-    if (drivers.length === 0) {
-      console.log("No drivers with associated vehicles found.");
-      return;
-    }
-
-    const validDriverIds = drivers.map((driver) => driver.driver_id);
-
-    const placeholders = validDriverIds.map(() => "?").join(",");
-    const loggedInDrivers = await dbQuery(
+    const activeDrivers = await dbQuery(
       `
-      SELECT DISTINCT driver_id 
-      FROM driver_login_logs 
-      WHERE login_time BETWEEN ? AND ?
-        AND driver_id IN (${placeholders})
+      SELECT DISTINCT dr.id AS driver_id
+      FROM drivers dr
+      JOIN vehicle_driver_association vda ON dr.id = vda.driver_id
+      JOIN dispatch_case_devices dcd ON vda.device_id = dcd.device_id
+      JOIN dispatch_cases dc ON dcd.dispatch_case_id = dc.id
+      WHERE DATE(dc.created_at) = ?
     `,
-      [startOfDay, endOfDay, ...validDriverIds]
+      [todayDate]
     );
 
-    if (loggedInDrivers.length === 0) {
-      console.log("No drivers logged in today.");
+    if (activeDrivers.length === 0) {
+      console.log("✅ No active dispatch drivers today, no reminders needed.");
       return;
     }
 
-    const activeDriverIds = loggedInDrivers.map((d) => d.driver_id);
-
-    const activePlaceholders = activeDriverIds.map(() => "?").join(",");
+    const driverIds = activeDrivers.map((d) => d.driver_id);
+    const placeholders = driverIds.map(() => "?").join(",");
 
     const fcmResults = await dbQuery(
       `
       SELECT driver_id, fcm_token 
       FROM drivers_fcm_token 
-      WHERE driver_id IN (${activePlaceholders})
+      WHERE driver_id IN (${placeholders}) 
         AND fcm_token IS NOT NULL
     `,
-      [...activeDriverIds]
+      [...driverIds]
     );
 
     if (fcmResults.length === 0) {
-      console.log("No FCM tokens found for active drivers.");
+      console.log("❌ No FCM tokens found for active drivers.");
       return;
     }
 
-    for (const driver of fcmResults) {
-      const { driver_id, fcm_token } = driver;
+    for (const { driver_id, fcm_token } of fcmResults) {
       const title = "Odometer Reminder";
-      const body = `Please update your vehicle's odometer reading today (${limaNow.format(
-        "YYYY-MM-DD"
-      )}).`;
+      const body = `Please update your vehicle's odometer reading today (${todayDate}).`;
       const data = {
         type: "odometer_reminder",
-        reading_date: limaNow.format("YYYY-MM-DD"),
+        reading_date: todayDate,
       };
 
       await sendPushNotification([fcm_token], title, body, data);
-      console.log(`Sent reminder to driver ID ${driver_id}`);
+      console.log(`📲 Sent reminder to driver ID ${driver_id}`);
     }
 
-    console.log(`Sent reminders to ${fcmResults.length} drivers.`);
+    console.log(`✅ Sent reminders to ${fcmResults.length} drivers.`);
   } catch (error) {
-    console.error("Error in sendOdometerReminder:", error);
+    console.error("❌ Error in sendOdometerReminder:", error);
   }
 };

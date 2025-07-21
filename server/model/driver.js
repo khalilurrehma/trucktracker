@@ -751,3 +751,14 @@ export const getDriverReportAuthStatus = async (driver_id) => {
     });
   });
 };
+
+export const isDriverBlocked = async (driver_id) => {
+  const sql = `SELECT is_blocked FROM drivers WHERE id = ?`;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [parseInt(driver_id)], (err, results) => {
+      if (err) return reject(err);
+      resolve(results[0].is_blocked);
+    });
+  });
+};

@@ -66,8 +66,13 @@ const CaseReportDialog = ({
               typeof data.message.vehicles === "string"
                 ? JSON.parse(data.message.vehicles)
                 : data.message.vehicles,
+            meta_data:
+              typeof data.message.meta_data === "string"
+                ? JSON.parse(data.message.meta_data)
+                : data.message.vehicles,
             rimacReport: data.message?.rimacReport[0] || [],
           };
+
           setReport(reportData);
         }
       } else {

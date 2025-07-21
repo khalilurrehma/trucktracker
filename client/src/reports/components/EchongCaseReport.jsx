@@ -15,6 +15,12 @@ import {
   Divider,
   Modal,
   Fab,
+  TableContainer,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -294,6 +300,44 @@ const EchongCaseReport = ({
               })
             ) : (
               <Typography>No vehicles associated with this report.</Typography>
+            )}
+
+            {report.meta_data && report.meta_data.length > 0 && (
+              <>
+                <Typography variant="h5" gutterBottom>
+                  OCR Metadata
+                </Typography>
+                <TableContainer component={Paper} sx={{ mb: 3 }}>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>#</TableCell>
+                        <TableCell>Plate Number</TableCell>
+                        <TableCell>Vehicle Card (Front Text)</TableCell>
+                        <TableCell>Driver License (Front Text)</TableCell>
+                        <TableCell>Driver License (Back Text)</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {report?.meta_data?.map((meta, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{index + 1}</TableCell>
+                          <TableCell>{meta.plateNumber || "N/A"}</TableCell>
+                          <TableCell style={{ whiteSpace: "pre-wrap" }}>
+                            {meta.vehicle_card?.front_text || "N/A"}
+                          </TableCell>
+                          <TableCell style={{ whiteSpace: "pre-wrap" }}>
+                            {meta.driver_license?.front_text || "N/A"}
+                          </TableCell>
+                          <TableCell style={{ whiteSpace: "pre-wrap" }}>
+                            {meta.driver_license?.back_text || "N/A"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </>
             )}
           </>
         )}

@@ -722,6 +722,7 @@ export const fetchCaseReportById = async (case_id) => {
         dcr.additional_information,
         dcr.damage,
         dcr.meta_information,
+        dcr.meta_data,
         dcr.authorized_status,
         dcr.created_at AS report_created_at,
         dcr.updated_at AS report_updated_at,

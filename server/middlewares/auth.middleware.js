@@ -2,10 +2,12 @@ import jwt from "jsonwebtoken";
 import {
   checkSessionInDB,
   findAssociateVehicleByDriverId,
+  isDriverBlocked,
 } from "../model/driver.js";
 
 export const authDriver = async (req, res, next) => {
   const authHeader = req.headers["authorization"];
+  const knack_platform = req.query?.knack_platform === "true";
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({
@@ -26,11 +28,18 @@ export const authDriver = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
-    const isSessionValid = await checkSessionInDB(decoded.id, token);
+    const [isSessionValid, sessionVehicle, driverBlocked] = await Promise.all([
+      checkSessionInDB(decoded.id, token),
+      findAssociateVehicleByDriverId(decoded.id),
+      isDriverBlocked(decoded.id),
+    ]);
 
-    const sessionVehicle = await findAssociateVehicleByDriverId(decoded.id);
-
-    if (isSessionValid.length === 0 || !sessionVehicle) {
+    if (
+      !Array.isArray(isSessionValid) ||
+      isSessionValid.length === 0 ||
+      !sessionVehicle ||
+      (!knack_platform && driverBlocked)
+    ) {
       return res.status(401).json({
         status: false,
         message: "Session expired or logged out from another device",
@@ -41,6 +50,7 @@ export const authDriver = async (req, res, next) => {
     req.email = decoded.email;
     next();
   } catch (err) {
+    console.error("Auth error:", err);
     return res.status(401).json({
       status: false,
       message: "Unauthorized",

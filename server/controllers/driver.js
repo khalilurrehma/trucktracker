@@ -38,6 +38,7 @@ import {
   caseTrackingByIdAndStageName,
   countTodayCasesByUserAndDevice,
   defaultTemplateTimeForAdmin,
+  fetchKnackVehicle,
   findCaseById,
   findCaseByUserIdAndDeviceId,
   findLatestInProgressCase,
@@ -66,7 +67,11 @@ import utc from "dayjs/plugin/utc.js";
 import timezone from "dayjs/plugin/timezone.js";
 import weekday from "dayjs/plugin/weekday.js";
 import advancedFormat from "dayjs/plugin/advancedFormat.js";
-import { getAverageServiceTime } from "../utils/common.js";
+import {
+  formatKnackPlateNumber,
+  getAverageServiceTime,
+  knackHeaders,
+} from "../utils/common.js";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -282,12 +287,6 @@ export const driverAssociateVehicles = async (req, res) => {
   try {
     const driverVehicles = await findVehiclesByDriverId(driverId);
 
-    if (appLogs) {
-      const loginLogs = await fetchDriverLoginLogs(driverId);
-
-      driverVehicles.push({ loginLogs });
-    }
-
     if (driverVehicles.length === 0) {
       return res.status(404).json({
         status: false,
@@ -295,7 +294,45 @@ export const driverAssociateVehicles = async (req, res) => {
       });
     }
 
-    res.status(200).json({ status: true, message: driverVehicles });
+    if (appLogs) {
+      const loginLogs = await fetchDriverLoginLogs(driverId);
+
+      driverVehicles.push({ loginLogs });
+    }
+    
+    const { device_name } = driverVehicles[0];
+    const formattedDeviceName = formatKnackPlateNumber(device_name);
+
+    const knackDetails = await fetchKnackVehicle(formattedDeviceName);
+    const knackIdToUse = knackDetails?.knack_id;
+
+    if (!knackIdToUse) {
+      return res.status(404).json({
+        success: false,
+        message: "Vehicle not found in Knack table",
+      });
+    }
+
+    const { data: knackData } = await axios.get(
+      `https://api.knack.com/v1/objects/object_5/records/${knackIdToUse}`,
+      { headers: knackHeaders }
+    );
+
+    if (!knackData || !knackData.field_23) {
+      return res.status(404).json({
+        success: false,
+        message: "Vehicle name field not found in Knack data",
+      });
+    }
+
+    let formattedResponse = driverVehicles.map((detail) => {
+      return {
+        ...detail,
+        odometer_reading: knackData?.field_30_raw,
+      };
+    });
+
+    res.status(200).json({ status: true, message: formattedResponse });
   } catch (error) {
     res.status(500).json({ status: false, message: error.message });
   }
@@ -755,14 +792,14 @@ export const driverLogin = async (req, res) => {
       { expiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN }
     );
 
-    if (deviceId) {
-      await saveNewSession(driver.id, deviceId, token);
-      await saveDriverLoginLogs(driver.id, deviceId);
-    }
-
     const driverVehicle = await checkAlreadyAssociatedVehicle(driver.id);
     if (driverVehicle) {
       isVehicleAssigned = true;
+    }
+
+    if (deviceId) {
+      await saveNewSession(driver.id, deviceId, token);
+      await saveDriverLoginLogs(driver.id, deviceId);
     }
 
     const driverData = {

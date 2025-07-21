@@ -1826,6 +1826,7 @@ export const getKnackVehicleOdometer = async (req, res) => {
 export const postVehicleOdometerReading = async (req, res) => {
   const driverId = req.userId;
   const { odometer_reading, reading_date } = req.body;
+  const maxJump = 600;
 
   if (!reading_date || !dayjs(reading_date, "YYYY-MM-DD", true).isValid()) {
     return res.status(400).json({
@@ -1839,6 +1840,7 @@ export const postVehicleOdometerReading = async (req, res) => {
   const testknack_id = "686eb869aff93e02f4ad81e8";
 
   const numericReading = Number(odometer_reading);
+
   if (!numericReading || numericReading <= 0) {
     return res.status(400).json({
       success: false,
@@ -1892,6 +1894,14 @@ export const postVehicleOdometerReading = async (req, res) => {
       });
     }
 
+    if (numericReading - oldOdometer > maxJump) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "New odometer reading exceeds the maximum allowed jump of 600 km.",
+      });
+    }
+
     const updateKnackBody = {
       field_149: nowFormatted,
       field_30: numericReading,
@@ -1933,14 +1943,17 @@ export const postVehicleOdometerReading = async (req, res) => {
       reading_date: reading_date,
     });
   } catch (error) {
-    console.error(
-      "Error saving vehicle odometer reading:",
-      error?.response?.data || error.message
-    );
+    console.error("Error saving vehicle odometer reading:", error?.message);
+
+    let errorMessage = "Failed to save reading";
+
+    if (error?.code === "ER_DUP_ENTRY") {
+      errorMessage = "Reading for this date already exists";
+    }
+
     res.status(500).json({
       success: false,
-      message: "Failed to save vehicle odometer reading",
-      error: error?.response?.data || error.message,
+      message: errorMessage,
     });
   }
 };
