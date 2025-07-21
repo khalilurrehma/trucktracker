@@ -37,6 +37,15 @@ const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="right" ref={ref} {...props} />;
 });
 
+const safeParse = (data) => {
+  try {
+    return typeof data === "string" ? JSON.parse(data) : data;
+  } catch (e) {
+    console.error("Failed to parse JSON:", e);
+    return [];
+  }
+};
+
 const CaseReportDialog = ({
   openAssignModal,
   setOpenAssignModal,
@@ -60,16 +69,11 @@ const CaseReportDialog = ({
           } else {
             setRimacReportCase(false);
           }
+
           const reportData = {
             ...data.message,
-            vehicles:
-              typeof data.message.vehicles === "string"
-                ? JSON.parse(data.message.vehicles)
-                : data.message.vehicles,
-            meta_data:
-              typeof data.message.meta_data === "string"
-                ? JSON.parse(data.message.meta_data)
-                : data.message.vehicles,
+            vehicles: safeParse(data.message.vehicles) || [],
+            meta_data: safeParse(data.message.meta_data) || [],
             rimacReport: data.message?.rimacReport[0] || [],
           };
 

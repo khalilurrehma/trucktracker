@@ -302,7 +302,7 @@ const EchongCaseReport = ({
               <Typography>No vehicles associated with this report.</Typography>
             )}
 
-            {report.meta_data && report.meta_data.length > 0 && (
+            {report?.meta_data && report?.meta_data.length > 0 && (
               <>
                 <Typography variant="h5" gutterBottom>
                   OCR Metadata
