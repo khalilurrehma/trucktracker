@@ -1825,8 +1825,9 @@ export const getKnackVehicleOdometer = async (req, res) => {
 
 export const postVehicleOdometerReading = async (req, res) => {
   const driverId = req.userId;
-  const { odometer_reading, reading_date } = req.body;
+  const { odometer_reading: today_driven_km, reading_date } = req.body;
   const maxJump = 600;
+  const numericTodayDrivenKm = Number(today_driven_km);
 
   if (!reading_date || !dayjs(reading_date, "YYYY-MM-DD", true).isValid()) {
     return res.status(400).json({
@@ -1839,12 +1840,10 @@ export const postVehicleOdometerReading = async (req, res) => {
   const testPlate_number = "TEST1";
   const testknack_id = "686eb869aff93e02f4ad81e8";
 
-  const numericReading = Number(odometer_reading);
-
-  if (!numericReading || numericReading <= 0) {
+  if (!numericTodayDrivenKm || numericTodayDrivenKm <= 0) {
     return res.status(400).json({
       success: false,
-      message: "Odometer reading must be a positive number",
+      message: "Driven kilometers must be a positive number",
     });
   }
 
@@ -1887,24 +1886,18 @@ export const postVehicleOdometerReading = async (req, res) => {
     const nowFormatted = dayjs().tz("America/Lima").format("DD/MM/YYYY HH:mm");
     const oldOdometer = Number(knackData.field_30_raw) || 0;
 
-    if (numericReading < oldOdometer) {
+    if (numericTodayDrivenKm > maxJump) {
       return res.status(400).json({
         success: false,
-        message: "New odometer reading cannot be less than current odometer",
+        message: "Entered distance exceeds the maximum allowed jump of 600 km.",
       });
     }
 
-    if (numericReading - oldOdometer > maxJump) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "New odometer reading exceeds the maximum allowed jump of 600 km.",
-      });
-    }
+    const newOdometerReading = oldOdometer + numericTodayDrivenKm;
 
     const updateKnackBody = {
       field_149: nowFormatted,
-      field_30: numericReading,
+      field_30: newOdometerReading,
     };
 
     await axios.put(
@@ -1915,7 +1908,7 @@ export const postVehicleOdometerReading = async (req, res) => {
 
     const insertKnackBody = {
       field_156: knackData.field_23,
-      field_158: numericReading,
+      field_158: newOdometerReading,
       field_159: nowFormatted,
     };
 
@@ -1929,7 +1922,7 @@ export const postVehicleOdometerReading = async (req, res) => {
       driver_id: driverId,
       vehicle_id: device_id,
       reading_date,
-      odometer_reading: numericReading,
+      odometer_reading: newOdometerReading,
     };
 
     await saveDriverOdometerEntry(dbBody);

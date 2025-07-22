@@ -285,7 +285,10 @@ export const driverAssociateVehicles = async (req, res) => {
   const { appLogs } = req.query;
 
   try {
-    const driverVehicles = await findVehiclesByDriverId(driverId);
+    const [driverVehicles, driver] = await Promise.all([
+      findVehiclesByDriverId(driverId),
+      fetchDriver(driverId),
+    ]);
 
     if (driverVehicles.length === 0) {
       return res.status(404).json({
@@ -299,7 +302,7 @@ export const driverAssociateVehicles = async (req, res) => {
 
       driverVehicles.push({ loginLogs });
     }
-    
+
     const { device_name } = driverVehicles[0];
     const formattedDeviceName = formatKnackPlateNumber(device_name);
 
@@ -329,6 +332,7 @@ export const driverAssociateVehicles = async (req, res) => {
       return {
         ...detail,
         odometer_reading: knackData?.field_30_raw,
+        blocked: driver[0].is_blocked === 1 ? true : false,
       };
     });
 
