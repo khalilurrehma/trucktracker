@@ -283,6 +283,7 @@ export const assignDriverToVehicle = async (req, res) => {
 export const driverAssociateVehicles = async (req, res) => {
   const driverId = req.userId;
   const { appLogs } = req.query;
+  // const testknack_id = "686eb869aff93e02f4ad81e8";
 
   try {
     const [driverVehicles, driver] = await Promise.all([
@@ -308,11 +309,12 @@ export const driverAssociateVehicles = async (req, res) => {
 
     const knackDetails = await fetchKnackVehicle(formattedDeviceName);
     const knackIdToUse = knackDetails?.knack_id;
+    // const knackIdToUse = testknack_id;
 
     if (!knackIdToUse) {
       return res.status(404).json({
         success: false,
-        message: "Vehicle not found in Knack table",
+        message: `Vehicle not found in Knack table, Placa no. ${device_name}`,
       });
     }
 

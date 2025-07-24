@@ -1825,9 +1825,8 @@ export const getKnackVehicleOdometer = async (req, res) => {
 
 export const postVehicleOdometerReading = async (req, res) => {
   const driverId = req.userId;
-  const { odometer_reading: today_driven_km, reading_date } = req.body;
-  const maxJump = 600;
-  const numericTodayDrivenKm = Number(today_driven_km);
+  const { odometer_reading, reading_date } = req.body;
+  const maxJump = 200;
 
   if (!reading_date || !dayjs(reading_date, "YYYY-MM-DD", true).isValid()) {
     return res.status(400).json({
@@ -1837,13 +1836,15 @@ export const postVehicleOdometerReading = async (req, res) => {
   }
 
   // For local testing
-  const testPlate_number = "TEST1";
-  const testknack_id = "686eb869aff93e02f4ad81e8";
+  // const testPlate_number = "TEST1";
+  // const testknack_id = "686eb869aff93e02f4ad81e8";
 
-  if (!numericTodayDrivenKm || numericTodayDrivenKm <= 0) {
+  const numericReading = Number(odometer_reading);
+
+  if (!numericReading || numericReading <= 0) {
     return res.status(400).json({
       success: false,
-      message: "Driven kilometers must be a positive number",
+      message: "Odometer reading must be a positive number",
     });
   }
 
@@ -1861,13 +1862,13 @@ export const postVehicleOdometerReading = async (req, res) => {
     const formattedDeviceName = formatKnackPlateNumber(device_name);
 
     const knackDetails = await fetchKnackVehicle(formattedDeviceName);
-    // const knackIdToUse = knackDetails?.id || testknack_id;
-    const knackIdToUse = testknack_id;
+    const knackIdToUse = knackDetails?.id;
+    // const knackIdToUse = testknack_id;
 
     if (!knackIdToUse) {
       return res.status(404).json({
         success: false,
-        message: "Vehicle not found in Knack table",
+        message: `Vehicle not found in Knack table, Placa no. ${device_name}`,
       });
     }
 
@@ -1886,18 +1887,24 @@ export const postVehicleOdometerReading = async (req, res) => {
     const nowFormatted = dayjs().tz("America/Lima").format("DD/MM/YYYY HH:mm");
     const oldOdometer = Number(knackData.field_30_raw) || 0;
 
-    if (numericTodayDrivenKm > maxJump) {
+    if (numericReading < oldOdometer) {
       return res.status(400).json({
         success: false,
-        message: "Entered distance exceeds the maximum allowed jump of 600 km.",
+        message: "New odometer reading cannot be less than current odometer",
       });
     }
 
-    const newOdometerReading = oldOdometer + numericTodayDrivenKm;
+    if (numericReading - oldOdometer > maxJump) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "New odometer reading exceeds the maximum allowed jump of 200 km.",
+      });
+    }
 
     const updateKnackBody = {
       field_149: nowFormatted,
-      field_30: newOdometerReading,
+      field_30: numericReading,
     };
 
     await axios.put(
@@ -1908,7 +1915,7 @@ export const postVehicleOdometerReading = async (req, res) => {
 
     const insertKnackBody = {
       field_156: knackData.field_23,
-      field_158: newOdometerReading,
+      field_158: numericReading,
       field_159: nowFormatted,
     };
 
@@ -1922,7 +1929,7 @@ export const postVehicleOdometerReading = async (req, res) => {
       driver_id: driverId,
       vehicle_id: device_id,
       reading_date,
-      odometer_reading: newOdometerReading,
+      odometer_reading: numericReading,
     };
 
     await saveDriverOdometerEntry(dbBody);
