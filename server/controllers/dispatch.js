@@ -57,6 +57,7 @@ import {
   updateRimacReportById,
   updateRimacReportStatus,
   updateSearchHistory,
+  verifyExistingReading,
 } from "../model/dispatch.js";
 import {
   driverStatusAvailable,
@@ -1835,6 +1836,8 @@ export const postVehicleOdometerReading = async (req, res) => {
     });
   }
 
+  let existingRecord = await verifyExistingReading(driverId, reading_date);
+
   // For local testing
   // const testPlate_number = "TEST1";
   // const testknack_id = "686eb869aff93e02f4ad81e8";
@@ -1862,7 +1865,7 @@ export const postVehicleOdometerReading = async (req, res) => {
     const formattedDeviceName = formatKnackPlateNumber(device_name);
 
     const knackDetails = await fetchKnackVehicle(formattedDeviceName);
-    const knackIdToUse = knackDetails?.id;
+    const knackIdToUse = knackDetails?.knack_id;
     // const knackIdToUse = testknack_id;
 
     if (!knackIdToUse) {
@@ -1905,9 +1908,10 @@ export const postVehicleOdometerReading = async (req, res) => {
     const updateKnackBody = {
       field_149: nowFormatted,
       field_30: numericReading,
+      field_156: knackIdToUse,
     };
 
-    await axios.put(
+    const { data: updateResponse } = await axios.put(
       `https://api.knack.com/v1/objects/object_5/records/${knackIdToUse}`,
       updateKnackBody,
       { headers: knackHeaders }
@@ -1932,28 +1936,43 @@ export const postVehicleOdometerReading = async (req, res) => {
       odometer_reading: numericReading,
     };
 
-    await saveDriverOdometerEntry(dbBody);
+    if (!existingRecord) {
+      await saveDriverOdometerEntry(dbBody);
+    }
 
     await unBlockingDriver(driverId, reading_date);
 
     res.status(200).json({
       success: true,
       message: "Odometer reading updated successfully",
-      data: insertResponse,
+      data: { insertResponse, updateResponse },
       reading_date: reading_date,
     });
   } catch (error) {
-    console.error("Error saving vehicle odometer reading:", error?.message);
+    console.error("Error saving vehicle odometer reading:", {
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack,
+    });
 
     let errorMessage = "Failed to save reading";
 
+    // Handle known DB error
     if (error?.code === "ER_DUP_ENTRY") {
-      errorMessage = "Reading for this date already exists";
+      errorMessage = "A reading for this date already exists.";
+    }
+    // You could also check for other custom cases:
+    else if (error?.name === "ValidationError") {
+      errorMessage = "Invalid data provided.";
+    } else if (error?.name === "CastError") {
+      errorMessage = "Invalid ID format.";
     }
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: errorMessage,
+      error:
+        process.env.NODE_ENV === "development" ? error?.message : undefined,
     });
   }
 };

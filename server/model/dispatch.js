@@ -1446,6 +1446,18 @@ export const saveDriverOdometerEntry = async (dbBody) => {
   ]);
 };
 
+export const verifyExistingReading = async (driver_id, date) => {
+  const query = `SELECT id FROM odometer_readings WHERE driver_id = ? AND reading_date = ? LIMIT 1`;
+
+  try {
+    const rows = await dbQuery(query, [driver_id, date]);
+    return rows[0] ? true : false;
+  } catch (error) {
+    console.error("Error fetching knack vehicle:", error);
+    throw error;
+  }
+};
+
 export const unBlockingDriver = async (driver_id, reading_date) => {
   const unBlockQuery = `UPDATE drivers SET is_blocked=0 WHERE id=?`;
   const auditBlockQuery = `UPDATE driver_block_records
