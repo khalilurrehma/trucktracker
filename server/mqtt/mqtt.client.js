@@ -44,6 +44,9 @@ const topics = [
   {
     topic: "flespi/state/gw/devices/+/telemetry/engine.ignition.status",
   },
+  {
+    topic: "flespi/state/gw/devices/+/telemetry/+",
+  },
   // {
   //   topic:
   //     "flespi/state/gw/devices/+/telemetry/engine.ignition.status,timestamp",

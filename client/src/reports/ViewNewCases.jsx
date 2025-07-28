@@ -307,6 +307,25 @@ const ViewNewCases = () => {
         );
 
         if (data.status) {
+          let formattedAllCases = data.data.map((c) => {
+            const metaDataStr = c.meta_data;
+            let isRimacCase = false;
+
+            if (metaDataStr) {
+              try {
+                const meta = JSON.parse(metaDataStr);
+                isRimacCase = meta.rimacCase === true;
+              } catch (err) {
+                console.warn("Failed to parse meta_data:", metaDataStr);
+              }
+            }
+
+            return {
+              ...c,
+              rimacCase: isRimacCase,
+            };
+          });
+
           setAllCases(data.data);
           setTotalCases(data.pagination?.total || 0);
 
@@ -406,6 +425,17 @@ const ViewNewCases = () => {
     // setRejectedServiceIds((prev) => [...prev, serviceId]);
   };
 
+  const differentiateValues = (valueStr) => {
+    // Ensure it's a string
+    const val = String(valueStr).trim();
+
+    if (/^\d+$/.test(val)) {
+      return { type: "saleforce", value: val };
+    } else {
+      return { type: "echong_case", value: val };
+    }
+  };
+
   return (
     <PageLayout
       menu={<OperationsMenu />}
@@ -478,45 +508,20 @@ const ViewNewCases = () => {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>
-                  <b>Case</b>
-                </TableCell>
-                <TableCell>
-                  <b>Address</b>
-                </TableCell>
-                <TableCell>
-                  <b>Status</b>
-                </TableCell>
-                <TableCell>
-                  <b>Current Process</b>
-                </TableCell>
-                <TableCell>
-                  <b>Service Type</b>
-                </TableCell>
-                <TableCell>
-                  <b>Sub Services</b>
-                </TableCell>
-                <TableCell>
-                  <b>Driver</b>
-                </TableCell>
-                <TableCell>
-                  <b>License Plate</b>
-                </TableCell>
-                <TableCell>
-                  <b>ETA</b>
-                </TableCell>
-                <TableCell>
-                  <b>Distance</b>
-                </TableCell>
-                <TableCell>
-                  <b>District</b>
-                </TableCell>
-                <TableCell>
-                  <b>Initial Base</b>
-                </TableCell>
-                <TableCell>
-                  <b>Actions</b>
-                </TableCell>
+                <TableCell>Placa Asegurado</TableCell>
+                <TableCell>Saleforce</TableCell>
+                <TableCell>Case</TableCell>
+                <TableCell>Address</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Current Process</TableCell>
+                <TableCell>Service Type</TableCell>
+                <TableCell>Sub Services</TableCell>
+                <TableCell>Driver</TableCell>
+                <TableCell>ETA</TableCell>
+                <TableCell>Distance</TableCell>
+                <TableCell>District</TableCell>
+                <TableCell>Initial Base</TableCell>
+                <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -529,6 +534,7 @@ const ViewNewCases = () => {
               ) : !loader ? (
                 allCases.map((row) => {
                   const devices = JSON.parse(row.device_meta || "[]");
+                  let case_name = differentiateValues(row.case_name);
 
                   return devices.map((device, idx) => {
                     return (
@@ -541,7 +547,17 @@ const ViewNewCases = () => {
                               : undefined,
                         }}
                       >
-                        <TableCell>{row.case_name}</TableCell>
+                        <TableCell>{device.name || "N/A"}</TableCell>
+                        <TableCell>
+                          {case_name.type === "saleforce"
+                            ? case_name.value
+                            : "-"}
+                        </TableCell>
+                        <TableCell>
+                          {case_name.type === "echong_case"
+                            ? case_name.value
+                            : "-"}
+                        </TableCell>
                         <TableCell>{row.case_address}</TableCell>
                         <TableCell>{getStatusChip(row.status)}</TableCell>
                         <TableCell>
@@ -575,7 +591,7 @@ const ViewNewCases = () => {
                             : "None"}
                         </TableCell>
                         <TableCell>{device.drivername || "N/A"}</TableCell>
-                        <TableCell>{device.name || "N/A"}</TableCell>
+
                         <TableCell>
                           {device.eta ? `${device.eta} min` : "N/A"}
                         </TableCell>

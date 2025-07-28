@@ -5,6 +5,7 @@ import { Snackbar, Alert, Slide } from "@mui/material";
 import alertSound from "./resources/echong-notification-official.wav";
 import { useSelector } from "react-redux";
 import { getAuthenticatedAudioUrl } from "./settings/common/New.Helper";
+import store, { updateTelemetry } from "./store";
 
 const TempNotification = ({ notifications, setNotifications }) => {
   const handleCloseNotification = (id) => {
@@ -109,6 +110,16 @@ const SubSocket = () => {
             // console.log(recievedData);
             updateMqttMessage(recievedData, "deviceDin");
           }
+          if (recievedData?.topic?.includes("/telemetry/")) {
+            const topicParts = recievedData.topic.split("/");
+            const deviceId = recievedData.deviceId;
+            const key = topicParts.slice(-1)[0];
+            const value = recievedData?.value;
+
+            if (deviceId && key && value !== undefined) {
+              store.dispatch(updateTelemetry({ deviceId, key, value }));
+            }
+          }
           if (recievedData?.topic?.includes("calcs/1742074")) {
             // console.log(recievedData);
             updateMqttMessage(recievedData, "Events");
@@ -130,7 +141,7 @@ const SubSocket = () => {
               recievedData.superVisorIds.includes(sessionUserId))
           ) {
             console.log(recievedData);
-            
+
             updateMqttMessage(recievedData, "suggestedServices");
             addNotification(recievedData.message);
           }

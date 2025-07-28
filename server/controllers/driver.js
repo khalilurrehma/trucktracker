@@ -366,8 +366,43 @@ export const driversLoginLogs = async (req, res) => {
       fetchDriverLoginLogs(driverId),
     ]);
 
+    const { device_name } = driverVehicles[0];
+    const formattedDeviceName = formatKnackPlateNumber(device_name);
+
+    const knackDetails = await fetchKnackVehicle(formattedDeviceName);
+    const knackIdToUse = knackDetails?.knack_id;
+    // const knackIdToUse = testknack_id;
+
+    if (!knackIdToUse) {
+      return res.status(404).json({
+        success: false,
+        message: `Vehicle not found in Knack table, Placa no. ${device_name}`,
+      });
+    }
+
+    const { data: knackData } = await axios.get(
+      `https://api.knack.com/v1/objects/object_5/records/${knackIdToUse}`,
+      { headers: knackHeaders }
+    );
+
+    if (!knackData || !knackData.field_23) {
+      return res.status(404).json({
+        success: false,
+        message: "Vehicle name field not found in Knack data",
+      });
+    }
+
+    let formattedDriverVehicles = driverVehicles.map((v) => {
+      return {
+        ...v,
+        odometer_reading: knackData?.field_30_raw,
+      };
+    });
+
+    console.log(formattedDriverVehicles);
+
     const formattedResponse = {
-      vehicleDetails: driverVehicles || [],
+      vehicleDetails: formattedDriverVehicles || [],
       loginLogs: loginLogs || [],
     };
 

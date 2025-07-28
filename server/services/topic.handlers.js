@@ -585,3 +585,21 @@ export const geofenceEntryAndExit = async (topic, payload) => {
     console.error("Error in geofenceEntryAndExit:", error.message);
   }
 };
+
+export const detailedTelemetry = async (topic, payload) => {
+  const topicParts = topic.split("/");
+  const deviceIdIndex = topicParts.indexOf("devices") + 1;
+  const deviceId = parseInt(topicParts[deviceIdIndex]);
+  const key = topicParts.slice(-1)[0];
+
+  if (!deviceId || !key) {
+    return null;
+  }
+
+  return {
+    deviceId,
+    key,
+    value: payload,
+    topic,
+  };
+};

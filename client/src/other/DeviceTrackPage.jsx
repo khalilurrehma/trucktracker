@@ -386,15 +386,6 @@ const DeviceTrackPage = () => {
               maxValue={player.max}
             />
           </MapContainer>
-          {/* <FileUploadDialog
-            openFileDialog={openFileDialog}
-            setOpenFileDialog={setOpenFileDialog}
-            setMessages={setMessages}
-            setBound={setBound}
-            setPlayer={setPlayer}
-            setSelectedDate={setSelectedDate}
-            setSelectedDevice={setSelectedDevice}
-          /> */}
         </div>
         <div>
           {player.messagesOpen && (

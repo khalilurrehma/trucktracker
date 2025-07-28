@@ -134,6 +134,7 @@ import AddSnaphotsDevices from "./settings/AddSnaphotsDevices";
 import RemoveSnapshotsDevices from "./settings/RemoveSnapshotsDevices";
 import RimacFinalReportView from "./operations/RimacFinalReportView";
 import DeviceTrackPage from "./other/DeviceTrackPage";
+import DeviceTelemetry from "./settings/DeviceTelemetry";
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -263,6 +264,7 @@ const Navigation = () => {
             path="device/:id/connections"
             element={<DeviceConnectionsPage />}
           />
+          <Route path="device/:id/telemetry" element={<DeviceTelemetry />} />
           <Route path="device/:id/command" element={<CommandDevicePage />} />
           <Route path="device/:id/share" element={<SharePage />} />
           <Route path="device/:id" element={<DevicePage />} />

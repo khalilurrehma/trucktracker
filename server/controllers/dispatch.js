@@ -1836,8 +1836,6 @@ export const postVehicleOdometerReading = async (req, res) => {
     });
   }
 
-  let existingRecord = await verifyExistingReading(driverId, reading_date);
-
   // For local testing
   // const testPlate_number = "TEST1";
   // const testknack_id = "686eb869aff93e02f4ad81e8";
@@ -1852,7 +1850,10 @@ export const postVehicleOdometerReading = async (req, res) => {
   }
 
   try {
-    const driverVehicle = await findVehiclesByDriverId(driverId);
+    const [existingRecord, driverVehicle] = await Promise.all([
+      verifyExistingReading(driverId, reading_date),
+      findVehiclesByDriverId(driverId),
+    ]);
 
     if (!driverVehicle || driverVehicle.length === 0) {
       return res.status(404).json({
@@ -1938,9 +1939,8 @@ export const postVehicleOdometerReading = async (req, res) => {
 
     if (!existingRecord) {
       await saveDriverOdometerEntry(dbBody);
+      await unBlockingDriver(driverId, reading_date);
     }
-
-    await unBlockingDriver(driverId, reading_date);
 
     res.status(200).json({
       success: true,

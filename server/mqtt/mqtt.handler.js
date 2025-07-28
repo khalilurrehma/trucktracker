@@ -2,6 +2,7 @@ import { DispatchEmitter } from "../controllers/dispatch.js";
 import { cronEmitter } from "../services/cronJobs.js";
 import {
   activatedDoutHandler,
+  detailedTelemetry,
   deviceNewEvent,
   devicesAlarmMQTT,
   driverBehaivor,
@@ -39,32 +40,40 @@ mqttEmitter.on("mqttMessage", async ({ topic, payload }) => {
         if (behaivor) broadcast(behaivor, { to: "admin" });
         break;
       case topic.startsWith("flespi/state/gw/devices/") &&
-        topic.endsWith("/telemetry/position"):
-        const liveLocation = await handleDeviceLiveLocation(topic, payload);
-        await handleInReferenceStage(topic, payload);
-        if (liveLocation) broadcast(liveLocation, { to: "admin" });
-        break;
-      case topic.startsWith("flespi/state/gw/devices/") &&
-        topic.endsWith("/telemetry/din"):
-        const din = await handleDeviceDin(topic, payload);
-        if (din) broadcast(din, { to: "admin" });
-        break;
-      case topic.startsWith("flespi/state/gw/devices/") &&
         topic.endsWith("/connected"):
         const connectionStatus = await handleDeviceConnection(topic, payload);
         if (connectionStatus) broadcast(connectionStatus, { to: "admin" });
         break;
-      case topic.startsWith("flespi/state/gw/devices/") &&
-        topic.endsWith("/telemetry/engine.ignition.status"):
-        const ignitionStatus = await handleDeviceIgnition(topic, payload);
-        if (ignitionStatus) broadcast(ignitionStatus, { to: "admin" });
-        break;
+
       case topic.includes("calcs/1766118"):
         const geofenceResults = await geofenceEntryAndExit(topic, payload);
         break;
-      // case topic.includes("flespi/message/gw/devices"):
-      //   console.log("MQTT Message:", payload["position.satellites"]);
-      //   break;
+
+      case topic.startsWith("flespi/state/gw/devices/") &&
+        topic.includes("/telemetry/"):
+        // 1. Live location
+        if (topic.endsWith("/telemetry/position")) {
+          const liveLocation = await handleDeviceLiveLocation(topic, payload);
+          await handleInReferenceStage(topic, payload);
+          if (liveLocation) broadcast(liveLocation, { to: "admin" });
+        }
+
+        // 2. DIN
+        if (topic.endsWith("/telemetry/din")) {
+          const din = await handleDeviceDin(topic, payload);
+          if (din) broadcast(din, { to: "admin" });
+        }
+
+        // 3. Ignition
+        if (topic.endsWith("/telemetry/engine.ignition.status")) {
+          const ignitionStatus = await handleDeviceIgnition(topic, payload);
+          if (ignitionStatus) broadcast(ignitionStatus, { to: "admin" });
+        }
+
+        // 4. All telemetry values (including those above)
+        const detailed = await detailedTelemetry(topic, payload);
+        if (detailed) broadcast(detailed, { to: "admin" });
+        break;
 
       default:
         console.log("No handler for topic:", topic);

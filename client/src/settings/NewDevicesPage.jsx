@@ -37,9 +37,12 @@ import SettingsMenu from "../settings/components/SettingsMenu";
 import CollectionFab from "./components/CollectionFab";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
-import LinkIcon from "@mui/icons-material/Link";
+import {
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Link as LinkIcon,
+  Speed as SpeedIcon,
+} from "@mui/icons-material";
 import { useAppContext } from "../AppContext";
 import LoadingButton from "@mui/lab/LoadingButton";
 import { useEffectAsync } from "../reactHelper";
@@ -297,6 +300,18 @@ const NewDevicesPage = () => {
                             admin &&
                             item.created_role === "admin") ? (
                             <>
+                              <Tooltip title={"view telemetry"}>
+                                <IconButton
+                                  size="small"
+                                  onClick={() =>
+                                    navigate(
+                                      `/settings/device/${item.flespiId}/telemetry`
+                                    )
+                                  }
+                                >
+                                  <SpeedIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
                               <Tooltip title={t("sharedConnections")}>
                                 <IconButton
                                   size="small"
