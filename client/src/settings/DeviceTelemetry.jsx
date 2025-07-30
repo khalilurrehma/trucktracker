@@ -1,18 +1,8 @@
-import React from "react";
-import PageLayout from "../common/components/PageLayout";
-import SettingsMenu from "./components/SettingsMenu";
 import SpeedometerGauge from "./components/SpeedometerGauge";
 import VehicleOrientation from "./components/VehicleOrientation";
 import StatusBar from "./components/StatusBar";
 import TelemetryDataGrid from "./components/TelemetryDataGrid";
 import { useTelemetryData } from "./hooks/useTelemetryData";
-import {
-  MapContainer,
-  TileLayer,
-  Polyline,
-  useMap,
-  Marker,
-} from "react-leaflet";
 import LiveMap from "./components/LiveMap";
 
 const DeviceTelemetry = () => {
@@ -35,6 +25,7 @@ const DeviceTelemetry = () => {
           <LiveMap
             latitude={data.position.latitude}
             longitude={data.position.longitude}
+            direction={data.position.direction}
           />
         </div>
 

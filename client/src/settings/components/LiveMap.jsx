@@ -1,13 +1,7 @@
+import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
-import { useEffect } from "react";
 import carSVG from "../../resources/images/icon/car.svg";
-
-const carIcon = new L.Icon({
-  iconUrl: carSVG,
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
-});
 
 const RecenterMap = ({ lat, lng }) => {
   const map = useMap();
@@ -17,7 +11,29 @@ const RecenterMap = ({ lat, lng }) => {
   return null;
 };
 
-const LiveMap = ({ latitude, longitude }) => {
+const LiveMap = ({ latitude, longitude, direction }) => {
+  const [smoothDirection, setSmoothDirection] = useState(direction);
+
+  useEffect(() => {
+    let animationFrame;
+    const animate = () => {
+      setSmoothDirection((prev) => {
+        const diff = ((direction - prev + 540) % 360) - 180;
+        const step = Math.sign(diff) * Math.min(Math.abs(diff), 5);
+        return prev + step;
+      });
+      animationFrame = requestAnimationFrame(animate);
+    };
+    animationFrame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrame);
+  }, [direction]);
+
+  const dynamicIcon = new L.DivIcon({
+    html: `<img src="${carSVG}" style="width:32px; height:32px; transform: rotate(${smoothDirection}deg); transform-origin: center;" />`,
+    iconSize: [32, 32],
+    className: "",
+  });
+
   return (
     <MapContainer
       center={[latitude, longitude]}
@@ -27,10 +43,10 @@ const LiveMap = ({ latitude, longitude }) => {
       attributionControl={false}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        attribution="&copy; OpenStreetMap contributors"
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <Marker position={[latitude, longitude]} icon={carIcon} />
+      <Marker position={[latitude, longitude]} icon={dynamicIcon} />
       <RecenterMap lat={latitude} lng={longitude} />
     </MapContainer>
   );
