@@ -836,16 +836,69 @@ export const dispatchCaseReport = async (req, res) => {
 
     const reportId = await saveDispatchCaseReport(reportData);
 
-    for (const vehicle of vehicles) {
+    for (let vIndex = 0; vIndex < vehicles.length; vIndex++) {
+      const vehicle = vehicles[vIndex];
+      console.log(
+        `\n🚗 Processing vehicle index ${vIndex}, vehicleId: ${vehicle.vehicle_id}`
+      );
+
       const vehicleId = await saveInvolvedVehicle(reportId, vehicle);
+      console.log(`✅ Saved vehicle in DB, got vehicleId: ${vehicleId}`);
+
+      // ----- HANDLE NEW additionalInformation FIELD -----
+      console.log(vehicle.additionalInformation);
+
+      if (
+        Array.isArray(vehicle.additionalInformation) &&
+        vehicle.additionalInformation.length > 0
+      ) {
+        const infoArray = vehicle.additionalInformation; // ✅ Directly the array of strings
+        console.log(
+          `📦 additionalInformation for vehicle[${vIndex}]:`,
+          infoArray
+        );
+
+        // Ensure photos array exists
+        if (!Array.isArray(vehicle.photos)) {
+          vehicle.photos = [];
+          console.log(
+            `ℹ️ Initialized empty photos array for vehicle[${vIndex}]`
+          );
+        }
+
+        // Push each string as a synthetic photo entry
+        for (const info of infoArray) {
+          if (info && info.trim()) {
+            const newPhoto = {
+              category: `${vIndex} Additional Information`,
+              type: `Multiple Images`,
+              url: info.trim(),
+            };
+            vehicle.photos.push(newPhoto);
+            console.log(
+              `➕ Added synthetic photo for vehicle[${vIndex}]:`,
+              newPhoto
+            );
+          }
+        }
+      } else {
+        console.log(`⚠️ No valid additionalInformation for vehicle[${vIndex}]`);
+      }
+
+      // ----- EXISTING PHOTO SAVE LOGIC -----
       if (Array.isArray(vehicle.photos)) {
         const validPhotos = vehicle.photos.filter(
           (photo) => photo.category && photo.type && photo.url
+        );
+        console.log(
+          `📸 Valid photos for vehicle[${vIndex}]:`,
+          validPhotos.length
         );
 
         const allPhotosToSave = [];
 
         for (const photo of validPhotos) {
+          // Handle comma-separated URLs for "Multiple Images"
           if (
             photo.category === "Additional Information" &&
             photo.type === "Multiple Images" &&
@@ -855,6 +908,14 @@ export const dispatchCaseReport = async (req, res) => {
               .split(",")
               .map((u) => u.trim())
               .filter(Boolean);
+
+            console.log(
+              `🔀 Splitting multiple URLs for photo_id:${
+                photo.photo_id || "new"
+              } ->`,
+              urls
+            );
+
             for (const singleUrl of urls) {
               allPhotosToSave.push({
                 category: photo.category,
@@ -867,10 +928,13 @@ export const dispatchCaseReport = async (req, res) => {
           }
         }
 
-        const savePhotos = allPhotosToSave.map((photo) =>
-          saveVehiclePhoto(vehicleId, photo)
+        console.log(
+          `💾 Saving ${allPhotosToSave.length} photos for vehicleId ${vehicleId}...`
         );
-        await Promise.all(savePhotos);
+        await Promise.all(
+          allPhotosToSave.map((photo) => saveVehiclePhoto(vehicleId, photo))
+        );
+        console.log(`✅ Saved all photos for vehicle[${vIndex}]`);
       }
     }
 
@@ -1906,6 +1970,10 @@ export const postVehicleOdometerReading = async (req, res) => {
       });
     }
 
+    // two actions needed insert and update
+
+    // update fields, field_149, field_30 and field_156
+
     const updateKnackBody = {
       field_149: nowFormatted,
       field_30: numericReading,
@@ -1917,6 +1985,8 @@ export const postVehicleOdometerReading = async (req, res) => {
       updateKnackBody,
       { headers: knackHeaders }
     );
+
+    // insert fields, field_156, field_158 and field_159
 
     const insertKnackBody = {
       field_156: knackData.field_23,
@@ -1957,12 +2027,9 @@ export const postVehicleOdometerReading = async (req, res) => {
 
     let errorMessage = "Failed to save reading";
 
-    // Handle known DB error
     if (error?.code === "ER_DUP_ENTRY") {
       errorMessage = "A reading for this date already exists.";
-    }
-    // You could also check for other custom cases:
-    else if (error?.name === "ValidationError") {
+    } else if (error?.name === "ValidationError") {
       errorMessage = "Invalid data provided.";
     } else if (error?.name === "CastError") {
       errorMessage = "Invalid ID format.";

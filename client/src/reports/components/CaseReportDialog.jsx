@@ -70,6 +70,8 @@ const CaseReportDialog = ({
             setRimacReportCase(false);
           }
 
+          // console.log(safeParse(data.message));
+
           const reportData = {
             ...data.message,
             vehicles: safeParse(data.message.vehicles) || [],

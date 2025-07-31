@@ -32,6 +32,31 @@ import { useEffect, useState, useRef } from "react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
+const modalStyle = {
+  position: "absolute",
+  top: "50%",
+  left: "50%",
+  transform: "translate(-50%, -50%)",
+  width: "90%", // wide modal
+  maxHeight: "80vh",
+  overflowY: "auto",
+  bgcolor: "background.paper",
+  border: "2px solid #000",
+  boxShadow: 24,
+  p: 4,
+};
+
+const normalizeCategory = (category) => category.replace(/\s+/g, " ").trim();
+
+const isValidUrl = (url) => {
+  try {
+    // Basic check: starts with http or https
+    return typeof url === "string" && /^https?:\/\//i.test(url.trim());
+  } catch {
+    return false;
+  }
+};
+
 const EchongCaseReport = ({
   setOpenAssignModal,
   caseDetails,
@@ -45,6 +70,11 @@ const EchongCaseReport = ({
   const [selectedPhotos, setSelectedPhotos] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [authorizeLoader, setAuthorizeLoader] = useState(false);
+
+  const [ocrOpen, setOcrOpen] = useState(false);
+
+  const handleOpenOcr = () => setOcrOpen(true);
+  const handleCloseOcr = () => setOcrOpen(false);
 
   const handleDownloadPDF = async () => {
     const element = reportRef.current;
@@ -207,17 +237,32 @@ const EchongCaseReport = ({
             {report.vehicles && report.vehicles.length > 0 ? (
               report.vehicles.map((vehicle, index) => {
                 // console.log(vehicle);
+                const categories = [
+                  `${index} Client Vehicle`,
+                  `${index} Client Document`,
+                  `${index} Additional Information`,
+                ];
+
+                const typeOrder = {
+                  Front: 1,
+                  Back: 2,
+                  Photo: 3,
+                  SideRight: 3,
+                  SideLeft: 4,
+                  Other: 5,
+                  Damage: 6,
+                };
+
+                const getTypeOrder = (type) => {
+                  if (type.startsWith("Other")) return typeOrder.Other;
+                  if (type === "Photo") return typeOrder.SideRight;
+                  return typeOrder[type] || 99;
+                };
 
                 return (
                   <Paper key={vehicle.vehicle_id} sx={{ p: 2, mb: 3 }}>
                     <Typography variant="h6" gutterBottom>
                       Vehicle {index + 1}: {vehicle.plate_number}
-                    </Typography>
-                    <Typography variant="subtitle1">
-                      <strong>Vehicle ID:</strong> {vehicle.vehicle_id}
-                    </Typography>
-                    <Typography variant="subtitle1">
-                      <strong>Created:</strong> {formatDate(vehicle.created_at)}
                     </Typography>
 
                     <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
@@ -225,66 +270,139 @@ const EchongCaseReport = ({
                     </Typography>
                     {vehicle.photos && vehicle.photos.length > 0 ? (
                       <>
-                        {[
-                          "Client Vehicle",
-                          "Client Document",
-                          "Additional Information",
-                        ].map((category) => {
-                          const categoryPhotos = vehicle.photos.filter(
-                            (photo) => photo.category === category
-                          );
+                        {categories.map((category) => {
+                          const categoryPhotos = vehicle.photos
+                            .filter(
+                              (photo) =>
+                                normalizeCategory(photo.category) ===
+                                normalizeCategory(category)
+                            )
+                            .sort(
+                              (a, b) =>
+                                getTypeOrder(a.type) - getTypeOrder(b.type)
+                            );
+
+                          // console.log(categoryPhotos);
                           return categoryPhotos.length > 0 ? (
                             <Box key={category} sx={{ mb: 2 }}>
                               <Typography variant="subtitle1" gutterBottom>
-                                <strong>{category}</strong>
+                                <strong>
+                                  {category.replace(/^\d+\s*/, "")}
+                                </strong>
                               </Typography>
                               <Grid container spacing={2}>
-                                {categoryPhotos.map((photo, photoIndex) => {
-                                  // console.log(photo);
-
-                                  return (
-                                    <Grid
-                                      item
-                                      xs={12}
-                                      sm={6}
-                                      md={4}
-                                      key={photo.photo_id}
+                                {categoryPhotos.length > 0 ? (
+                                  <Box key={category} sx={{ mb: 2 }}>
+                                    <Typography
+                                      variant="subtitle1"
+                                      gutterBottom
                                     >
-                                      <Card
-                                        sx={{ cursor: "pointer" }}
-                                        onClick={() =>
-                                          handleImageClick(
-                                            photo,
-                                            categoryPhotos,
-                                            photoIndex
-                                          )
-                                        }
-                                      >
-                                        <CardMedia
-                                          component="img"
-                                          height="140"
-                                          image={photo.url}
-                                          alt={photo.type}
-                                          loading="lazy"
-                                          sx={{ objectFit: "cover" }}
-                                          onError={(e) => {
-                                            e.target.src =
-                                              "https://via.placeholder.com/140?text=Image+Not+Found";
-                                          }}
-                                        />
-                                        <CardContent>
-                                          <Typography variant="body2">
-                                            <strong>Type:</strong> {photo.type}
-                                          </Typography>
-                                          <Typography variant="body2">
-                                            <strong>Uploaded:</strong>{" "}
-                                            {formatDate(photo.created_at)}
-                                          </Typography>
-                                        </CardContent>
-                                      </Card>
+                                      <strong>
+                                        {category.replace(/^\d+\s*/, "")}
+                                      </strong>
+                                    </Typography>
+
+                                    {/* URL Photos as Cards in Grid */}
+                                    <Grid container spacing={2}>
+                                      {categoryPhotos
+                                        .filter(
+                                          (photo) =>
+                                            typeof photo.url === "string" &&
+                                            /^https?:\/\//i.test(
+                                              photo.url.trim()
+                                            )
+                                        )
+                                        .map((photo, photoIndex) => {
+                                          const displayType =
+                                            photo.type === "Photo"
+                                              ? "SideRight"
+                                              : photo.type;
+
+                                          return (
+                                            <Grid
+                                              item
+                                              xs={12}
+                                              sm={6}
+                                              md={4}
+                                              key={photo.photo_id || photoIndex}
+                                            >
+                                              <Card
+                                                sx={{ cursor: "pointer" }}
+                                                onClick={() =>
+                                                  handleImageClick(
+                                                    photo,
+                                                    categoryPhotos,
+                                                    photoIndex
+                                                  )
+                                                }
+                                              >
+                                                <CardMedia
+                                                  component="img"
+                                                  height="140"
+                                                  image={photo.url}
+                                                  alt={displayType}
+                                                  loading="lazy"
+                                                  sx={{ objectFit: "cover" }}
+                                                  onError={(e) => {
+                                                    e.target.src =
+                                                      "https://via.placeholder.com/140?text=Image+Not+Found";
+                                                  }}
+                                                />
+                                                <CardContent>
+                                                  <Typography variant="body2">
+                                                    <strong>Type:</strong>{" "}
+                                                    {displayType}
+                                                  </Typography>
+                                                  <Typography variant="body2">
+                                                    <strong>Uploaded:</strong>{" "}
+                                                    {photo.created_at
+                                                      ? formatDate(
+                                                          photo.created_at
+                                                        )
+                                                      : "N/A"}
+                                                  </Typography>
+                                                </CardContent>
+                                              </Card>
+                                            </Grid>
+                                          );
+                                        })}
                                     </Grid>
-                                  );
-                                })}
+
+                                    {/* Non-URL entries as plain text below grid */}
+                                    {categoryPhotos
+                                      .filter(
+                                        (photo) =>
+                                          !photo.url ||
+                                          !/^https?:\/\//i.test(
+                                            photo.url.trim()
+                                          )
+                                      )
+                                      .map((photo, i) => (
+                                        <Box
+                                          key={`text-${i}`}
+                                          sx={{
+                                            mt: 1,
+                                            px: 1.5,
+                                            py: 1,
+                                            mx: 2,
+                                            bgcolor: "#f7f7f7",
+                                            borderRadius: 1,
+                                            border: "1px solid #eee",
+                                          }}
+                                        >
+                                          <Typography
+                                            variant="body1"
+                                            sx={{ color: "#333" }}
+                                          >
+                                            <strong>
+                                              Additional Information:
+                                            </strong>{" "}
+                                            {photo.url}
+                                          </Typography>
+                                        </Box>
+                                      ))}
+                                  </Box>
+                                ) : null}
                               </Grid>
                             </Box>
                           ) : null;
@@ -307,36 +425,80 @@ const EchongCaseReport = ({
                 <Typography variant="h5" gutterBottom>
                   OCR Metadata
                 </Typography>
-                <TableContainer component={Paper} sx={{ mb: 3 }}>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>#</TableCell>
-                        <TableCell>Plate Number</TableCell>
-                        <TableCell>Vehicle Card (Front Text)</TableCell>
-                        <TableCell>Driver License (Front Text)</TableCell>
-                        <TableCell>Driver License (Back Text)</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {report?.meta_data?.map((meta, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{index + 1}</TableCell>
-                          <TableCell>{meta.plateNumber || "N/A"}</TableCell>
-                          <TableCell style={{ whiteSpace: "pre-wrap" }}>
-                            {meta.vehicle_card?.front_text || "N/A"}
-                          </TableCell>
-                          <TableCell style={{ whiteSpace: "pre-wrap" }}>
-                            {meta.driver_license?.front_text || "N/A"}
-                          </TableCell>
-                          <TableCell style={{ whiteSpace: "pre-wrap" }}>
-                            {meta.driver_license?.back_text || "N/A"}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleOpenOcr}
+                  sx={{ mb: 2 }}
+                >
+                  View OCR Data
+                </Button>
+
+                <Modal open={ocrOpen} onClose={handleCloseOcr}>
+                  <Box sx={modalStyle}>
+                    <Typography variant="h6" gutterBottom>
+                      OCR Metadata Table
+                    </Typography>
+                    <TableContainer component={Paper}>
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell sx={{ width: "5%" }}>#</TableCell>
+                            <TableCell sx={{ width: "10%" }}>
+                              Plate Number
+                            </TableCell>
+                            <TableCell sx={{ width: "28%" }}>
+                              Vehicle Card (Front Text)
+                            </TableCell>
+                            <TableCell sx={{ width: "28%" }}>
+                              Driver License (Front Text)
+                            </TableCell>
+                            <TableCell sx={{ width: "29%" }}>
+                              Driver License (Back Text)
+                            </TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {report.meta_data.map((meta, index) => (
+                            <TableRow key={index}>
+                              <TableCell>{index + 1}</TableCell>
+                              <TableCell>{meta.plateNumber || "N/A"}</TableCell>
+                              <TableCell
+                                style={{
+                                  whiteSpace: "pre-wrap",
+                                  wordBreak: "break-word",
+                                }}
+                              >
+                                {meta.vehicle_card?.front_text || "N/A"}
+                              </TableCell>
+                              <TableCell
+                                style={{
+                                  whiteSpace: "pre-wrap",
+                                  wordBreak: "break-word",
+                                }}
+                              >
+                                {meta.driver_license?.front_text || "N/A"}
+                              </TableCell>
+                              <TableCell
+                                style={{
+                                  whiteSpace: "pre-wrap",
+                                  wordBreak: "break-word",
+                                }}
+                              >
+                                {meta.driver_license?.back_text || "N/A"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                    <Box sx={{ textAlign: "right", mt: 2 }}>
+                      <Button variant="contained" onClick={handleCloseOcr}>
+                        Close
+                      </Button>
+                    </Box>
+                  </Box>
+                </Modal>
               </>
             )}
           </>
