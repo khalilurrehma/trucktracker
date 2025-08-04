@@ -1989,7 +1989,7 @@ export const postVehicleOdometerReading = async (req, res) => {
     // insert fields, field_156, field_158 and field_159
 
     const insertKnackBody = {
-      field_156: knackData.field_23,
+      field_156: knackIdToUse,
       field_158: numericReading,
       field_159: nowFormatted,
     };

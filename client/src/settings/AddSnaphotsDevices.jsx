@@ -1,7 +1,7 @@
 import React from "react";
 
 const AddSnaphotsDevices = () => {
-  return <div>AddSnaphotsDevices</div>;
+  return <div className="bg-transparent">AddSnaphotsDevices</div>;
 };
 
 export default AddSnaphotsDevices;
