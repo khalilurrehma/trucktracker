@@ -240,14 +240,6 @@ export const deviceNewEvent = async (topic, message) => {
       userId: deviceUserId || null,
     };
 
-    console.log(
-      deviceId,
-      message.device_name,
-      message.event_type,
-      message.event_time,
-      attendanceDate
-    );
-
     await newDeviceEvent(processedDbData);
 
     const realmUser = await getRealmUsersWithDeviceIds(deviceUserId);
@@ -276,9 +268,6 @@ export const deviceNewEvent = async (topic, message) => {
       );
 
       if (!attendanceReport) {
-        console.log(
-          `No attendance report found for device ${deviceId} on ${attendanceDate}`
-        );
         return;
       }
 
@@ -515,11 +504,6 @@ export const geofenceEntryAndExit = async (topic, payload) => {
     const currentDate = dayjs().format("YYYY-MM-DD");
     const currentTime = dayjs().format(TIME_FORMAT_12H);
 
-    console.log(
-      `Device ${deviceId} entered geofence at ${payload.enter_geofence}`
-    );
-    console.log(`Simulated event date: ${currentDate}, time: ${currentTime}`);
-
     const initialBase = await getDeviceInitialGeofence(deviceId, currentDate);
 
     if (!initialBase) {
@@ -548,9 +532,6 @@ export const geofenceEntryAndExit = async (topic, payload) => {
         currentDate,
         "station_arrival_time",
         currentTime
-      );
-      console.log(
-        `Station arrival time set for device ${deviceId} on ${currentDate}: ${currentTime}`
       );
 
       const shiftStart = attendanceReport.shift_begin;

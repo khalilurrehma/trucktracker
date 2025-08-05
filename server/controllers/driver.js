@@ -452,7 +452,12 @@ export const dispatchCasesForDriver = async (req, res) => {
   const driverId = req.userId;
 
   try {
-    const driverVehicleIds = await findAssociateVehicleByDriverId(driverId);
+    const [driverVehicleIds, stage] = await Promise.all([
+      findAssociateVehicleByDriverId(driverId),
+      companyId !== "1"
+        ? await defaultTemplateTimeForAdmin("advisor_assignment", companyId)
+        : await defaultTemplateTime("advisor_assignment"),
+    ]);
 
     if (!driverVehicleIds) {
       return res.status(404).json({
@@ -467,17 +472,16 @@ export const dispatchCasesForDriver = async (req, res) => {
       driverVehicleIds
     );
 
-    const stage =
-      companyId !== "1"
-        ? await defaultTemplateTimeForAdmin("advisor_assignment", companyId)
-        : await defaultTemplateTime("advisor_assignment");
-
     let expectedDuration = stage ? stage?.time_sec : 55;
 
     const formattedData = driverCase.map((item) => {
-      const { current_subprocess, ...restFields } = item;
+      const { current_subprocess, meta_data, ...restFields } = item;
+
+      let parsedMetaData = meta_data ? JSON.parse(meta_data) : null;
+
       return {
         ...restFields,
+        isRimacCase: parsedMetaData ? parsedMetaData.rimacCase : false,
         created_at: dayjs(item.created_at).format("YYYY-MM-DD HH:mm:ss"),
         expected_duration: expectedDuration || 60,
         subprocess: item.current_subprocess,

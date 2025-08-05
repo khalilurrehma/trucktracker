@@ -38,11 +38,33 @@ export const allRimacCases = async (
   const subQueryParams = [];
 
   if (search.trim()) {
-    const condition = `JSON_UNQUOTE(JSON_EXTRACT(report_data, '$.Informe')) LIKE ?`;
-    conditions.push(condition);
-    subConditions.push(condition);
-    queryParams.push(`%${search}%`);
-    subQueryParams.push(`%${search}%`);
+    const searchableFields = [
+      "Caso",
+      "Informe",
+      "NroPlaca",
+      "Dist",
+      "NomTit",
+      "NomCond",
+      "NomCont",
+      "Modelo",
+      "Marca",
+      "DirSin",
+      "RefSin",
+      "dispatch.meta_information",
+      "dispatch.additional_information",
+    ];
+
+    const searchConditions = searchableFields.map((field) => {
+      return `JSON_UNQUOTE(JSON_EXTRACT(report_data, '$.${field}')) LIKE ?`;
+    });
+
+    conditions.push(`(${searchConditions.join(" OR ")})`);
+    subConditions.push(`(${searchConditions.join(" OR ")})`);
+
+    searchableFields.forEach(() => {
+      queryParams.push(`%${search}%`);
+      subQueryParams.push(`%${search}%`);
+    });
   }
 
   if (filter) {
@@ -435,20 +457,54 @@ export const getCaseLastUpdated = async (case_id) => {
   }
 };
 
-export const updateCaseServiceById = async (fields, case_id) => {
-  const sql = `UPDATE dispatch_case_reports SET damage = ?, meta_information = ?, meta_data = ? WHERE case_id = ? AND authorized_status = true`;
+export const updateCaseServiceById = async (
+  fields,
+  case_id,
+  isRimacCase = false
+) => {
+  let sql = `UPDATE dispatch_case_reports SET damage = ?, meta_information = ?, meta_data = ?`;
+  const values = [
+    fields.damage,
+    fields.meta_information,
+    JSON.stringify(fields.meta_data),
+  ];
+
+  if (isRimacCase && fields.rimac_form_data) {
+    sql += `, rimac_form_data = ?`;
+    values.push(JSON.stringify(fields.rimac_form_data));
+  }
+
+  sql += ` WHERE case_id = ? AND authorized_status = true`;
+  values.push(case_id);
 
   try {
-    const rows = await dbQuery(sql, [
-      fields.damage,
-      fields.meta_information,
-      JSON.stringify(fields.meta_data),
-      case_id,
-    ]);
+    const rows = await dbQuery(sql, values);
     return rows;
   } catch (error) {
-    console.error("Error fetching dispatch cases:", error);
+    console.error("Error updating dispatch case reports:", error);
     return error;
+  }
+};
+
+export const confirmIsRimacCase = async (case_id) => {
+  const sql = `SELECT meta_data from dispatch_cases WHERE id = ?`;
+
+  try {
+    const rows = await dbQuery(sql, [case_id]);
+    const meta_data = rows.length ? rows[0].meta_data : null;
+
+    let parsedMetaData = null;
+    try {
+      parsedMetaData = meta_data ? JSON.parse(meta_data) : null;
+    } catch (e) {
+      console.error("Invalid JSON in meta_data:", meta_data);
+      return false;
+    }
+
+    return parsedMetaData?.rimacCase === true;
+  } catch (error) {
+    console.error("Error fetching dispatch cases for rimac case proof:", error);
+    return false;
   }
 };
 

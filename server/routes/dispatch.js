@@ -33,6 +33,8 @@ import {
   saveChangesOfRimacReport,
   getKnackVehicleOdometer,
   postVehicleOdometerReading,
+  getRimacFormFields,
+  saveAdvisorForm,
 } from "../controllers/dispatch.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { authDriver } from "../middlewares/auth.middleware.js";
@@ -69,6 +71,13 @@ router.get(
 router.get("/rimac/cases", fetchAllRimacCases);
 
 router.get("/rimac/case/report/:id", getRimacReportById);
+
+router.get("/rimac/form/fields/:caseId", getRimacFormFields);
+
+router.post(
+  "/rimac/advisor/form/caseId-reportId/:caseId/:reportId",
+  saveAdvisorForm
+);
 
 router.get("/dispatch/zone-rates/:userId", getZoneRates);
 

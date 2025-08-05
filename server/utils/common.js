@@ -334,3 +334,121 @@ export const knackHeaders = {
   "X-Knack-REST-API-Key": process.env.KNACK_API_KEY,
   "Content-Type": "application/json",
 };
+
+export const formattedRimacFields = (data) => {
+  const { FecOcurr, HorOcurr, FecEnvio, HorEnvio, ...rest } = data;
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "";
+    return dayjs(
+      `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`
+    ).format("DD/MM/YYYY");
+  };
+
+  const formatTime = (timeStr) => {
+    if (!timeStr) return "";
+    return `${timeStr}`;
+  };
+
+  return {
+    occurrenceDate: formatDate(FecOcurr),
+    occurrenceTime: formatTime(HorOcurr),
+    sentDate: formatDate(FecEnvio),
+    sentTime: formatTime(HorEnvio),
+    incidentLocation: rest.DirSin || "",
+  };
+};
+
+export const validRimacFormFields = [
+  // DATOS DE SERVICIOS
+  "serviceStartDate",
+  "serviceEndDate",
+  "serviceStartTime",
+  "serviceEndTime",
+  "serviceLocation",
+  "district",
+  "policeStation",
+  "incidentType",
+  "responsibility",
+  "agreement",
+  "campaignApplies",
+  "couponDelivered",
+  "possibleTotalLoss",
+  "deathsOrInjuries",
+  "hasCamera",
+  "computerTheft",
+  "hasWitness",
+  "hasTrafficLight",
+
+  // INFORMACION SOBRE EL ASEGURADO
+  "insuredFullName",
+  "insuredEmail",
+  "insuredPhone",
+
+  // INFORMACION SOBRE EL CONDUCTOR ASEGURADO
+  "driverFirstName",
+  "driverLastNamePaternal",
+  "driverLastNameMaternal",
+  "driverAge",
+  "driverDocumentType",
+  "driverDocumentNumber",
+  "driverLicense",
+  "driverLicenseCategory",
+  "driverLicenseValidity",
+  "driverPhone",
+  "driverAlcoholTest",
+  "driverHospital",
+
+  // INFORMACION SOBRE EL VEHICULO ASEGURADO
+  "vehiclePlate",
+  "vehicleYear",
+  "vehicleMileage",
+  "vehicleUsage",
+  "vehicleDamages",
+
+  // INFORMACION DE HERIDOS Y FALLECIDOS
+  "insuredDeaths",
+  "thirdPartyDeaths",
+  "insuredInjuries",
+  "thirdPartyInjuries",
+
+  // ANALISIS
+  "analysis",
+
+  // DENUNCIA POLICIAL
+  "policeReport",
+
+  // INSPECCION OCULAR
+  "roadName",
+  "roadType",
+  "roadway",
+  "roadCondition",
+  "lanes",
+  "centralDivider",
+  "orientation",
+  "configuration",
+  "vehicleFlow",
+  "trafficIntensity",
+  "lighting",
+  "environment",
+  "visibility",
+  "regulatorySigns",
+  "restrictions",
+  "details",
+
+  // PERSONAS PARTICIPANTES
+  "participantPlate",
+  "participantType",
+  "participantFirstName",
+  "participantLastNamePaternal",
+  "participantLastNameMaternal",
+  "participantAge",
+  "participantInjured",
+  "participantGender",
+  "participantDocumentType",
+  "participantDocumentNumber",
+  "participantPhone",
+  "participantAlcoholTest",
+  "participantHospital",
+  "participantDiagnosis",
+];

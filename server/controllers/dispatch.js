@@ -9,6 +9,7 @@ import {
   allSearchHistory,
   allSearchHistoryByUserId,
   caseTrackingById,
+  confirmIsRimacCase,
   defaultTemplateTimeForAdmin,
   deleteProviderPrice,
   existingProviderPrice,
@@ -90,8 +91,10 @@ import dayjs from "dayjs";
 import { rimacBodyValidFields } from "../utils/rimacBody.js";
 import {
   formatKnackPlateNumber,
+  formattedRimacFields,
   knackHeaders,
   mapToRimacApiPayload,
+  validRimacFormFields,
 } from "../utils/common.js";
 import axios from "axios";
 
@@ -1118,6 +1121,8 @@ export const fetchAllRimacCases = async (req, res) => {
     const search = req.query.search || "";
     const filter = req.query.filter || "";
 
+    console.log(search, "search");
+
     const { data, total } = await allRimacCases(offset, limit, search, filter);
 
     res.status(200).json({
@@ -1182,6 +1187,61 @@ export const getRimacReportById = async (req, res) => {
       status: true,
       message: response,
     });
+  } catch (error) {
+    res.status(204).send({ status: false, message: error.message });
+  }
+};
+
+export const getRimacFormFields = async (req, res) => {
+  const { caseId } = req.params;
+
+  if (!caseId || caseId === "") {
+    return res.status(404).send({ status: false, message: "Invalid caseId" });
+  }
+
+  try {
+    const result = await findRimacReportByCaseId(caseId);
+
+    if (!result) {
+      return res
+        .status(404)
+        .send({ status: false, message: "Report not found" });
+    }
+
+    const caseDetails = result.report[0];
+
+    let parsedReportData = caseDetails.report_data
+      ? JSON.parse(caseDetails.report_data)
+      : {};
+
+    const fields = formattedRimacFields(parsedReportData);
+
+    let formattedResponse = {
+      caseId: caseDetails.case_id,
+      rimac_report_id: caseDetails.id,
+      status: caseDetails.status,
+      ...fields,
+    };
+
+    res.status(200).json({
+      status: true,
+      message: formattedResponse,
+    });
+  } catch (error) {
+    res.status(204).send({ status: false, message: error.message });
+  }
+};
+
+export const saveAdvisorForm = async (req, res) => {
+  const { caseId, reportId } = req.params;
+
+  if (!caseId || caseId === "" || !reportId || reportId === "") {
+    return res
+      .status(404)
+      .send({ status: false, message: "Invalid caseId or reportId" });
+  }
+
+  try {
   } catch (error) {
     res.status(204).send({ status: false, message: error.message });
   }
@@ -1279,21 +1339,33 @@ export const getZoneRates = async (req, res) => {
 export const dispatchCaseCompleteService = async (req, res) => {
   const driverId = req.userId;
   const { caseId } = req.params;
-  const { damage, meta_information, meta_data } = req.body;
+  const { damage, meta_information, meta_data, ...REST_FORM_BODY } = req.body;
+
+  const isRimacCase = await confirmIsRimacCase(caseId);
 
   let missingFields = [];
 
   if (!damage) missingFields.push("damage");
   if (!meta_information) missingFields.push("meta_information");
 
+  if (isRimacCase) {
+    const requestBodyKeys = Object.keys(REST_FORM_BODY);
+    const missingFormFields = validRimacFormFields.filter(
+      (field) => !requestBodyKeys.includes(field) || !REST_FORM_BODY[field]
+    );
+
+    if (missingFormFields.length > 0) {
+      missingFields.push(...missingFormFields);
+    }
+  }
+
   if (missingFields.length > 0) {
     return res.status(400).json({
       status: false,
       message: `Missing required fields: ${missingFields.join(", ")}`,
+      missingFields,
     });
   }
-
-  const bothTime = await calculateDriverServiceTime(caseId);
 
   try {
     const caseCheck = await findCaseById(caseId);
@@ -1312,53 +1384,67 @@ export const dispatchCaseCompleteService = async (req, res) => {
       });
     }
 
-    const fieldsToUpdate = {
+    const updatePayload = {
       damage,
       meta_information,
       meta_data,
     };
-    const updateResults = await updateCaseServiceById(fieldsToUpdate, caseId);
+
+    if (isRimacCase) {
+      updatePayload.rimac_form_data = {
+        ...REST_FORM_BODY,
+      };
+    }
+
+    const updateResults = await updateCaseServiceById(updatePayload, caseId);
 
     if (updateResults.affectedRows === 1) {
+      const bothTime = await calculateDriverServiceTime(caseId);
+
       await Promise.all([
         updateCaseStatusById(caseId, "completed"),
         updateCaseCurrentProcess(caseId, "case_completed"),
         driverStatusAvailable(driverId),
         updateRimacReportStatus(caseId, "completed"),
       ]);
+
+      DispatchEmitter.emit("subprocessEvent", {
+        id: caseId,
+        driverId,
+        current_subprocess: "case_completed",
+        created_at: dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss"),
+        status: "completed",
+      });
+
+      DispatchEmitter.emit("caseProcessUpdate", {
+        driverId,
+        caseId,
+        type: "case-subprocess",
+        subprocessUpdated: true,
+      });
+
+      await Promise.all([
+        insertDriverServiceTime(caseId, driverId, bothTime.totalSeconds),
+        insertDispatchCompleteCase(caseId, driverId),
+      ]);
+
+      return res.status(200).json({
+        status: true,
+        message: "Case service completed successfully",
+      });
     } else {
       console.warn(`Update failed for caseId ${caseId}`);
       return res.status(400).json({
         status: false,
-        message: error.message,
+        message: "Update failed",
       });
     }
-
-    DispatchEmitter.emit("subprocessEvent", {
-      id: caseId,
-      driverId,
-      current_subprocess: "case_completed",
-      created_at: dayjs().tz("America/Lima").format("YYYY-MM-DD HH:mm:ss"),
-      status: "completed",
-    });
-    DispatchEmitter.emit("caseProcessUpdate", {
-      driverId,
-      caseId,
-      type: "case-subprocess",
-      subprocessUpdated: true,
-    });
-
-    await Promise.all([
-      insertDriverServiceTime(caseId, driverId, bothTime.totalSeconds),
-      insertDispatchCompleteCase(caseId, driverId),
-    ]);
-
-    return res.status(200).json({
-      status: true,
-      message: "Case service completed successfully",
-    });
   } catch (error) {
-    res.status(500).send({ status: false, message: error.message });
+    console.error("Service Error:", error);
+    return res.status(500).send({
+      status: false,
+      message: error.message || "Internal Server Error",
+    });
   }
 };
 
