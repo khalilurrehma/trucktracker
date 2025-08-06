@@ -779,6 +779,7 @@ export const fetchCaseReportById = async (case_id) => {
         dcr.damage,
         dcr.meta_information,
         dcr.meta_data,
+        dcr.rimac_form_data,
         dcr.authorized_status,
         dcr.created_at AS report_created_at,
         dcr.updated_at AS report_updated_at,
@@ -1524,4 +1525,64 @@ export const unBlockingDriver = async (driver_id, reading_date) => {
     await dbQuery(unBlockQuery, [driver_id]),
     await dbQuery(auditBlockQuery, [driver_id, reading_date]),
   ]);
+};
+
+export const fetchDistricts = async () => {
+  const query = `SELECT * FROM districts`;
+
+  try {
+    const rows = await dbQuery(query);
+    return rows;
+  } catch (error) {
+    console.error("Error fetchDistricts:", error);
+    throw error;
+  }
+};
+
+export const fetchResponsibilityData = async () => {
+  const query = `SELECT * FROM responsibility_data`;
+
+  try {
+    const rows = await dbQuery(query);
+    return rows;
+  } catch (error) {
+    console.error("Error fetchResponsibilityData:", error);
+    throw error;
+  }
+};
+
+export const fetchAgreementData = async () => {
+  const query = `SELECT * FROM agreement_data`;
+
+  try {
+    const rows = await dbQuery(query);
+    return rows;
+  } catch (error) {
+    console.error("Error fetchAgreementData:", error);
+    throw error;
+  }
+};
+
+export const fetchAccidentTypes = async () => {
+  const query = `SELECT * FROM accident_type_data`;
+
+  try {
+    const rows = await dbQuery(query);
+    return rows;
+  } catch (error) {
+    console.error("Error fetchAccidentTypes:", error);
+    throw error;
+  }
+};
+
+export const fetchPoliceStationData = async () => {
+  const query = `SELECT * FROM police_station_data`;
+
+  try {
+    const rows = await dbQuery(query);
+    return rows;
+  } catch (error) {
+    console.error("Error fetchPoliceStationData:", error);
+    throw error;
+  }
 };

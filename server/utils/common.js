@@ -351,11 +351,11 @@ export const formattedRimacFields = (data) => {
   };
 
   return {
-    occurrenceDate: formatDate(FecOcurr),
-    occurrenceTime: formatTime(HorOcurr),
-    sentDate: formatDate(FecEnvio),
-    sentTime: formatTime(HorEnvio),
-    incidentLocation: rest.DirSin || "",
+    serviceStartDate: formatDate(FecOcurr),
+    serviceEndDate: formatTime(HorOcurr),
+    serviceStartTime: formatDate(FecEnvio),
+    serviceEndTime: formatTime(HorEnvio),
+    serviceLocation: rest.DirSin || "",
   };
 };
 

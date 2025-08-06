@@ -13,11 +13,16 @@ import {
   defaultTemplateTimeForAdmin,
   deleteProviderPrice,
   existingProviderPrice,
+  fetchAccidentTypes,
+  fetchAgreementData,
   fetchCaseIdByReportId,
   fetchCaseReportById,
   fetchDispatchCases,
   fetchDispatchCasesByUserId,
+  fetchDistricts,
   fetchKnackVehicle,
+  fetchPoliceStationData,
+  fetchResponsibilityData,
   fetchSubserviceLocationData,
   fetchTowCarServiceLocationData,
   fetchZoneRatesByUserId,
@@ -849,7 +854,6 @@ export const dispatchCaseReport = async (req, res) => {
       console.log(`✅ Saved vehicle in DB, got vehicleId: ${vehicleId}`);
 
       // ----- HANDLE NEW additionalInformation FIELD -----
-      console.log(vehicle.additionalInformation);
 
       if (
         Array.isArray(vehicle.additionalInformation) &&
@@ -1200,7 +1204,21 @@ export const getRimacFormFields = async (req, res) => {
   }
 
   try {
-    const result = await findRimacReportByCaseId(caseId);
+    const [
+      result,
+      districts,
+      responsibility_data,
+      accident_type_data,
+      agreement_data,
+      police_station_data,
+    ] = await Promise.all([
+      findRimacReportByCaseId(caseId),
+      fetchDistricts(),
+      fetchResponsibilityData(),
+      fetchAccidentTypes(),
+      fetchAgreementData(),
+      fetchPoliceStationData(),
+    ]);
 
     if (!result) {
       return res
@@ -1221,6 +1239,11 @@ export const getRimacFormFields = async (req, res) => {
       rimac_report_id: caseDetails.id,
       status: caseDetails.status,
       ...fields,
+      districts,
+      responsibility_data,
+      accident_type_data,
+      agreement_data,
+      police_station_data,
     };
 
     res.status(200).json({
@@ -1349,9 +1372,8 @@ export const dispatchCaseCompleteService = async (req, res) => {
   if (!meta_information) missingFields.push("meta_information");
 
   if (isRimacCase) {
-    const requestBodyKeys = Object.keys(REST_FORM_BODY);
     const missingFormFields = validRimacFormFields.filter(
-      (field) => !requestBodyKeys.includes(field) || !REST_FORM_BODY[field]
+      (field) => !(field in REST_FORM_BODY)
     );
 
     if (missingFormFields.length > 0) {
@@ -1396,7 +1418,11 @@ export const dispatchCaseCompleteService = async (req, res) => {
       };
     }
 
-    const updateResults = await updateCaseServiceById(updatePayload, caseId);
+    const updateResults = await updateCaseServiceById(
+      updatePayload,
+      caseId,
+      isRimacCase
+    );
 
     if (updateResults.affectedRows === 1) {
       const bothTime = await calculateDriverServiceTime(caseId);

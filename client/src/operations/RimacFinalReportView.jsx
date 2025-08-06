@@ -20,6 +20,12 @@ import axios from "axios";
 import DispatchReportViewer from "./components/DispatchReportViewer";
 import { toast, ToastContainer } from "react-toastify";
 import html2pdf from "html2pdf.js";
+import { safeParse } from "../common/util/common";
+import {
+  fullWidthFields,
+  rimacFormSections,
+  textAreaFields,
+} from "../common/util/rimacValidFields";
 
 const RimacFinalReportView = () => {
   const theme = useTheme();
@@ -45,8 +51,11 @@ const RimacFinalReportView = () => {
       const { data } = await axios.get(`${url}/rimac/case/report/${id}`);
       if (data.status) {
         const parsedReportData = JSON.parse(data.message.rimac.report_data);
+
         const reportData = {
           ...parsedReportData,
+          rimac_form_data:
+            safeParse(data.message.dispatch.rimac_form_data) || {},
           dispatch: data.message.dispatch || {},
         };
         setReport(reportData);
@@ -1393,6 +1402,57 @@ const RimacFinalReportView = () => {
             size="small"
             InputProps={{ readOnly: disableEdit }}
           />
+
+          {/* {console.log(report)} */}
+
+          {report?.rimac_form_data && (
+            <Box>
+              <Typography variant="h4" gutterBottom>
+                Formularios Asesor Express
+              </Typography>
+
+              <Paper
+                sx={{ mb: 3, backgroundColor: isDark && "#3b3b3b" }}
+                variant="outlined"
+              >
+                {rimacFormSections.map((section) => (
+                  <Box key={section.sectionKey} sx={{ p: 2 }}>
+                    <Box bgcolor="error.main" color="white" p={1} mb={2}>
+                      <Typography variant="h6" gutterBottom>
+                        {section.title}
+                      </Typography>
+                    </Box>
+
+                    <Grid container spacing={2}>
+                      {section.fields.map((field) => {
+                        let isFullWidth = fullWidthFields.includes(field.name);
+                        let isTextArea = textAreaFields.includes(field.name);
+
+                        return (
+                          <Grid
+                            item
+                            xs={12}
+                            sm={isFullWidth || isTextArea ? 12 : 6}
+                            key={field}
+                          >
+                            <TextField
+                              label={field.placeholder}
+                              value={report.rimac_form_data?.[field.name] ?? ""}
+                              fullWidth
+                              size="small"
+                              multiline={isTextArea}
+                              minRows={isTextArea ? 5 : undefined}
+                              InputProps={{ readOnly: true }}
+                            />
+                          </Grid>
+                        );
+                      })}
+                    </Grid>
+                  </Box>
+                ))}
+              </Paper>
+            </Box>
+          )}
 
           {report && report.dispatch && (
             <DispatchReportViewer dispatchData={report.dispatch} />

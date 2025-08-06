@@ -44,3 +44,11 @@ export function parseGeoJSON(jsonObj) {
 
   return jsonObj;
 }
+export const safeParse = (data) => {
+  try {
+    return typeof data === "string" ? JSON.parse(data) : data;
+  } catch (e) {
+    console.error("Failed to parse JSON:", e);
+    return [];
+  }
+};

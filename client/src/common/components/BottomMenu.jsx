@@ -17,6 +17,7 @@ import MapIcon from "@mui/icons-material/Map";
 import PersonIcon from "@mui/icons-material/Person";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import CrisisAlertIcon from "@mui/icons-material/CrisisAlert";
+import DashboardIcon from "@mui/icons-material/Dashboard";
 
 import { sessionActions } from "../../store";
 import { useTranslation } from "./LocalizationProvider";
@@ -118,25 +119,32 @@ const BottomMenu = () => {
   };
 
   return (
-    <Paper square elevation={3}>
+    <Paper square elevation={6}>
       <BottomNavigation
         value={currentSelection()}
         onChange={handleSelection}
+        sx={{
+          "& .MuiBottomNavigationAction-root": {
+            minWidth: 20,
+            maxWidth: 70,
+            fontSize: 10,
+          },
+        }}
         showLabels
       >
         <BottomNavigationAction
           label={t("mapTitle")}
           icon={
-            <Badge
-              color="error"
-              variant="dot"
-              overlap="circular"
-              invisible={socket !== false}
-            >
+            <Badge color="error" variant="dot" invisible={socket !== false}>
               <MapIcon />
             </Badge>
           }
           value="map"
+        />
+        <BottomNavigationAction
+          label={"Dashboard"}
+          icon={<DashboardIcon />}
+          value="operations"
         />
         <BottomNavigationAction
           label={t("operationsTitle")}
@@ -155,32 +163,7 @@ const BottomMenu = () => {
           icon={<SettingsIcon />}
           value="settings"
         />
-        {/* {!readonly ? (
-          <BottomNavigationAction
-            label={t("loginLogout")}
-            icon={<ExitToAppIcon />}
-            value="logout"
-          />
-        ) : (
-          <BottomNavigationAction
-            label={t("settingsUser")}
-            icon={<PersonIcon />}
-            value="account"
-          />
-        )} */}
       </BottomNavigation>
-      {/* <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={() => setAnchorEl(null)}
-      >
-        <MenuItem onClick={handleAccount}>
-          <Typography color="textPrimary">{t("settingsUser")}</Typography>
-        </MenuItem>
-        <MenuItem onClick={handleLogout}>
-          <Typography color="error">{t("loginLogout")}</Typography>
-        </MenuItem>
-      </Menu> */}
     </Paper>
   );
 };

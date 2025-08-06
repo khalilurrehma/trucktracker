@@ -32,19 +32,11 @@ import axios from "axios";
 import { useEffect, useState, useRef } from "react";
 import EchongCaseReport from "./EchongCaseReport";
 import RimacCaseReport from "./RimacCaseReport";
+import { safeParse } from "../../common/util/common";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="right" ref={ref} {...props} />;
 });
-
-const safeParse = (data) => {
-  try {
-    return typeof data === "string" ? JSON.parse(data) : data;
-  } catch (e) {
-    console.error("Failed to parse JSON:", e);
-    return [];
-  }
-};
 
 const CaseReportDialog = ({
   openAssignModal,
@@ -70,13 +62,12 @@ const CaseReportDialog = ({
             setRimacReportCase(false);
           }
 
-          // console.log(safeParse(data.message));
-
           const reportData = {
             ...data.message,
             vehicles: safeParse(data.message.vehicles) || [],
             meta_data: safeParse(data.message.meta_data) || [],
-            rimacReport: data.message?.rimacReport[0] || [],
+            rimacReport: data.message?.rimacReport[0] || {},
+            rimac_form_data: safeParse(data.message?.rimac_form_data) || {},
           };
 
           setReport(reportData);
