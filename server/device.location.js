@@ -6,7 +6,7 @@ const deviceLocations = [
   {
     latitude: 38.75025,
     longitude: -9.20319,
-  }, // inside
+  },
   {
     latitude: 38.7503,
     longitude: -9.20315,
