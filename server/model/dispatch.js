@@ -207,6 +207,21 @@ export const findRimacReportByCaseId = async (case_id) => {
   }
 };
 
+export const obtainCaseMetaData = async (case_id) => {
+  const sql = `SELECT meta_data from dispatch_case_reports WHERE case_id = ?`;
+
+  const values = [case_id];
+
+  try {
+    const result = await dbQuery(sql, values);
+
+    return result ? result[0]?.meta_data : [];
+  } catch (error) {
+    console.error("Error fetching Rimac report by ID:", error);
+    throw error;
+  }
+};
+
 export const addNewCase = async (body) => {
   const {
     user_id,

@@ -101,6 +101,9 @@ const BottomMenu = () => {
           ? navigate("/operations/cases")
           : navigate("/operations/dispatch");
         break;
+      case "dashboard":
+        navigate("/dashboard");
+        break;
       case "reports":
         navigate("/reports/combined");
         break;
@@ -144,7 +147,7 @@ const BottomMenu = () => {
         <BottomNavigationAction
           label={"Dashboard"}
           icon={<DashboardIcon />}
-          value="operations"
+          value="dashboard"
         />
         <BottomNavigationAction
           label={t("operationsTitle")}

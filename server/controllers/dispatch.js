@@ -39,6 +39,7 @@ import {
   insertDispatchCompleteCase,
   insertDriverServiceTime,
   modifyRimacReportById,
+  obtainCaseMetaData,
   onTheWayCaseStageStatus,
   processTemplateForAdmin,
   processTimeTemplate,
@@ -1206,6 +1207,7 @@ export const getRimacFormFields = async (req, res) => {
   try {
     const [
       result,
+      metaData,
       districts,
       responsibility_data,
       accident_type_data,
@@ -1213,6 +1215,7 @@ export const getRimacFormFields = async (req, res) => {
       police_station_data,
     ] = await Promise.all([
       findRimacReportByCaseId(caseId),
+      obtainCaseMetaData(caseId),
       fetchDistricts(),
       fetchResponsibilityData(),
       fetchAccidentTypes(),
@@ -1220,7 +1223,7 @@ export const getRimacFormFields = async (req, res) => {
       fetchPoliceStationData(),
     ]);
 
-    if (!result) {
+    if (result.success && result.report.length === 0) {
       return res
         .status(404)
         .send({ status: false, message: "Report not found" });
@@ -1232,12 +1235,15 @@ export const getRimacFormFields = async (req, res) => {
       ? JSON.parse(caseDetails.report_data)
       : {};
 
+    let parsedMetaData = metaData ? JSON.parse(metaData) : [];
+
     const fields = formattedRimacFields(parsedReportData);
 
     let formattedResponse = {
       caseId: caseDetails.case_id,
       rimac_report_id: caseDetails.id,
       status: caseDetails.status,
+      ocr_data: parsedMetaData,
       ...fields,
       districts,
       responsibility_data,

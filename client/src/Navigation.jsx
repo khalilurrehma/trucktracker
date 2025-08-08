@@ -135,6 +135,7 @@ import RemoveSnapshotsDevices from "./settings/RemoveSnapshotsDevices";
 import RimacFinalReportView from "./operations/RimacFinalReportView";
 import DeviceTrackPage from "./other/DeviceTrackPage";
 import DeviceTelemetry from "./settings/DeviceTelemetry";
+import Dashboard from "./dashboard/Dashboard";
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -179,7 +180,7 @@ const Navigation = () => {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/change-server" element={<ChangeServerPage />} />
-      <Route path="/dashboard" element={<ChangeServerPage />} />
+      <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/" element={<App />}>
         <Route index element={<MainPage />} />
 
