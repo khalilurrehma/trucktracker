@@ -52,3 +52,102 @@ export const rimacBodyValidFields = [
   "FecLlamada",
   "HorLlamada",
 ];
+
+export const rimacFromDDFields = {
+  vehicleUsage: [
+    { id: 1, name: "PARTICULAR" },
+    { id: 2, name: "PUBLICO" },
+    { id: 3, name: "COMERCIAL" },
+    { id: 4, name: "AMBULANCIA" },
+    { id: 5, name: "PATRULLERO" },
+    { id: 6, name: "SERENAZGO" },
+    { id: 7, name: "VEHICULO DE ALQUILER" },
+    { id: 8, name: "PUBLICO INTERPROVINCIAL" },
+    { id: 9, name: "DIPLOMATICO" },
+    { id: 10, name: "VEHICULOS DE COMPETENCIA" },
+    { id: 11, name: "VEHICULOS PROTOTIPO O PRUEBA" },
+    { id: 12, name: "SERVICIO ESCOLAR" },
+    { id: 13, name: "TURISMO" },
+    { id: 14, name: "TRANSPORTE PERSONAL" },
+    { id: 15, name: "OFICIAL GOBIERNO" },
+    { id: 16, name: "BOMBERO" },
+    { id: 17, name: "FUNERARIA" },
+    { id: 18, name: "RESGUARDO POLICIAL" },
+    { id: 19, name: "CARGA" },
+    { id: 20, name: "PUBLICO URBANO" },
+    { id: 21, name: "POLICIAL" },
+    { id: 22, name: "TAXI URBANO" },
+    { id: 23, name: "VEHICULO OIFICIAL" }, // note: as provided
+    { id: 24, name: "VEHICULO PESADO" },
+    { id: 25, name: "PLACA EN EXHIBICION" },
+    { id: 26, name: "TURISMO REGIONAL" },
+    { id: 27, name: "TURISMO INTERPROVINCIAL" },
+    { id: 28, name: "TAXI REMISSE" },
+    { id: 29, name: "INDETERMINADO" },
+  ],
+
+  driverDocumentType: [
+    { id: 1, name: "DNI" },
+    { id: 2, name: "CARNET DE EXTRANJERIA" },
+    { id: 3, name: "CI DECULA" }, // note: as provided
+    { id: 4, name: "PASAPORTE" },
+    { id: 5, name: "DPI" },
+    { id: 6, name: "RUC" },
+  ],
+
+  driverLicenseCategory: [
+    { id: 1, name: "A-I" },
+    { id: 2, name: "A-II-a" },
+    { id: 3, name: "A-II-b" },
+    { id: 4, name: "A-III-a" },
+    { id: 5, name: "A-III-b" },
+    { id: 6, name: "A-III-c" },
+    { id: 7, name: "A-IV" },
+    { id: 8, name: "B-I" },
+    { id: 9, name: "B-II-a" },
+    { id: 10, name: "B-II-b" },
+    { id: 11, name: "B-II-c" },
+  ],
+
+  driverAlcoholTest: [
+    { id: 1, name: "NEGATIVO" },
+    { id: 2, name: "POSITIVO" },
+    { id: 3, name: "NO REGISTRADO" },
+    { id: 4, name: "COMISION" },
+    { id: 5, name: "CONSTATA" },
+  ],
+
+  vehicleYear: [
+    { id: 1, name: "2010" },
+    { id: 2, name: "2011" },
+    { id: 3, name: "2012" },
+    { id: 4, name: "2013" },
+    { id: 5, name: "2014" },
+    { id: 6, name: "2015" },
+    { id: 7, name: "2016" },
+    { id: 8, name: "2017" },
+    { id: 9, name: "2018" },
+    { id: 10, name: "2019" },
+    { id: 11, name: "2020" },
+    { id: 12, name: "2021" },
+    { id: 13, name: "2022" },
+    { id: 14, name: "2023" },
+    { id: 15, name: "2024" },
+    { id: 16, name: "2025" },
+    { id: 17, name: "2026" },
+    { id: 18, name: "2027" },
+    { id: 19, name: "2028" },
+    { id: 20, name: "2029" },
+  ],
+
+  participantType: [
+    { id: 1, name: "CONDUCTOR" },
+    { id: 2, name: "OCUPANTE" },
+    { id: 3, name: "PEATON" },
+  ],
+
+  participantGender: [
+    { id: 1, name: "MASCULINO" },
+    { id: 2, name: "FEMENINO" },
+  ],
+};

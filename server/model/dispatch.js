@@ -208,14 +208,29 @@ export const findRimacReportByCaseId = async (case_id) => {
 };
 
 export const obtainCaseMetaData = async (case_id) => {
-  const sql = `SELECT meta_data from dispatch_case_reports WHERE case_id = ?`;
+  const sql = `SELECT id, meta_data from dispatch_case_reports WHERE case_id = ?`;
 
   const values = [case_id];
 
   try {
     const result = await dbQuery(sql, values);
 
-    return result ? result[0]?.meta_data : [];
+    return result ? result[0] : [];
+  } catch (error) {
+    console.error("Error fetching Rimac report by ID:", error);
+    throw error;
+  }
+};
+
+export const fetchInvolvedVehicles = async (case_report_id) => {
+  const sql = `SELECT * from dispatch_involved_vehicles WHERE report_id = ?`;
+
+  const values = [case_report_id];
+
+  try {
+    const result = await dbQuery(sql, values);
+
+    return result ? result : [];
   } catch (error) {
     console.error("Error fetching Rimac report by ID:", error);
     throw error;

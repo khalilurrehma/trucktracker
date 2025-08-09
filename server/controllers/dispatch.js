@@ -20,6 +20,7 @@ import {
   fetchDispatchCases,
   fetchDispatchCasesByUserId,
   fetchDistricts,
+  fetchInvolvedVehicles,
   fetchKnackVehicle,
   fetchPoliceStationData,
   fetchResponsibilityData,
@@ -94,7 +95,7 @@ import {
 } from "../services/dispatchService.js";
 import { validateSubserviceType } from "../model/devices.js";
 import dayjs from "dayjs";
-import { rimacBodyValidFields } from "../utils/rimacBody.js";
+import { rimacBodyValidFields, rimacFromDDFields } from "../utils/rimacBody.js";
 import {
   formatKnackPlateNumber,
   formattedRimacFields,
@@ -1207,7 +1208,7 @@ export const getRimacFormFields = async (req, res) => {
   try {
     const [
       result,
-      metaData,
+      CASE_REPORT_DATA,
       districts,
       responsibility_data,
       accident_type_data,
@@ -1235,14 +1236,35 @@ export const getRimacFormFields = async (req, res) => {
       ? JSON.parse(caseDetails.report_data)
       : {};
 
-    let parsedMetaData = metaData ? JSON.parse(metaData) : [];
+    let parsedMetaData = CASE_REPORT_DATA
+      ? JSON.parse(CASE_REPORT_DATA.meta_data)
+      : [];
+
+    let INVOLVED_VEHICLES = await fetchInvolvedVehicles(CASE_REPORT_DATA.id);
+
+    let onlyPlateNumbers = INVOLVED_VEHICLES.map((v) => {
+      return {
+        plate_number: v.plate_number,
+      };
+    });
 
     const fields = formattedRimacFields(parsedReportData);
+
+    const {
+      vehicleUsage,
+      driverDocumentType,
+      driverLicenseCategory,
+      driverAlcoholTest,
+      vehicleYear,
+      participantType,
+      participantGender,
+    } = rimacFromDDFields;
 
     let formattedResponse = {
       caseId: caseDetails.case_id,
       rimac_report_id: caseDetails.id,
       status: caseDetails.status,
+      involvedVehicle: onlyPlateNumbers,
       ocr_data: parsedMetaData,
       ...fields,
       districts,
@@ -1250,6 +1272,13 @@ export const getRimacFormFields = async (req, res) => {
       accident_type_data,
       agreement_data,
       police_station_data,
+      vehicleUsage,
+      driverDocumentType,
+      driverLicenseCategory,
+      driverAlcoholTest,
+      vehicleYear,
+      participantType,
+      participantGender,
     };
 
     res.status(200).json({

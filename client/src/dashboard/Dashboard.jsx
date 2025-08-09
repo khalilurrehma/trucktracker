@@ -25,20 +25,20 @@ const adminMetrics = [
     description: "Active vehicles",
   },
   {
-    title: "Online Devices",
-    value: "134",
-    change: "91%",
-    changeType: "neutral",
-    icon: Activity,
-    description: "Currently online",
-  },
-  {
-    title: "Drivers",
+    title: "Active Drivers",
     value: "89",
     change: "+3",
     changeType: "increase",
     icon: Users,
     description: "Registered drivers",
+  },
+  {
+    title: "Active Groups",
+    value: "134",
+    change: "91%",
+    changeType: "neutral",
+    icon: Activity,
+    description: "Currently online",
   },
   {
     title: "Geofences",
@@ -89,42 +89,7 @@ const Dashboard = ({ userRole }) => {
   const metrics = userRole === "superadmin" ? superadminMetrics : adminMetrics;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="space-y-1">
-          <Typography
-            variant="h4"
-            className="text-4xl font-bold bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent"
-          >
-            {userRole === "superadmin" ? "System Overview" : "Fleet Dashboard"}
-          </Typography>
-          <Typography variant="body1" className="text-muted-foreground text-lg">
-            {userRole === "superadmin"
-              ? "Monitor all companies and fleet operations across the system"
-              : "Real-time monitoring and management of your fleet operations"}
-          </Typography>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Chip
-            label={
-              <div className="flex items-center">
-                <div className="w-2.5 h-2.5 bg-success rounded-full animate-live-pulse mr-2"></div>
-                Live Tracking
-              </div>
-            }
-            className="status-live bg-success/15 text-success border-success/30 px-3 py-1.5 text-sm font-medium"
-          />
-          <Chip
-            label="Last updated: now"
-            variant="outlined"
-            className="px-3 py-1.5 text-sm"
-          />
-        </div>
-      </div>
-
-      {/* Metrics Grid */}
+    <div className="space-y-6 mt-6 px-4">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         {metrics.map((metric) => (
           <Card
@@ -184,7 +149,6 @@ const Dashboard = ({ userRole }) => {
         ))}
       </div>
 
-      {/* Activity & Status Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
         <Card className="fleet-card" elevation={3}>
           <CardHeader className="pb-4">
