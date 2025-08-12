@@ -5,6 +5,10 @@ import {
   Building,
   Activity,
   TrendingUp,
+  Briefcase,
+  ClipboardList,
+  Clock,
+  Shield,
 } from "lucide-react";
 import {
   Card,
@@ -13,7 +17,47 @@ import {
   Chip,
   Typography,
   Box,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Grid,
+  useTheme,
 } from "@mui/material";
+import { styled } from "@mui/material/styles";
+import {
+  Timeline,
+  TimelineItem,
+  TimelineSeparator,
+  TimelineConnector,
+  TimelineContent,
+  TimelineDot,
+  TimelineOppositeContent,
+} from "@mui/lab";
+import { Line, Doughnut } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+} from "chart.js";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement
+);
 
 const adminMetrics = [
   {
@@ -85,218 +129,598 @@ const superadminMetrics = [
   },
 ];
 
-const Dashboard = ({ userRole }) => {
-  const metrics = userRole === "superadmin" ? superadminMetrics : adminMetrics;
+const driverMetrics = [
+  {
+    title: "Avg Trip Duration",
+    value: "32 min",
+    change: "-2 min",
+    changeType: "decrease",
+    icon: Clock,
+    description: "Last 30 days",
+  },
+  {
+    title: "Safety Score",
+    value: "92%",
+    change: "+5%",
+    changeType: "increase",
+    icon: Shield,
+    description: "Driver compliance",
+  },
+];
+
+const echongCases = [
+  {
+    id: "EC-001",
+    title: "Engine Overheat",
+    status: "Open",
+    created: "2025-08-08",
+  },
+  {
+    id: "EC-002",
+    title: "GPS Signal Lost",
+    status: "In Progress",
+    created: "2025-08-09",
+  },
+  {
+    id: "EC-003",
+    title: "Low Battery Alert",
+    status: "Resolved",
+    created: "2025-08-10",
+  },
+];
+
+const rimacCases = [
+  {
+    id: "RC-101",
+    title: "Speed Violation",
+    status: "Open",
+    created: "2025-08-07",
+  },
+  {
+    id: "RC-102",
+    title: "Unauthorized Access",
+    status: "Open",
+    created: "2025-08-09",
+  },
+  {
+    id: "RC-103",
+    title: "Maintenance Required",
+    status: "Closed",
+    created: "2025-08-10",
+  },
+];
+
+const recentAlerts = [
+  {
+    id: "AL-001",
+    type: "Critical Error",
+    message: "Device offline",
+    time: "2025-08-12 10:15",
+    status: "Open",
+  },
+  {
+    id: "AL-002",
+    type: "Maintenance",
+    message: "Oil change due",
+    time: "2025-08-12 09:30",
+    status: "Pending",
+  },
+  {
+    id: "AL-003",
+    type: "Security Alert",
+    message: "Unauthorized access attempt",
+    time: "2025-08-12 08:45",
+    status: "Resolved",
+  },
+];
+
+const StyledCard = styled(Card)(({ theme }) => ({
+  transition: "all 0.3s ease-in-out",
+  backgroundColor:
+    theme.palette.mode === "dark"
+      ? theme.palette.grey[800]
+      : theme.palette.background.paper,
+  "&:hover": {
+    transform: "translateY(-4px)",
+    boxShadow: theme.shadows[8],
+  },
+}));
+
+const getChangeColor = (changeType, isDark) => {
+  switch (changeType) {
+    case "increase":
+      return isDark
+        ? "bg-green-900 text-green-200"
+        : "bg-green-100 text-green-800";
+    case "decrease":
+      return isDark ? "bg-red-900 text-red-200" : "bg-red-100 text-red-800";
+    default:
+      return isDark ? "bg-gray-700 text-gray-200" : "bg-gray-100 text-gray-800";
+  }
+};
+
+const getStatusColor = (status, isDark) => {
+  switch (status) {
+    case "Open":
+    case "Critical Error":
+      return isDark ? "bg-red-900 text-red-200" : "bg-red-100 text-red-800";
+    case "In Progress":
+    case "Pending":
+      return isDark
+        ? "bg-yellow-900 text-yellow-200"
+        : "bg-yellow-100 text-yellow-800";
+    case "Resolved":
+    case "Closed":
+      return isDark
+        ? "bg-green-900 text-green-200"
+        : "bg-green-100 text-green-800";
+    default:
+      return isDark ? "bg-gray-700 text-gray-200" : "bg-gray-100 text-gray-800";
+  }
+};
+
+const getChartColors = (isDark) => ({
+  text: isDark ? "#E5E7EB" : "#1F2937",
+  grid: isDark ? "#4B5563" : "#E5E7EB",
+  deviceBorder: isDark ? "#60A5FA" : "#3B82F6",
+  deviceBg: isDark ? "rgba(96, 165, 250, 0.2)" : "rgba(59, 130, 246, 0.2)",
+  driverBorder: isDark ? "#34D399" : "#10B981",
+  driverBg: isDark ? "rgba(52, 211, 153, 0.2)" : "rgba(16, 185, 129, 0.2)",
+  violationColors: isDark
+    ? ["#F87171", "#FBBF24", "#60A5FA"]
+    : ["#EF4444", "#F59E0B", "#3B82F6"],
+});
+
+const MetricCard = ({
+  title,
+  value,
+  change,
+  changeType,
+  Icon,
+  description,
+}) => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
 
   return (
-    <div className="space-y-6 mt-6 px-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-        {metrics.map((metric) => (
-          <Card
-            key={metric.title}
-            className="fleet-card relative overflow-hidden group"
-            elevation={3}
-          >
-            <Box className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <CardHeader
-              className="flex flex-row items-center justify-between space-y-0 pb-3"
-              title={
-                <Typography
-                  variant="caption"
-                  className="text-sm font-semibold text-muted-foreground uppercase tracking-wide"
-                >
-                  {metric.title}
-                </Typography>
+    <StyledCard>
+      <CardContent className="p-6">
+        <Box className="flex items-center justify-between">
+          <Box>
+            <Typography
+              variant="h6"
+              className={
+                isDark
+                  ? "text-gray-300 font-medium"
+                  : "text-gray-600 font-medium"
               }
-              action={
-                <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors duration-300">
-                  <metric.icon className="h-5 w-5 text-primary" />
-                </div>
-              }
-            />
-            <CardContent className="relative">
-              <div className="flex items-center gap-4">
-                <Typography
-                  variant="h5"
-                  className="text-3xl font-bold text-foreground animate-data-refresh"
-                >
-                  {metric.value}
-                </Typography>
-                <Chip
-                  label={
-                    <div className="flex items-center gap-1.5">
-                      {metric.changeType === "increase" && (
-                        <TrendingUp className="h-3 w-3" />
-                      )}
-                      {metric.change}
-                    </div>
-                  }
-                  className={`text-sm font-medium px-2 py-1 rounded-full ${
-                    metric.changeType === "increase"
-                      ? "text-success bg-success/10 border border-success/20"
-                      : "text-muted-foreground bg-muted/50"
-                  }`}
-                />
-              </div>
+            >
+              {title}
+            </Typography>
+            <Typography variant="h4" className="font-bold mt-1">
+              {value}
+            </Typography>
+            <Box className="flex items-center mt-2">
+              <Chip
+                label={change}
+                className={`text-sm ${getChangeColor(changeType, isDark)}`}
+                size="small"
+              />
               <Typography
                 variant="body2"
-                className="text-sm text-muted-foreground mt-2 font-medium"
+                className={`ml-2 ${isDark ? "text-gray-400" : "text-gray-500"}`}
               >
-                {metric.description}
+                {description}
               </Typography>
+            </Box>
+          </Box>
+          <Box
+            className={
+              isDark
+                ? "bg-blue-900 p-3 rounded-full"
+                : "bg-blue-100 p-3 rounded-full"
+            }
+          >
+            <Icon
+              className={
+                isDark ? "h-6 w-6 text-blue-400" : "h-6 w-6 text-blue-600"
+              }
+            />
+          </Box>
+        </Box>
+      </CardContent>
+    </StyledCard>
+  );
+};
+
+const CaseTable = ({ title, cases }) => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
+  return (
+    <Card
+      sx={{
+        backgroundColor: isDark
+          ? theme.palette.grey[800]
+          : theme.palette.background.paper,
+      }}
+    >
+      <CardHeader
+        title={
+          <Typography
+            variant="h6"
+            className={isDark ? "text-gray-200 font-semibold" : "font-semibold"}
+          >
+            {title}
+          </Typography>
+        }
+      />
+      <CardContent>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell
+                className={
+                  isDark ? "text-gray-200 font-semibold" : "font-semibold"
+                }
+              >
+                Case ID
+              </TableCell>
+              <TableCell
+                className={
+                  isDark ? "text-gray-200 font-semibold" : "font-semibold"
+                }
+              >
+                Title
+              </TableCell>
+              <TableCell
+                className={
+                  isDark ? "text-gray-200 font-semibold" : "font-semibold"
+                }
+              >
+                Status
+              </TableCell>
+              <TableCell
+                className={
+                  isDark ? "text-gray-200 font-semibold" : "font-semibold"
+                }
+              >
+                Created
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {cases.map((caseItem) => (
+              <TableRow
+                key={caseItem.id}
+                className={isDark ? "hover:bg-gray-700" : "hover:bg-gray-50"}
+              >
+                <TableCell className={isDark ? "text-gray-300" : ""}>
+                  {caseItem.id}
+                </TableCell>
+                <TableCell className={isDark ? "text-gray-300" : ""}>
+                  {caseItem.title}
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    label={caseItem.status}
+                    className={`text-sm ${getStatusColor(
+                      caseItem.status,
+                      isDark
+                    )}`}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell className={isDark ? "text-gray-300" : ""}>
+                  {caseItem.created}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+};
+
+const ActivityChart = () => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const colors = getChartColors(isDark);
+
+  const data = {
+    labels: ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00", "24:00"],
+    datasets: [
+      {
+        label: "Device Activity",
+        data: [120, 150, 130, 170, 200, 180, 210],
+        borderColor: colors.deviceBorder,
+        backgroundColor: colors.deviceBg,
+        fill: true,
+        tension: 0.4,
+      },
+      {
+        label: "Driver Activity",
+        data: [80, 90, 100, 110, 120, 115, 130],
+        borderColor: colors.driverBorder,
+        backgroundColor: colors.driverBg,
+        fill: true,
+        tension: 0.4,
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    plugins: {
+      legend: { position: "top", labels: { color: colors.text } },
+      title: {
+        display: true,
+        text: "Real-Time System Activity",
+        color: colors.text,
+      },
+    },
+    scales: {
+      x: { ticks: { color: colors.text }, grid: { color: colors.grid } },
+      y: {
+        ticks: { color: colors.text },
+        grid: { color: colors.grid },
+        beginAtZero: true,
+      },
+    },
+  };
+
+  return <Line data={data} options={options} />;
+};
+
+const ViolationChart = () => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const colors = getChartColors(isDark);
+
+  const data = {
+    labels: ["Entry Violations", "Exit Violations", "Loitering"],
+    datasets: [
+      {
+        data: [45, 30, 25],
+        backgroundColor: colors.violationColors,
+        borderColor: isDark ? "#374151" : "#1F2937",
+        borderWidth: 1,
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    plugins: {
+      legend: { position: "right", labels: { color: colors.text } },
+      title: { display: true, text: "Geofence Violations", color: colors.text },
+    },
+  };
+
+  return <Doughnut data={data} options={options} />;
+};
+
+const AlertsTimeline = () => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
+  return (
+    <Card
+      sx={{
+        backgroundColor: isDark
+          ? theme.palette.grey[800]
+          : theme.palette.background.paper,
+      }}
+    >
+      <CardHeader
+        title={
+          <Typography
+            variant="h6"
+            className={isDark ? "text-gray-200 font-semibold" : "font-semibold"}
+          >
+            Recent Alerts
+          </Typography>
+        }
+      />
+      <CardContent>
+        <Timeline position="alternate">
+          {recentAlerts.map((alert, index) => (
+            <TimelineItem key={alert.id}>
+              <TimelineOppositeContent
+                className={isDark ? "text-gray-400" : "text-gray-500"}
+              >
+                {alert.time}
+              </TimelineOppositeContent>
+              <TimelineSeparator>
+                <TimelineDot
+                  color={
+                    alert.status === "Open"
+                      ? "error"
+                      : alert.status === "Pending"
+                      ? "warning"
+                      : "success"
+                  }
+                />
+                {index < recentAlerts.length - 1 && <TimelineConnector />}
+              </TimelineSeparator>
+              <TimelineContent>
+                <Typography className={isDark ? "text-gray-200" : ""}>
+                  {alert.type}: {alert.message}
+                </Typography>
+                <Chip
+                  label={alert.status}
+                  className={`text-sm mt-1 ${getStatusColor(
+                    alert.status,
+                    isDark
+                  )}`}
+                  size="small"
+                />
+              </TimelineContent>
+            </TimelineItem>
+          ))}
+        </Timeline>
+      </CardContent>
+    </Card>
+  );
+};
+
+const Dashboard = () => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
+  return (
+    <Box
+      className={`p-6 min-h-screen ${isDark ? "bg-gray-900" : "bg-gray-100"}`}
+    >
+      <Typography
+        variant="h4"
+        className={`font-bold mb-6 ${
+          isDark ? "text-gray-100" : "text-gray-800"
+        }`}
+      >
+        System Dashboard
+      </Typography>
+
+      {/* Admin Metrics */}
+      <Typography
+        variant="h5"
+        className={`font-semibold mb-4 ${
+          isDark ? "text-gray-200" : "text-gray-700"
+        }`}
+      >
+        Admin Metrics
+      </Typography>
+      <Grid container spacing={3} className="mb-8">
+        {adminMetrics.map((metric, index) => (
+          <Grid item xs={12} sm={6} md={3} key={index}>
+            <MetricCard
+              title={metric.title}
+              value={metric.value}
+              change={metric.change}
+              changeType={metric.changeType}
+              Icon={metric.icon}
+              description={metric.description}
+            />
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* Superadmin Metrics */}
+      <Typography
+        variant="h5"
+        className={`font-semibold mb-4 ${
+          isDark ? "text-gray-200" : "text-gray-700"
+        }`}
+      >
+        Superadmin Metrics
+      </Typography>
+      <Grid container spacing={3} className="mb-8">
+        {superadminMetrics.map((metric, index) => (
+          <Grid item xs={12} sm={6} md={3} key={index}>
+            <MetricCard
+              title={metric.title}
+              value={metric.value}
+              change={metric.change}
+              changeType={metric.changeType}
+              Icon={metric.icon}
+              description={metric.description}
+            />
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* Driver Performance */}
+      <Typography
+        variant="h5"
+        className={`font-semibold mb-4 ${
+          isDark ? "text-gray-200" : "text-gray-700"
+        }`}
+      >
+        Driver Performance
+      </Typography>
+      <Grid container spacing={3} className="mb-8">
+        {driverMetrics.map((metric, index) => (
+          <Grid item xs={12} sm={6} md={6} key={index}>
+            <MetricCard
+              title={metric.title}
+              value={metric.value}
+              change={metric.change}
+              changeType={metric.changeType}
+              Icon={metric.icon}
+              description={metric.description}
+            />
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* Cases and Visuals Section */}
+      <Grid container spacing={3} className="mb-8">
+        <Grid item xs={12} md={6}>
+          <CaseTable title="Echong Cases" cases={echongCases} />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <CaseTable title="Rimac Cases" cases={rimacCases} />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <Card
+            sx={{
+              backgroundColor: isDark
+                ? theme.palette.grey[800]
+                : theme.palette.background.paper,
+            }}
+          >
+            <CardHeader
+              title={
+                <Typography
+                  variant="h6"
+                  className={
+                    isDark ? "text-gray-200 font-semibold" : "font-semibold"
+                  }
+                >
+                  Geofence Violations
+                </Typography>
+              }
+            />
+            <CardContent>
+              <ViolationChart />
             </CardContent>
           </Card>
-        ))}
-      </div>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <AlertsTimeline />
+        </Grid>
+      </Grid>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
-        <Card className="fleet-card" elevation={3}>
-          <CardHeader className="pb-4">
-            <Typography
-              variant="h6"
-              className="text-xl flex items-center gap-3"
-            >
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Activity className="h-6 w-6 text-primary" />
-              </div>
-              Recent Activity
-            </Typography>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-start gap-4 p-3 rounded-xl bg-gradient-to-r from-success/10 to-transparent border border-success/20">
-                <div className="w-3 h-3 bg-success rounded-full mt-1 animate-live-pulse"></div>
-                <div className="flex-1">
-                  <Typography
-                    variant="body1"
-                    className="text-sm font-semibold text-foreground"
-                  >
-                    Device TR-001 came online
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    className="text-xs text-muted-foreground mt-1"
-                  >
-                    Connected to GPS network • 2 minutes ago
-                  </Typography>
-                </div>
-              </div>
-              <div className="flex items-start gap-4 p-3 rounded-xl bg-gradient-to-r from-warning/10 to-transparent border border-warning/20">
-                <div className="w-3 h-3 bg-warning rounded-full mt-1"></div>
-                <div className="flex-1">
-                  <Typography
-                    variant="body1"
-                    className="text-sm font-semibold text-foreground"
-                  >
-                    Speed limit exceeded - Vehicle TR-045
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    className="text-xs text-muted-foreground mt-1"
-                  >
-                    90 km/h in 70 km/h zone • 5 minutes ago
-                  </Typography>
-                </div>
-              </div>
-              <div className="flex items-start gap-4 p-3 rounded-xl bg-gradient-to-r from-primary/10 to-transparent border border-primary/20">
-                <div className="w-3 h-3 bg-primary rounded-full mt-1"></div>
-                <div className="flex-1">
-                  <Typography
-                    variant="body1"
-                    className="text-sm font-semibold text-foreground"
-                  >
-                    New driver John Smith assigned
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    className="text-xs text-muted-foreground mt-1"
-                  >
-                    Driver profile created and linked • 12 minutes ago
-                  </Typography>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="fleet-card" elevation={3}>
-          <CardHeader className="pb-4">
-            <Typography
-              variant="h6"
-              className="text-xl flex items-center gap-3"
-            >
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Car className="h-6 w-6 text-primary" />
-              </div>
-              Fleet Status Overview
-            </Typography>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {[
-                {
-                  label: "Online",
-                  percentage: "91%",
-                  color: "success",
-                  width: "91%",
-                },
-                {
-                  label: "Moving",
-                  percentage: "67%",
-                  color: "primary",
-                  width: "67%",
-                },
-                {
-                  label: "Idle",
-                  percentage: "24%",
-                  color: "warning",
-                  width: "24%",
-                },
-                {
-                  label: "Offline",
-                  percentage: "9%",
-                  color: "destructive",
-                  width: "9%",
-                },
-              ].map((status, index) => (
-                <div
-                  key={status.label}
-                  className="flex items-center justify-between"
+      {/* Activity Chart */}
+      <Grid container spacing={3}>
+        <Grid item xs={12}>
+          <Card
+            sx={{
+              backgroundColor: isDark
+                ? theme.palette.grey[800]
+                : theme.palette.background.paper,
+            }}
+          >
+            <CardHeader
+              title={
+                <Typography
+                  variant="h6"
+                  className={
+                    isDark ? "text-gray-200 font-semibold" : "font-semibold"
+                  }
                 >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-3 h-3 bg-${status.color} rounded-full ${
-                        status.color === "success" ? "animate-live-pulse" : ""
-                      }`}
-                    ></div>
-                    <Typography
-                      variant="body1"
-                      className="text-sm font-semibold text-foreground"
-                    >
-                      {status.label}
-                    </Typography>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-24 h-3 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className={`h-full bg-gradient-to-r from-${status.color} to-${status.color}/80 rounded-full transition-all duration-500`}
-                        style={{ width: status.width }}
-                      ></div>
-                    </div>
-                    <Typography
-                      variant="body1"
-                      className="text-sm font-bold text-foreground min-w-[3rem]"
-                    >
-                      {status.percentage}
-                    </Typography>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+                  Real-Time System Activity
+                </Typography>
+              }
+            />
+            <CardContent>
+              <ActivityChart />
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+    </Box>
   );
 };
 
