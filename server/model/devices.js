@@ -17,7 +17,7 @@ export const getAllGroup = async () => {
 
 export const fetchAllDevices = async () => {
   const sql = "SELECT * FROM settings_devices";
-
+  console.log(sql);
   return new Promise((resolve, reject) => {
     dbQuery(sql, (err, results) => {
       if (err) {

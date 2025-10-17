@@ -38,7 +38,29 @@ const RimacCaseReport = ({
   report,
   setReport,
 }) => {
-  const parsedReport = JSON.parse(report.rimacReport.report_data);
+  const safeParseJSON = (value, fallback = {}) => {
+    if (!value) return fallback;
+    if (typeof value === "string") {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return fallback;
+      }
+    }
+    if (typeof value === "object") return value;
+    return fallback;
+  };
+  const parsedReport = safeParseJSON(report?.rimacReport?.report_data, {});
+  const rimacFormData = safeParseJSON(report?.rimac_form_data, {});
+  const vehicles = safeParseJSON(report?.vehicles, []).map(vehicle => ({
+  ...vehicle,
+  photos: (vehicle.photos || []).map(photo => ({
+    ...photo,
+    // remove leading numbers and spaces from category
+    category: photo.category.replace(/^\d+\s*/, "")
+  }))
+}));
+
 
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -204,7 +226,7 @@ const RimacCaseReport = ({
                 </Typography>
                 <Typography>
                   <strong>Fecha Solicitud:</strong>{" "}
-                  {parsedReport.FechaCobertura}
+                  {toSafeDate(parsedReport.FechaCobertura)}
                 </Typography>
                 <Typography>
                   <strong>Fecha Atención:</strong>{" "}
@@ -532,7 +554,7 @@ const RimacCaseReport = ({
           </Paper>
           <Box sx={{ pageBreakBefore: "always", mt: 3 }} />
 
-          {report?.rimac_form_data && (
+          {rimacFormData && (
             <Box>
               <Typography variant="h4" gutterBottom>
                 Formularios Asesor Express
@@ -564,7 +586,7 @@ const RimacCaseReport = ({
                           >
                             <TextField
                               label={field.placeholder}
-                              value={report.rimac_form_data?.[field.name] ?? ""}
+                              value={rimacFormData?.[field.name] ?? ""}
                               fullWidth
                               size="small"
                               multiline={isTextArea}
@@ -618,17 +640,17 @@ const RimacCaseReport = ({
             FOTOGRAFÍAS DEL VEHÍCULO
           </Typography>
 
-          {report?.vehicles &&
-            Array.isArray(report.vehicles) &&
-            report.vehicles.length > 0 &&
-            report.vehicles.map((vehicle, vIndex) => {
+          {vehicles &&
+            Array.isArray(vehicles) &&
+            vehicles.length > 0 &&
+            vehicles.map((vehicle, vIndex) => {
               const photos = Array.isArray(vehicle.photos)
                 ? vehicle.photos
                 : [];
 
               const renderCategoryPhotos = (categoryTitle, categoryName) => {
-                const filtered = photos.filter(
-                  (p) => p.category === categoryName
+                const filtered = photos.filter((p) =>
+                  p.category.endsWith(categoryName)
                 );
                 if (filtered.length === 0) return null;
 

@@ -151,14 +151,14 @@ const SettingsMenu = () => {
         />
         {!readonly && (
           <>
-            {userId === 1 && (
+            {/* {userId === 1 && (
               <MenuItem
                 title={t("settingsUsageConfiguration")}
                 link="/settings/view-usage"
                 icon={<SupervisedUserCircleIcon />}
                 selected={location.pathname.startsWith("/settings/view-usage")}
               />
-            )}
+            )} */}
             {userId === 1 && (
               <MenuItem
                 title={t("settingsRealms")}
@@ -167,7 +167,7 @@ const SettingsMenu = () => {
                 selected={location.pathname.startsWith("/settings/realms")}
               />
             )}
-            {userId === 1 && (
+            {/* {userId === 1 && (
               <Accordion
                 expanded={expanded.includes("admin_calcs")}
                 onChange={handleChange("admin_calcs")}
@@ -209,7 +209,7 @@ const SettingsMenu = () => {
                   />
                 </AccordionDetails>
               </Accordion>
-            )}
+            )} */}
             {userId === 1 && (
               <Accordion
                 expanded={expanded.includes("config")}
@@ -243,7 +243,7 @@ const SettingsMenu = () => {
                 </AccordionDetails>
               </Accordion>
             )}
-            <Accordion
+            {/* <Accordion
               expanded={expanded.includes("dispatch")}
               onChange={handleChange("dispatch")}
               sx={accordinSX}
@@ -281,7 +281,7 @@ const SettingsMenu = () => {
                   )}
                 />
               </AccordionDetails>
-            </Accordion>
+            </Accordion> */}
             <Accordion
               expanded={expanded.includes("management")}
               onChange={handleChange("management")}
@@ -516,7 +516,7 @@ const SettingsMenu = () => {
                 )}
               </AccordionDetails>
             </Accordion>
-            <Accordion
+            {/* <Accordion
               expanded={expanded.includes("device_service_types")}
               onChange={handleChange("device_service_types")}
               sx={accordinSX}
@@ -537,8 +537,16 @@ const SettingsMenu = () => {
                   icon={<SmartphoneIcon sx={{ ml: 2 }} />}
                   selected={location.pathname.startsWith("/settings/services")}
                 />
+                <MenuItem
+                  title={t("settingsAssignedDevices")}
+                  link="/settings/assigned-devices"
+                  icon={<SmartphoneIcon sx={{ ml: 2 }} />} // you can choose any icon
+                  selected={location.pathname.startsWith(
+                    "/settings/assigned-devices"
+                  )}
+                />
               </AccordionDetails>
-            </Accordion>
+            </Accordion> */}
             {!traccarUser?.attributes.non_admin && (
               <MenuItem
                 title={"Snapshots"}

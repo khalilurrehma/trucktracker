@@ -463,6 +463,65 @@ export const fetchDriversWithVehicle = async () => {
   });
 };
 
+export const fetchDriversWithAssociatedVehicle = async (
+  page = 1,
+  limit = 10,
+  search = ""
+) => {
+  const offset = (page - 1) * limit;
+  const searchQuery = `%${search}%`;
+
+  const sql = `
+    SELECT 
+      dr.id AS driver_id,
+      dr.name AS driver_name,
+      d.id AS device_id,
+      d.name AS device_name
+    FROM 
+      drivers dr
+    LEFT JOIN 
+      vehicle_driver_association vda ON dr.id = vda.driver_id
+    LEFT JOIN 
+      new_settings_devices d ON vda.device_id = d.id
+    WHERE 
+      dr.name LIKE ? OR d.name LIKE ?
+    ORDER BY 
+      CASE WHEN d.id IS NOT NULL THEN 0 ELSE 1 END, dr.id
+    LIMIT ? OFFSET ?
+  `;
+
+  const countSql = `
+    SELECT COUNT(*) AS total
+    FROM drivers dr
+    LEFT JOIN vehicle_driver_association vda ON dr.id = vda.driver_id
+    LEFT JOIN new_settings_devices d ON vda.device_id = d.id
+    WHERE dr.name LIKE ? OR d.name LIKE ?
+  `;
+
+  return new Promise((resolve, reject) => {
+    pool.query(
+      sql,
+      [searchQuery, searchQuery, Number(limit), Number(offset)], // ✅ force numbers
+      (err, results) => {
+        if (err) return reject(err);
+
+        pool.query(
+          countSql,
+          [searchQuery, searchQuery],
+          (countErr, countResult) => {
+            if (countErr) return reject(countErr);
+
+            resolve({
+              rows: results,
+              total: countResult[0].total,
+            });
+          }
+        );
+      }
+    );
+  });
+};
+
 export const checkAlreadyAssociatedVehicle = async (driver_id) => {
   const sql = `SELECT * FROM vehicle_driver_association WHERE driver_id = ?`;
 
@@ -759,6 +818,48 @@ export const isDriverBlocked = async (driver_id) => {
     pool.query(sql, [parseInt(driver_id)], (err, results) => {
       if (err) return reject(err);
       resolve(results[0].is_blocked);
+    });
+  });
+};
+
+export const getDriverByTraccarDeviceId = async (traccarId) => {
+  const sql = `
+    SELECT d.id, d.name
+    FROM new_settings_devices nsd
+    JOIN vehicle_driver_association vda ON vda.device_id = nsd.id
+    JOIN drivers d ON d.id = vda.driver_id
+    WHERE nsd.traccarId = ?
+    LIMIT 1
+  `;
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, [parseInt(traccarId)], (err, results) => {
+      if (err) return reject(err);
+
+      if (results.length === 0) {
+        return resolve(null); // nenhum driver vinculado
+      }
+
+      resolve(results[0]); // { id, name }
+    });
+  });
+};
+export const unassignDriverFromVehicle = async (driverId, vehicleId) => {
+  const sql = `
+    DELETE FROM vehicle_driver_association
+    WHERE driver_id = ? AND device_id = ?
+  `;
+
+  const values = [parseInt(driverId), parseInt(vehicleId)];
+
+  return new Promise((resolve, reject) => {
+    pool.query(sql, values, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve({
+        affectedRows: results.affectedRows,
+      });
     });
   });
 };

@@ -12,6 +12,7 @@ import {
   fetchDrivers,
   fetchDriversByUserId,
   fetchDriversWithVehicle,
+  fetchDriversWithAssociatedVehicle,
   findAssociateVehicleByDriverId,
   findVehiclesByDriverId,
   getDriverCompletedCases,
@@ -24,10 +25,12 @@ import {
   saveDriverLoginLogs,
   saveDriverResetToken,
   saveFCMToken,
+  getDriverByTraccarDeviceId,
   saveNewSession,
   updateDriver,
   updateDriverAvailability,
   updateFCMToken,
+  unassignDriverFromVehicle,
 } from "../model/driver.js";
 import {
   getLatestDriverBehaivorReports,
@@ -149,7 +152,27 @@ export const postDriver = async (req, res) => {
     res.status(500).json({ status: false, message: "Internal Server Error" });
   }
 };
+export const driverByTraccarDeviceId = async (req, res) => {
+  try {
+    const { traccarId } = req.params;
 
+    const driver = await getDriverByTraccarDeviceId(traccarId);
+
+    if (!driver) {
+      return res.status(404).json({
+        status: false,
+        message: "Nenhum motorista associado a este dispositivo",
+      });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: driver, // { id, name }
+    });
+  } catch (error) {
+    res.status(500).json({ status: false, message: error.message });
+  }
+};
 export const assignDriverToVehicle = async (req, res) => {
   let files;
   const {
@@ -351,6 +374,27 @@ export const allDriversVehicles = async (req, res) => {
     res.status(201).json({
       status: true,
       message: results,
+    });
+  } catch (error) {
+    res.status(500).json({ status: false, message: error.message });
+  }
+};
+
+export const allDriversAssociatedVehicles = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = "" } = req.query;
+    const { rows, total } = await fetchDriversWithAssociatedVehicle(
+      page,
+      limit,
+      search
+    );
+
+    res.status(200).json({
+      status: true,
+      message: rows,
+      total,
+      page: Number(page),
+      limit: Number(limit),
     });
   } catch (error) {
     res.status(500).json({ status: false, message: error.message });
@@ -1038,6 +1082,35 @@ export const driverSession = async (req, res) => {
   const driverId = req.userId;
   try {
     res.send("test");
+  } catch (error) {
+    res.status(500).json({ status: false, message: error.message });
+  }
+};
+
+export const companyUnassignDriver = async (req, res) => {
+  try {
+    const { driverId, vehicleId } = req.params;
+
+    if (!driverId || !vehicleId) {
+      return res.status(400).json({
+        status: false,
+        message: "Driver ID and Vehicle ID são obrigatórios",
+      });
+    }
+
+    const result = await unassignDriverFromVehicle(driverId, vehicleId);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        status: false,
+        message: "Nenhuma associação encontrada para remover",
+      });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: "Driver unassociated from vehicle successfully (by company)",
+    });
   } catch (error) {
     res.status(500).json({ status: false, message: error.message });
   }

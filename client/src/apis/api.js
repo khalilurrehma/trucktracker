@@ -53,6 +53,34 @@ export const getAllNewCases = async (
     throw error;
   }
 };
+export const getUnassignedDrivers = async (search = "") => {
+  try {
+    const { data } = await axios.get(`${apiUrl}/dispatch/unassigned-drivers`, {
+      params: {
+        search,
+      },
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching unassigned drivers:", error);
+    throw error;
+  }
+};
+
+export const reassignCase = async (caseId, driverId, deviceId) => {
+  try {
+    const { data } = await axios.post(`${apiUrl}/dispatch/reassign`, {
+      caseId,
+      driverId,
+      deviceId,
+    });
+    return data;
+  } catch (error) {
+    console.error("Error reassigning case:", error);
+    throw error;
+  }
+};
 
 export const dropDownAllInfo = async (apiEndpoint) => {
   try {
@@ -210,6 +238,23 @@ export const fetchCommandExecution = async (deviceId, commandId) => {
     return data;
   } catch (error) {
     console.error("Error executing command:", error);
+    throw error;
+  }
+};
+export const fetchAllDriversWithAssociatedVehicles = async (
+  page = 1,
+  limit = 10,
+  search = ""
+) => {
+  try {
+    const { data } = await axios.get(
+      `${apiUrl}/driver/all/associated_vehicles?page=${page}&limit=${limit}&search=${encodeURIComponent(
+        search
+      )}`
+    );
+    return data;
+  } catch (error) {
+    console.error("Error fetching drivers with associated vehicles:", error);
     throw error;
   }
 };
@@ -457,7 +502,15 @@ export const deleteDriverById = async (id) => {
     throw error;
   }
 };
-
+export const fetchDriverByTraccarDeviceId = async (traccarId) => {
+  try {
+    const { data } = await axios.get(`${apiUrl}/driver/device/${traccarId}`);
+    return data.message; // { id, name }
+  } catch (error) {
+    console.error("Error fetching driver by traccarId:", error);
+    throw error;
+  }
+};
 export const removeDeviceShiftById = async (
   id,
   driverId,
@@ -813,6 +866,18 @@ export const getGeofencesByUserId = async (userId) => {
     const { data } = await axios.get(`${apiUrl}/new-geofences/user/${userId}`);
     return data;
   } catch (error) {
+    throw error;
+  }
+};
+
+export const unassignDriverFromVehicle = async (driverId, vehicleId) => {
+  try {
+    const { data } = await axios.delete(
+      `${apiUrl}/drivers/${driverId}/vehicles/${vehicleId}`
+    );
+    return data; // { status: true, message: "Driver Unassociated Successfully" }
+  } catch (error) {
+    console.error("Error unassigning driver:", error);
     throw error;
   }
 };

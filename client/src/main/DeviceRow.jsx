@@ -1,4 +1,4 @@
-import React from "react";
+import { React, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import makeStyles from "@mui/styles/makeStyles";
 import {
@@ -8,6 +8,8 @@ import {
   ListItemAvatar,
   ListItemText,
   ListItemButton,
+  Box,
+  Typography,
 } from "@mui/material";
 import BatteryFullIcon from "@mui/icons-material/BatteryFull";
 import BatteryChargingFullIcon from "@mui/icons-material/BatteryChargingFull";
@@ -30,6 +32,7 @@ import { useTranslation } from "../common/components/LocalizationProvider";
 import { mapIconKey, mapIcons } from "../map/core/preloadImages";
 import { useAdministrator } from "../common/util/permissions";
 import EngineIcon from "../resources/images/data/engine.svg";
+import { fetchDriverByTraccarDeviceId } from "../apis/api";
 import { useAttributePreference } from "../common/util/preferences";
 
 dayjs.extend(relativeTime);
@@ -74,10 +77,10 @@ const DeviceRow = ({ data, index, style }) => {
   const item = data[index];
 
   const position = useSelector((state) => state.session.positions[item.id]);
+  const [driverName, setDriverName] = useState(item.driver_name || null);
 
   const devicePrimary = useAttributePreference("devicePrimary", "name");
   const deviceSecondary = useAttributePreference("deviceSecondary", "");
-
   const secondaryText = () => {
     let status;
     if (item.status === "online" || !item.lastUpdate) {
@@ -139,8 +142,32 @@ const DeviceRow = ({ data, index, style }) => {
           )}
         </ListItemAvatar>
         <ListItemText
-          primary={item[devicePrimary]}
-          primaryTypographyProps={{ noWrap: true }}
+          disableTypography
+          primary={
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+            >
+              {/* Nome do dispositivo à esquerda */}
+              <Typography noWrap>{item[devicePrimary]}</Typography>
+
+              {/* Driver name à direita, centralizado verticalmente */}
+              {item.driver_name && (
+                <Typography
+                  noWrap
+                  sx={{
+                    ml: 2,
+                    flexShrink: 0,
+                    color: "text.secondary",
+                    textAlign: "right",
+                  }}
+                >
+                  {item.driver_name}
+                </Typography>
+              )}
+            </Box>
+          }
           secondary={secondaryText()}
           secondaryTypographyProps={{ noWrap: true }}
         />

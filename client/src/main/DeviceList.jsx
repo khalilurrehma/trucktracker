@@ -6,7 +6,7 @@ import AutoSizer from "react-virtualized-auto-sizer";
 import { devicesActions } from "../store";
 import { useEffectAsync } from "../reactHelper";
 import DeviceRow from "./DeviceRow";
-
+import { fetchDriverByTraccarDeviceId } from "../apis/api";
 const useStyles = makeStyles((theme) => ({
   list: {
     maxHeight: "100%",
@@ -38,7 +38,24 @@ const DeviceList = ({ devices }) => {
   useEffectAsync(async () => {
     const response = await fetch("/api/devices");
     if (response.ok) {
-      dispatch(devicesActions.refresh(await response.json()));
+      let devices = await response.json();
+
+      // enrich missing drivers
+      const enriched = await Promise.all(
+        devices.map(async (d) => {
+          if (!d.driver_name) {
+            try {
+              const driver = await fetchDriverByTraccarDeviceId(d.id);
+              return { ...d, driver_name: driver?.name || "" };
+            } catch {
+              return { ...d, driver_name: "" };
+            }
+          }
+          return d;
+        })
+      );
+
+      dispatch(devicesActions.refresh(enriched));
     } else {
       throw Error(await response.text());
     }

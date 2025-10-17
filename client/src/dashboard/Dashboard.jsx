@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Clock,
   Shield,
+  ArrowLeft,
 } from "lucide-react";
 import {
   Card,
@@ -24,6 +25,7 @@ import {
   TableRow,
   Grid,
   useTheme,
+  Button,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import {
@@ -47,6 +49,7 @@ import {
   Legend,
   ArcElement,
 } from "chart.js";
+import { useNavigate } from "react-router-dom";
 
 ChartJS.register(
   CategoryScale,
@@ -225,7 +228,6 @@ const StyledCard = styled(Card)(({ theme }) => ({
     boxShadow: theme.shadows[8],
   },
 }));
-
 const getChangeColor = (changeType, isDark) => {
   switch (changeType) {
     case "increase":
@@ -281,7 +283,6 @@ const MetricCard = ({
 }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
-
   return (
     <StyledCard>
       <CardContent className="p-6">
@@ -568,11 +569,19 @@ const AlertsTimeline = () => {
 const Dashboard = () => {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
+  const navigate = useNavigate();
 
   return (
     <Box
       className={`p-6 min-h-screen ${isDark ? "bg-gray-900" : "bg-gray-100"}`}
     >
+      <Button
+        startIcon={<ArrowLeft size={18} />}
+        onClick={() => navigate(-1)} // Go back in history
+        sx={{ mb: 2 }}
+      >
+        Back
+      </Button>
       <Typography
         variant="h4"
         className={`font-bold mb-6 ${

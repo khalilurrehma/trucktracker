@@ -35,6 +35,8 @@ import {
   postVehicleOdometerReading,
   getRimacFormFields,
   saveAdvisorForm,
+  getUnassignedDrivers,
+  reassignCaseController,
 } from "../controllers/dispatch.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { authDriver } from "../middlewares/auth.middleware.js";
@@ -44,6 +46,8 @@ const router = express.Router();
 router.post("/dispatch/case", upload.any(), handleNewDispatchCase);
 
 router.get("/dispatch/cases", fetchAllDispatchCases);
+router.get("/dispatch/unassigned-drivers", getUnassignedDrivers);
+router.post("/dispatch/reassign", reassignCaseController);
 
 router.get("/dispatch/case/search", dispatchCaseSearch);
 

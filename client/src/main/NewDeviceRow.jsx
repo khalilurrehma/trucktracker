@@ -8,6 +8,8 @@ import {
   ListItemAvatar,
   ListItemText,
   ListItemButton,
+  Box,
+  Typography,
 } from "@mui/material";
 import BatteryFullIcon from "@mui/icons-material/BatteryFull";
 import BatteryChargingFullIcon from "@mui/icons-material/BatteryChargingFull";
@@ -139,8 +141,32 @@ const NewDeviceRow = ({ data, index, style }) => {
           )}
         </ListItemAvatar>
         <ListItemText
-          primary={item[devicePrimary]}
-          primaryTypographyProps={{ noWrap: true }}
+          disableTypography
+          primary={
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+            >
+              {/* Nome do dispositivo à esquerda */}
+              <Typography noWrap>{item[devicePrimary]}</Typography>
+
+              {/* Driver name à direita, centralizado verticalmente */}
+              {item.driver_name && (
+                <Typography
+                  noWrap
+                  sx={{
+                    ml: 2,
+                    flexShrink: 0,
+                    color: "text.secondary",
+                    textAlign: "right",
+                  }}
+                >
+                  {item.driver_name}
+                </Typography>
+              )}
+            </Box>
+          }
           secondary={secondaryText()}
           secondaryTypographyProps={{ noWrap: true }}
         />

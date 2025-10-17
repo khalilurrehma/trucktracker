@@ -53,6 +53,7 @@ function parseLatLng(str) {
 
 const GOOGLE_MAPS_LIBRARIES = ["places", "geometry", "maps"];
 const radiusOptions = [
+  { label: "all", value: 100000 },
   { label: "500m", value: 500 },
   { label: "1km", value: 1000 },
   { label: "2km", value: 2000 },
@@ -99,7 +100,7 @@ const DispatchResult = () => {
   const [mapCenter, setMapCenter] = useState(centerDefault);
   const [markerPosition, setMarkerPosition] = useState(null);
   const [destinationPosition, setDestinationPosition] = useState(null);
-  const [radius, setRadius] = useState(3000);
+  const [radius, setRadius] = useState(100000);
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   const [searchValue, setSearchValue] = useState("");
   const [openAssignModal, setOpenAssignModal] = useState(false);
@@ -122,7 +123,7 @@ const DispatchResult = () => {
     setMapCenter(centerDefault);
     setMarkerPosition(null);
     setDestinationPosition(null);
-    setRadius(3000);
+    setRadius(100000);
     setSelectedDeviceId(null);
     setSearchValue("");
     setOpenAssignModal(false);
@@ -452,7 +453,7 @@ const DispatchResult = () => {
         }))
         .filter((device) => device.distance <= radius)
         .sort((a, b) => a.distance - b.distance)
-        .slice(0, 3);
+        .slice(0, 5);
 
       setDevicesInRadius(filteredDevices);
     } catch (error) {
@@ -501,7 +502,7 @@ const DispatchResult = () => {
       menu={<OperationsMenu />}
       breadcrumbs={["Operations", "reportDispatchResult"]}
     >
-      <Box sx={{ p: 3 }}>
+      {/* <Box sx={{ p: 3 }}>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={4}>
             <Autocomplete
@@ -595,7 +596,7 @@ const DispatchResult = () => {
                 radiusOptions.find((option) => option.value === radius) || null
               }
               onChange={(event, newValue) => {
-                setRadius(newValue ? newValue.value : 3000);
+                setRadius(newValue ? newValue.value : 100000);
               }}
               renderInput={(params) => (
                 <TextField
@@ -852,7 +853,7 @@ const DispatchResult = () => {
             searchId={searchId}
           />
         )}
-      </Box>
+      </Box> */}
     </PageLayout>
   );
 };

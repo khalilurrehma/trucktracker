@@ -20,12 +20,15 @@ import {
   getDrivers,
   getDriversByUserId,
   getDriversShiftDetails,
+  allDriversAssociatedVehicles,
   getDriverStatus,
   postDriver,
   putDriver,
   saveDriverAvailability,
   unAssociateDriverVehicle,
   updateDriverStatus,
+  driverByTraccarDeviceId,
+  companyUnassignDriver,
 } from "../controllers/driver.js";
 import { authDriver } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -38,17 +41,17 @@ router.post("/driver/vehicle/association", upload.any(), assignDriverToVehicle);
 
 router.get("/drivers", getDrivers);
 
-router.get("/driver/:id", getDriver);
-
 router.get("/drivers/user/:userId", getDriversByUserId);
 
 router.get("/drivers/shifts", getDriversShiftDetails);
-
+router.get("/driver/:id", getDriver);
 router.get("/driver/availability/view/:id", getDriverAvailability);
 
 router.get("/driver/associated/vehicles", authDriver, driverAssociateVehicles);
 
 router.get("/driver/all/associated", allDriversVehicles);
+
+router.get("/driver/all/associated_vehicles", allDriversAssociatedVehicles);
 
 router.get("/driver/login/logs/:driverId", driversLoginLogs);
 
@@ -95,4 +98,6 @@ router.get("/driver/device/session", authDriver, driverSession);
 
 router.get("/driver/dashboard/:companyId", authDriver, driverDashboard);
 
+router.get("/driver/device/:traccarId", driverByTraccarDeviceId);
+router.delete("/drivers/:driverId/vehicles/:vehicleId", companyUnassignDriver);
 export default router;

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
 import Draggable from "react-draggable";
@@ -26,7 +26,7 @@ import PublishIcon from "@mui/icons-material/Publish";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import PendingIcon from "@mui/icons-material/Pending";
-
+import { fetchDriverByTraccarDeviceId } from "../../apis/api";
 import { useTranslation } from "./LocalizationProvider";
 import RemoveDialog from "./RemoveDialog";
 import PositionValue from "./PositionValue";
@@ -35,7 +35,6 @@ import usePositionAttributes from "../attributes/usePositionAttributes";
 import { devicesActions } from "../../store";
 import { useCatch, useCatchCallback } from "../../reactHelper";
 import { useAttributePreference } from "../util/preferences";
-
 const useStyles = makeStyles((theme) => ({
   card: {
     pointerEvents: "auto",
@@ -130,6 +129,27 @@ const StatusCard = ({
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const t = useTranslation();
+  const [driver, setDriver] = useState(null);
+
+  useEffect(() => {
+    const fetchDriverData = async () => {
+      try {
+        const response = await fetchDriverByTraccarDeviceId(deviceId); // retorna objeto ou null
+        if (response) {
+          setDriver(response); // exemplo: { id, name }
+        } else {
+          setDriver(null); // nenhum motorista encontrado
+        }
+      } catch (error) {
+        console.error("Error fetching driver data:", error);
+        setDriver(null); // em caso de erro também mostra null
+      }
+    };
+
+    if (deviceId) {
+      fetchDriverData();
+    }
+  }, [deviceId]);
 
   const deviceReadonly = useDeviceReadonly();
 
@@ -158,7 +178,24 @@ const StatusCard = ({
     if (removed) {
       const response = await fetch("/api/devices");
       if (response.ok) {
-        dispatch(devicesActions.refresh(await response.json()));
+        let devices = await response.json();
+
+        // 🔹 enrich missing drivers
+        const enriched = await Promise.all(
+          devices.map(async (d) => {
+            if (!d.driver_name) {
+              try {
+                const driver = await fetchDriverByTraccarDeviceId(d.id);
+                return { ...d, driver_name: driver?.name || "" };
+              } catch {
+                return { ...d, driver_name: "" };
+              }
+            }
+            return d;
+          })
+        );
+
+        dispatch(devicesActions.refresh(enriched));
       } else {
         throw Error(await response.text());
       }
@@ -259,6 +296,11 @@ const StatusCard = ({
                             }
                           />
                         ))}
+                      <StatusRow
+                        key="driverName"
+                        name="Driver"
+                        content={driver?.name || "Unknown"}
+                      />
                     </TableBody>
                     <TableFooter>
                       <TableRow>

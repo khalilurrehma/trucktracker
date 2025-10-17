@@ -125,6 +125,7 @@ import ServiceTypesSubService from "./settings/ServiceTypesSubService";
 import DevicesServices from "./settings/DevicesServices";
 import AssignedDevicesServices from "./settings/AssignedDevicesServices";
 import ServiceSettings from "./settings/ServiceSettings";
+import AssignedDevices from "./settings/AssignedDevices";
 import RimacCases from "./operations/RimacCases";
 import RimacCaseReport from "./operations/RimacCaseReport";
 import Subprocess from "./operations/Subprocess";
@@ -278,6 +279,7 @@ const Navigation = () => {
             element={<RemoveSnapshotsDevices />}
           />
           <Route path="services" element={<ServiceSettings />} />
+          <Route path="assigned-devices" element={<AssignedDevices />} />
           <Route
             path="devices/service-types"
             element={<DeviceServiceTypes />}

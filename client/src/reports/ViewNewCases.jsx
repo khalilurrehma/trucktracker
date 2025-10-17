@@ -24,12 +24,16 @@ import {
   Menu,
   TablePagination,
 } from "@mui/material";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import { keyframes } from "@mui/system";
 import { styled } from "@mui/material/styles";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import RuleIcon from "@mui/icons-material/Rule";
 import { getAllNewCases } from "../apis/api";
+import ReassignCaseModal from "./components/ReassignCaseModal";
 import CaseReportDialog from "./components/CaseReportDialog";
 import axios from "axios";
 import { useSelector } from "react-redux";
@@ -38,6 +42,7 @@ import { useSuperVisor } from "../common/util/permissions";
 import { useAppContext } from "../AppContext";
 import SuggestedServicesModal from "../operations/components/SuggestedServicesModal";
 import { useTheme } from "@mui/material";
+import ViewColumnIcon from "@mui/icons-material/ViewColumn";
 
 const blinkAnimation = keyframes`
   0% { background-color: #fff3cd; }
@@ -74,12 +79,41 @@ const ViewNewCases = () => {
   const userId = useSelector((state) => state.session.user.id);
   const superVisor = useSuperVisor();
 
-  const [anchorEl, setAnchorEl] = useState(null);
+  const [anchorElNotif, setAnchorElNotif] = useState(null);
+  const [anchorElCols, setAnchorElCols] = useState(null);
   const [suggestedServices, setSuggestedServices] = useState({});
   const [openServicesModal, setOpenServicesModal] = useState(false);
   const [selectedCase, setSelectedCase] = useState(null);
   const [rejectedServiceIds, setRejectedServiceIds] = useState([]);
+  const [openReassignModal, setOpenReassignModal] = useState(false);
+  const [reassignCaseDetails, setReassignCaseDetails] = useState(null);
 
+  const allColumns = [
+    { id: "plate_no", label: "Insurance Plate Number" },
+    { id: "saleforce", label: "Saleforce" },
+    { id: "case", label: "Case" },
+    { id: "placa", label: "Placa Asegurado" },
+    { id: "address", label: "Address" },
+    { id: "status", label: "Status" },
+    { id: "process", label: "Current Process" },
+    { id: "service", label: "Service Type" },
+    { id: "subServices", label: "Sub Services" },
+    { id: "driver", label: "Driver" },
+    { id: "eta", label: "ETA" },
+    { id: "distance", label: "Distance" },
+    { id: "district", label: "District" },
+    { id: "initialBase", label: "Initial Base" },
+    { id: "created_at", label: "Creation Time" },
+    { id: "actions", label: "Actions" },
+  ];
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    const saved = localStorage.getItem("visibleColumns");
+    return saved ? JSON.parse(saved) : allColumns.map((c) => c.id); // all visible by default
+  });
+
+  useEffect(() => {
+    localStorage.setItem("visibleColumns", JSON.stringify(visibleColumns));
+  }, [visibleColumns]);
   useEffect(() => {
     if (subprocessEvents.length > 0) {
       const latestEvent = subprocessEvents[subprocessEvents.length - 1];
@@ -385,11 +419,17 @@ const ViewNewCases = () => {
   };
 
   const handleNotificationClick = (event) => {
-    setAnchorEl(event.currentTarget);
+    setAnchorElNotif(event.currentTarget);
+  };
+  const handleNotificationClose = () => {
+    setAnchorElNotif(null);
   };
 
-  const handleClose = () => {
-    setAnchorEl(null);
+  const handleColumnMenuClick = (event) => {
+    setAnchorElCols(event.currentTarget);
+  };
+  const handleColumnMenuClose = () => {
+    setAnchorElCols(null);
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -453,81 +493,105 @@ const ViewNewCases = () => {
           value={searchInput}
           onChange={handleSearchChange}
         />
-        <IconButton onClick={handleNotificationClick}>
-          <Badge badgeContent={unreadCount} color="error">
-            <NotificationsIcon />
-          </Badge>
-        </IconButton>
 
+        <Box sx={{ display: "flex", gap: 1 }}>
+          {/* Notifications Button */}
+          <IconButton onClick={handleNotificationClick}>
+            <Badge badgeContent={unreadCount} color="error">
+              <NotificationsIcon />
+            </Badge>
+          </IconButton>
+
+          {/* Column visibility button */}
+          <IconButton onClick={handleColumnMenuClick}>
+            <ViewColumnIcon />
+          </IconButton>
+        </Box>
+
+        {/* Notification Menu */}
         <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={handleClose}
+          anchorEl={anchorElNotif}
+          open={Boolean(anchorElNotif)}
+          onClose={handleNotificationClose}
           PaperProps={{ style: { width: 300 } }}
         >
           {notifications.length === 0 ? (
             <MenuItem disabled>No notifications</MenuItem>
           ) : (
-            notifications.map((note) => {
-              return (
-                <MenuItem
-                  key={note.id}
-                  sx={{
-                    bgcolor: note.read
-                      ? theme.palette.background.paper
-                      : theme.palette.action.hover,
-                    color: theme.palette.text.primary,
-                    "&:hover": {
-                      bgcolor: theme.palette.action.selected,
-                    },
-                  }}
-                  onClick={async () => {
-                    setCaseDetails({ id: note?.case_id });
-                    setOpenAssignModal(true);
+            notifications.map((note) => (
+              <MenuItem
+                key={note.id}
+                sx={{
+                  bgcolor: note.read
+                    ? theme.palette.background.paper
+                    : theme.palette.action.hover,
+                  "&:hover": { bgcolor: theme.palette.action.selected },
+                }}
+                onClick={async () => {
+                  setCaseDetails({ id: note?.case_id });
+                  setOpenAssignModal(true);
 
-                    await axios.patch(
-                      `${url}/dispatch/update/report/notification/${note.id}`
-                    );
+                  await axios.patch(
+                    `${url}/dispatch/update/report/notification/${note.id}`
+                  );
 
-                    setNotifications((prev) =>
-                      prev.map((n) =>
-                        n.id === note.id ? { ...n, read: true } : n
-                      )
-                    );
-                  }}
-                >
-                  {note.message}
-                </MenuItem>
-              );
-            })
+                  setNotifications((prev) =>
+                    prev.map((n) =>
+                      n.id === note.id ? { ...n, read: true } : n
+                    )
+                  );
+                }}
+              >
+                {note.message}
+              </MenuItem>
+            ))
           )}
         </Menu>
+
+        {/* Column toggle Menu */}
+        <Menu
+          anchorEl={anchorElCols}
+          open={Boolean(anchorElCols)}
+          onClose={handleColumnMenuClose}
+        >
+          {allColumns.map((col) => (
+            <MenuItem key={col.id}>
+              <input
+                type="checkbox"
+                checked={visibleColumns.includes(col.id)}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setVisibleColumns([...visibleColumns, col.id]);
+                  } else {
+                    setVisibleColumns(
+                      visibleColumns.filter((c) => c !== col.id)
+                    );
+                  }
+                }}
+              />
+              <Typography sx={{ ml: 1 }}>{col.label}</Typography>
+            </MenuItem>
+          ))}
+        </Menu>
       </Box>
+
       <Box sx={{ p: 2 }}>
         <TableContainer>
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Placa Asegurado</TableCell>
-                <TableCell>Saleforce</TableCell>
-                <TableCell>Case</TableCell>
-                <TableCell>Address</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Current Process</TableCell>
-                <TableCell>Service Type</TableCell>
-                <TableCell>Sub Services</TableCell>
-                <TableCell>Driver</TableCell>
-                <TableCell>ETA</TableCell>
-                <TableCell>Distance</TableCell>
-                <TableCell>District</TableCell>
-                <TableCell>Initial Base</TableCell>
-                <TableCell>Actions</TableCell>
+                {allColumns
+                  .filter((col) => visibleColumns.includes(col.id))
+                  .map((col) => (
+                    <TableCell key={col.id}>{col.label}</TableCell>
+                  ))}
               </TableRow>
             </TableHead>
+
             <TableBody>
               {allCases.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} align="center">
+                  <TableCell colSpan={visibleColumns.length} align="center">
                     No cases found
                   </TableCell>
                 </TableRow>
@@ -536,33 +600,48 @@ const ViewNewCases = () => {
                   const devices = JSON.parse(row.device_meta || "[]");
                   let case_name = differentiateValues(row.case_name);
 
-                  return devices.map((device, idx) => {
-                    return (
-                      <TableRow
-                        key={`${row.id}-${device.id}-${idx}`}
-                        sx={{
-                          animation:
-                            row.id === highlightedId
-                              ? `${blinkAnimation} 1s ease-in-out`
-                              : undefined,
-                        }}
-                      >
+                  return devices.map((device, idx) => (
+                    <TableRow
+                      key={`${row.id}-${device.id}-${idx}`}
+                      sx={{
+                        animation:
+                          row.id === highlightedId
+                            ? `${blinkAnimation} 1s ease-in-out`
+                            : undefined,
+                      }}
+                    >
+                      {visibleColumns.includes("placa") && (
                         <TableCell>{device.name || "N/A"}</TableCell>
+                      )}
+                      {visibleColumns.includes("saleforce") && (
                         <TableCell>
                           {case_name.type === "saleforce"
                             ? case_name.value
                             : "-"}
                         </TableCell>
+                      )}
+                      {visibleColumns.includes("case") && (
                         <TableCell>
                           {case_name.type === "echong_case"
                             ? case_name.value
                             : "-"}
                         </TableCell>
+                      )}
+                      {visibleColumns.includes("plate_no") && (
+                        <TableCell>{row.plate_no}</TableCell>
+                      )}
+                      {visibleColumns.includes("address") && (
                         <TableCell>{row.case_address}</TableCell>
+                      )}
+                      {visibleColumns.includes("status") && (
                         <TableCell>{getStatusChip(row.status)}</TableCell>
+                      )}
+                      {visibleColumns.includes("process") && (
                         <TableCell>
                           {getProcessChip(row?.current_subprocess)}
                         </TableCell>
+                      )}
+                      {visibleColumns.includes("service") && (
                         <TableCell>
                           {device.services?.map((service, index) => (
                             <Chip
@@ -574,6 +653,8 @@ const ViewNewCases = () => {
                             />
                           )) || "N/A"}
                         </TableCell>
+                      )}
+                      {visibleColumns.includes("subServices") && (
                         <TableCell>
                           {(suggestedServices[row.id] || []).length > 0
                             ? suggestedServices[row.id].map(
@@ -590,16 +671,30 @@ const ViewNewCases = () => {
                               )
                             : "None"}
                         </TableCell>
+                      )}
+                      {visibleColumns.includes("driver") && (
                         <TableCell>{device.drivername || "N/A"}</TableCell>
-
+                      )}
+                      {visibleColumns.includes("eta") && (
                         <TableCell>
                           {device.eta ? `${device.eta} min` : "N/A"}
                         </TableCell>
+                      )}
+                      {visibleColumns.includes("distance") && (
                         <TableCell>
                           {device.distance ? `${device.distance} km` : "N/A"}
                         </TableCell>
+                      )}
+                      {visibleColumns.includes("district") && (
                         <TableCell>{device.district || "N/A"}</TableCell>
+                      )}
+                      {visibleColumns.includes("initialBase") && (
                         <TableCell>{device.initialBase || "N/A"}</TableCell>
+                      )}
+                      {visibleColumns.includes("created_at") && (
+                        <TableCell>{row.created_at || "N/A"}</TableCell>
+                      )}
+                      {visibleColumns.includes("actions") && (
                         <TableCell>
                           <Box sx={{ display: "flex" }}>
                             <IconButton
@@ -632,14 +727,26 @@ const ViewNewCases = () => {
                                 <RuleIcon />
                               </Badge>
                             </IconButton>
+                            <IconButton
+                              onClick={() => {
+                                setReassignCaseDetails({
+                                  id: row.id,
+                                  name: row.case_name,
+                                });
+                                setOpenReassignModal(true);
+                              }}
+                            >
+                              {" "}
+                              <SwapHorizIcon color="primary" />{" "}
+                            </IconButton>
                           </Box>
                         </TableCell>
-                      </TableRow>
-                    );
-                  });
+                      )}
+                    </TableRow>
+                  ));
                 })
               ) : (
-                <TableShimmer columns={13} />
+                <TableShimmer columns={visibleColumns.length} />
               )}
             </TableBody>
           </Table>
@@ -662,6 +769,27 @@ const ViewNewCases = () => {
           openAssignModal={openAssignModal}
           setOpenAssignModal={setOpenAssignModal}
           caseDetails={caseDetails}
+        />
+        <ReassignCaseModal
+          open={openReassignModal}
+          onClose={() => setOpenReassignModal(false)}
+          caseDetails={reassignCaseDetails}
+          onReassign={async (caseId, advisorId, newCaseId) => {
+            // 🔥 Refresh cases
+            toast.success("Case reassigned successfully 🎉");
+            await getAllNewCases(
+              userId,
+              superVisor,
+              page,
+              rowsPerPage,
+              searchTerm
+            ).then(({ data }) => {
+              if (data.status) {
+                setAllCases(data.data);
+                setTotalCases(data.pagination?.total || 0);
+              }
+            });
+          }}
         />
 
         <SuggestedServicesModal

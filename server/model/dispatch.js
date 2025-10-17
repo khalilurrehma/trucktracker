@@ -329,10 +329,15 @@ export const fetchDispatchCases = async (offset, limit, search = "") => {
           'device_id', dcd.device_id,
           'device_name', nsd.name
         )
-      ) AS assigned_devices
+      ) AS assigned_devices,
+      MAX(JSON_UNQUOTE(JSON_EXTRACT(rr.report_data, '$.NroPlaca'))) AS rimac_nroplaca
     FROM dispatch_cases dc
-    LEFT JOIN dispatch_case_devices dcd ON dc.id = dcd.dispatch_case_id
-    LEFT JOIN new_settings_devices nsd ON dcd.device_id = nsd.id
+    LEFT JOIN dispatch_case_devices dcd 
+      ON dc.id = dcd.dispatch_case_id
+    LEFT JOIN new_settings_devices nsd 
+      ON dcd.device_id = nsd.id
+    LEFT JOIN rimac_reports rr 
+      ON JSON_UNQUOTE(JSON_EXTRACT(rr.report_data, '$.Caso')) = dc.case_name
     ${whereClause}
     GROUP BY dc.id
     ORDER BY dc.created_at DESC
@@ -353,6 +358,7 @@ export const fetchDispatchCases = async (offset, limit, search = "") => {
         ...row,
         assigned_devices: JSON.parse(row.assigned_devices || "[]"),
         file_data: JSON.parse(row.file_data || "[]"),
+        plate_no: row.rimac_nroplaca || null, // only NroPlaca
       })),
       total,
     };
@@ -382,10 +388,13 @@ export const fetchDispatchCasesByUserId = async (
           'device_id', dcd.device_id,
           'device_name', nsd.name
         )
-      ) AS assigned_devices
+      ) AS assigned_devices,
+      MAX(JSON_UNQUOTE(JSON_EXTRACT(rr.report_data, '$.NroPlaca'))) AS rimac_nroplaca
     FROM dispatch_cases dc
     LEFT JOIN dispatch_case_devices dcd ON dc.id = dcd.dispatch_case_id
     LEFT JOIN new_settings_devices nsd ON dcd.device_id = nsd.id
+    LEFT JOIN rimac_reports rr 
+      ON JSON_UNQUOTE(JSON_EXTRACT(rr.report_data, '$.Caso')) = dc.case_name
     WHERE dc.user_id = ?
     ${whereClause}
     GROUP BY dc.id
@@ -407,6 +416,7 @@ export const fetchDispatchCasesByUserId = async (
         ...row,
         assigned_devices: JSON.parse(row.assigned_devices || "[]"),
         file_data: JSON.parse(row.file_data || "[]"),
+        plate_no: row.rimac_nroplaca || null, // ✅ added like fetchDispatchCases
       })),
       total,
     };
@@ -547,15 +557,19 @@ export const findCaseByUserIdAndDeviceId = async (userId, deviceId) => {
           'device_id', dcd.device_id,
           'device_name', nsd.name
         )
-      ) AS assigned_devices
-    FROM 
-      dispatch_cases dc
-    JOIN 
-      dispatch_case_devices dcd ON dc.id = dcd.dispatch_case_id
-    JOIN 
-      new_settings_devices nsd ON dcd.device_id = nsd.id
+      ) AS assigned_devices,
+      MAX(JSON_UNQUOTE(JSON_EXTRACT(rr.report_data, '$.NroPlaca'))) AS rimac_nroplaca
+    FROM dispatch_cases dc
+    JOIN dispatch_case_devices dcd 
+      ON dc.id = dcd.dispatch_case_id
+    JOIN new_settings_devices nsd 
+      ON dcd.device_id = nsd.id
+    LEFT JOIN rimac_reports rr
+      ON JSON_UNQUOTE(JSON_EXTRACT(rr.report_data, '$.Caso')) = dc.case_name
     WHERE 
-      dc.user_id = ? AND dcd.device_id = ? AND dc.status != 'completed'
+      dc.user_id = ? 
+      AND dcd.device_id = ? 
+      AND dc.status != 'completed'
     GROUP BY 
       dc.id
     ORDER BY 
@@ -568,6 +582,7 @@ export const findCaseByUserIdAndDeviceId = async (userId, deviceId) => {
       ...row,
       assigned_devices: JSON.parse(row.assigned_devices || "[]"),
       file_data: JSON.parse(row.file_data || "[]"),
+      plate_no: row.rimac_nroplaca || null, // igual ao outro método
     }));
   } catch (error) {
     console.error("Error fetching filtered dispatch cases:", error);
@@ -1615,4 +1630,164 @@ export const fetchPoliceStationData = async () => {
     console.error("Error fetchPoliceStationData:", error);
     throw error;
   }
+};
+export const queryUnassignedDrivers = async (search = "") => {
+  const hasSearch = !!search.trim();
+  const params = hasSearch ? [`%${search}%`] : [];
+
+  const query = `
+    SELECT DISTINCT 
+      vda.driver_id, 
+      d.name AS driver_name,
+      vda.device_id, 
+      dc.status
+    FROM vehicle_driver_association vda
+    JOIN drivers d 
+      ON vda.driver_id = d.id
+    LEFT JOIN dispatch_case_devices dcd 
+      ON vda.device_id = dcd.device_id
+    LEFT JOIN dispatch_cases dc 
+      ON dcd.dispatch_case_id = dc.id
+    WHERE (dc.id IS NULL OR dc.status = 'completed')
+    ${hasSearch ? "AND (d.name LIKE ? OR vda.driver_id LIKE ?)" : ""}
+    ORDER BY vda.driver_id ASC
+  `;
+
+  // If search is active, we use it twice (for name and id)
+  const finalParams = hasSearch ? [`%${search}%`, `%${search}%`] : [];
+
+  return await dbQuery(query, finalParams);
+};
+
+// models/dispatchModel.js
+export const reassignCaseModel = async (caseId, driverId, deviceId) => {
+  // 1. Get original case data
+  const [caseData] = await dbQuery(
+    "SELECT * FROM dispatch_cases WHERE id = ?",
+    [caseId]
+  );
+
+  if (!caseData) {
+    throw new Error("Case not found");
+  }
+
+  // 2. Parse old device_meta
+  let oldDeviceMeta = [];
+  try {
+    oldDeviceMeta = JSON.parse(caseData.device_meta || "[]");
+  } catch {
+    oldDeviceMeta = [];
+  }
+
+  // just take the first device info (if available)
+  const oldDevice = oldDeviceMeta[0] || {};
+
+  // 3. Get driver details
+  const [driver] = await dbQuery("SELECT * FROM drivers WHERE id = ?", [
+    driverId,
+  ]);
+  if (!driver) {
+    throw new Error("Driver not found");
+  }
+
+  // 4. Get device details
+  const [device] = await dbQuery(
+    "SELECT * FROM new_settings_devices WHERE id = ?",
+    [deviceId]
+  );
+  if (!device) {
+    throw new Error("Device not found");
+  }
+
+  // 5. Parse driver location if exists
+  let lat = null;
+  let lng = null;
+  try {
+    if (driver.location) {
+      const loc = JSON.parse(driver.location);
+      lat = loc.latitude || null;
+      lng = loc.longitude || null;
+    }
+  } catch {
+    // ignore parse errors
+  }
+
+  // 6. Build merged device_meta
+  const newDeviceMeta = JSON.stringify([
+    {
+      id: device.id,
+      name: device.name || null,
+      model: device.model || null,
+      phone: device.phone || null,
+      speed: device.speed || 0,
+      driver: driver.name || null,
+      drivername: driver.name || null,
+      status: device.traccar_status || driver.availability_status || "offline",
+      contact: device.contact || null,
+      groupId: device.groupId || 0,
+      category: device.category || null,
+      cost: device.cost_by_km ? `Cost per Km: ${device.cost_by_km}` : "Not set",
+      costByKm: device.cost_by_km || null,
+      disabled: device.disabled || 0,
+      fixTime: device.lastUpdate || driver.updated_at || null,
+      expirationTime: device.expirationTime || null,
+      driverAvailability: driver.availability_status || "available",
+      uniqueId: device.uniqueId || driver.unique_id || null,
+      attributes: device.attributes || driver.attributes || {},
+      initialBase: device.initialBase || "Never recorded",
+
+      // ✅ always taken from old device data (if exists)
+      eta: oldDevice.eta || null,
+      distance: oldDevice.distance || null,
+      district: oldDevice.district || "N/A",
+      services: oldDevice.services || [],
+
+      // ✅ location priority
+      lat: lat ?? device.lat ?? oldDevice.lat ?? null,
+      lng: lng ?? device.lng ?? oldDevice.lng ?? null,
+    },
+  ]);
+
+  // 7. Insert new case
+  const insertQuery = `
+    INSERT INTO dispatch_cases (
+      user_id,
+      case_name,
+      case_address,
+      position,
+      status,
+      current_subprocess,
+      message,
+      created_at,
+      updated_at,
+      file_data,
+      device_meta,
+      meta_data,
+      reassign
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?)
+  `;
+
+  const result = await dbQuery(insertQuery, [
+    caseData.user_id,
+    caseData.case_name,
+    caseData.case_address,
+    caseData.position,
+    "pending", // reset status
+    "advisor_assignment", // reset subprocess
+    caseData.message,
+    caseData.file_data,
+    newDeviceMeta,
+    caseData.meta_data,
+    1, // mark as reassigned
+  ]);
+
+  const newCaseId = result.insertId;
+
+  // 8. Assign device to new case
+  await dbQuery(
+    "INSERT INTO dispatch_case_devices (dispatch_case_id, device_id) VALUES (?, ?)",
+    [newCaseId, deviceId]
+  );
+
+  return newCaseId;
 };

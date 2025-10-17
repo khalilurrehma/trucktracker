@@ -15,6 +15,8 @@ import {
   Tooltip,
 } from "@mui/material";
 import RoomIcon from "@mui/icons-material/Room";
+import ViewColumnIcon from "@mui/icons-material/ViewColumn";
+import { Menu, MenuItem } from "@mui/material";
 import dayjs from "dayjs";
 import useDistrictFetcher from "../../settings/hooks/useDistrictFetcher";
 import useZoneRateFetcher from "../../settings/hooks/useZoneRateFetcher";
@@ -63,8 +65,39 @@ const DispatchResultTable = ({
   const [loadingDistricts, setLoadingDistricts] = useState(new Set());
   const [loadingZoneRates, setLoadingZoneRates] = useState(new Set());
   const [rowData, setRowData] = useState([]);
+  const [anchorElCols, setAnchorElCols] = useState(null);
   const isGrua = selectedServiceType.some((service) => service.name === "GRUA");
+  const allColumns = [
+    { id: "location", label: "Location" },
+    { id: "lastConnection", label: "Last Connection" },
+    { id: "movement", label: "Movement" },
+    { id: "appStatus", label: "App Status" },
+    { id: "subprocess", label: "Subprocess" },
+    { id: "licensePlate", label: "License Plate" },
+    { id: "type", label: "Type" },
+    { id: "advisor", label: "Advisor" },
+    { id: "distance", label: "Distance (km)" },
+    { id: "eta", label: "ETA (min)" },
+    { id: "cost", label: "Cost ($)" },
+    ...(isGrua ? [{ id: "zoneRate", label: "Zone Rate" }] : []),
+    { id: "district", label: "District" },
+    { id: "initialBase", label: "Initial Base" },
+    { id: "rimacEta", label: "Rimac ETA (min)" },
+  ];
 
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    const saved = localStorage.getItem("dispatchVisibleColumns");
+    return saved ? JSON.parse(saved) : allColumns.map((c) => c.id);
+  });
+
+  useEffect(() => {
+    localStorage.setItem(
+      "dispatchVisibleColumns",
+      JSON.stringify(visibleColumns)
+    );
+  }, [visibleColumns]);
+  const handleColumnMenuClick = (event) => setAnchorElCols(event.currentTarget);
+  const handleColumnMenuClose = () => setAnchorElCols(null);
   const getAvailabilityChip = (status) => {
     switch (status) {
       case "available":
@@ -619,297 +652,105 @@ const DispatchResultTable = ({
 
   return (
     <Box sx={{ mt: 4 }}>
+      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+        <IconButton onClick={handleColumnMenuClick}>
+          <ViewColumnIcon />
+        </IconButton>
+        <Menu
+          anchorEl={anchorElCols}
+          open={Boolean(anchorElCols)}
+          onClose={handleColumnMenuClose}
+        >
+          {allColumns.map((col) => (
+            <MenuItem key={col.id}>
+              <input
+                type="checkbox"
+                checked={visibleColumns.includes(col.id)}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setVisibleColumns([...visibleColumns, col.id]);
+                  } else {
+                    setVisibleColumns(
+                      visibleColumns.filter((c) => c !== col.id)
+                    );
+                  }
+                }}
+              />
+              <span style={{ marginLeft: 8 }}>{col.label}</span>
+            </MenuItem>
+          ))}
+        </Menu>
+      </Box>
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell>Location</TableCell>
-            <TableCell>
-              <TableSortLabel
-                active={sortColumn === "lastConnection"}
-                direction={sortColumn === "lastConnection" ? sortOrder : "asc"}
-                onClick={() => handleSort("lastConnection")}
-              >
-                Last Connection
-              </TableSortLabel>
-            </TableCell>
-            <TableCell>
-              <TableSortLabel
-                active={sortColumn === "movement"}
-                direction={sortColumn === "movement" ? sortOrder : "asc"}
-                onClick={() => handleSort("movement")}
-              >
-                Movement
-              </TableSortLabel>
-            </TableCell>
-            <TableCell>App Status</TableCell>
-            <TableCell>Subprocess</TableCell>
-            <TableCell>
-              <TableSortLabel
-                active={sortColumn === "licensePlate"}
-                direction={sortColumn === "licensePlate" ? sortOrder : "asc"}
-                onClick={() => handleSort("licensePlate")}
-              >
-                License Plate
-              </TableSortLabel>
-            </TableCell>
-            <TableCell>
-              <TableSortLabel
-                active={sortColumn === "type"}
-                direction={sortColumn === "type" ? sortOrder : "asc"}
-                onClick={() => handleSort("type")}
-              >
-                Type
-              </TableSortLabel>
-            </TableCell>
-            <TableCell>
-              <TableSortLabel
-                active={sortColumn === "advisor"}
-                direction={sortColumn === "advisor" ? sortOrder : "asc"}
-                onClick={() => handleSort("advisor")}
-              >
-                Advisor
-              </TableSortLabel>
-            </TableCell>
-            <TableCell>
-              <TableSortLabel
-                active={sortColumn === "distance"}
-                direction={sortColumn === "distance" ? sortOrder : "asc"}
-                onClick={() => handleSort("distance")}
-              >
-                Distance (km)
-              </TableSortLabel>
-            </TableCell>
-            <TableCell>
-              <TableSortLabel
-                active={sortColumn === "eta"}
-                direction={sortColumn === "eta" ? sortOrder : "asc"}
-                onClick={() => handleSort("eta")}
-              >
-                ETA (min)
-              </TableSortLabel>
-            </TableCell>
-            <TableCell>
-              <TableSortLabel
-                active={sortColumn === "cost"}
-                direction={sortColumn === "cost" ? sortOrder : "asc"}
-                onClick={() => handleSort("cost")}
-              >
-                Cost ($)
-              </TableSortLabel>
-            </TableCell>
-            {isGrua && (
-              <TableCell>
-                <TableSortLabel
-                  active={sortColumn === "zoneRate"}
-                  direction={sortColumn === "zoneRate" ? sortOrder : "asc"}
-                  onClick={() => handleSort("zoneRate")}
-                >
-                  Zone Rate
-                </TableSortLabel>
-              </TableCell>
-            )}
-            <TableCell>
-              <TableSortLabel
-                active={sortColumn === "district"}
-                direction={sortColumn === "district" ? sortOrder : "asc"}
-                onClick={() => handleSort("district")}
-              >
-                District
-              </TableSortLabel>
-            </TableCell>
-            <TableCell>
-              <TableSortLabel
-                active={sortColumn === "initialBase"}
-                direction={sortColumn === "initialBase" ? sortOrder : "asc"}
-                onClick={() => handleSort("initialBase")}
-              >
-                Initial Base
-              </TableSortLabel>
-            </TableCell>
-            <TableCell>Rimac ETA (min)</TableCell>
+            {allColumns
+              .filter((col) => visibleColumns.includes(col.id))
+              .map((col) => (
+                <TableCell key={col.id}>
+                  {[
+                    "lastConnection",
+                    "movement",
+                    "licensePlate",
+                    "type",
+                    "advisor",
+                    "distance",
+                    "eta",
+                    "cost",
+                    "zoneRate",
+                    "district",
+                    "initialBase",
+                  ].includes(col.id) ? (
+                    <TableSortLabel
+                      active={sortColumn === col.id}
+                      direction={sortColumn === col.id ? sortOrder : "asc"}
+                      onClick={() => handleSort(col.id)}
+                    >
+                      {col.label}
+                    </TableSortLabel>
+                  ) : (
+                    col.label
+                  )}
+                </TableCell>
+              ))}
           </TableRow>
+          {/* Filters row */}
           <TableRow>
-            <TableCell />
-            <TableCell>
-              <TextField
-                size="small"
-                variant="standard"
-                placeholder="Search"
-                value={columnFilters.lastConnection}
-                onChange={(e) =>
-                  setColumnFilters((prev) => ({
-                    ...prev,
-                    lastConnection: e.target.value,
-                  }))
-                }
-              />
-            </TableCell>
-            <TableCell>
-              <TextField
-                size="small"
-                variant="standard"
-                placeholder="Search"
-                value={columnFilters.movement}
-                onChange={(e) =>
-                  setColumnFilters((prev) => ({
-                    ...prev,
-                    movement: e.target.value,
-                  }))
-                }
-              />
-            </TableCell>
-            <TableCell>
-              <TextField
-                size="small"
-                variant="standard"
-                placeholder="Search"
-                value={columnFilters.appStatus}
-                onChange={(e) =>
-                  setColumnFilters((prev) => ({
-                    ...prev,
-                    appStatus: e.target.value,
-                  }))
-                }
-              />
-            </TableCell>
-            <TableCell />
-            <TableCell>
-              <TextField
-                size="small"
-                variant="standard"
-                placeholder="Search"
-                value={columnFilters.licensePlate}
-                onChange={(e) =>
-                  setColumnFilters((prev) => ({
-                    ...prev,
-                    licensePlate: e.target.value,
-                  }))
-                }
-              />
-            </TableCell>
-            <TableCell>
-              <TextField
-                size="small"
-                variant="standard"
-                placeholder="Search"
-                value={columnFilters.type}
-                onChange={(e) =>
-                  setColumnFilters((prev) => ({
-                    ...prev,
-                    type: e.target.value,
-                  }))
-                }
-              />
-            </TableCell>
-            <TableCell>
-              <TextField
-                size="small"
-                variant="standard"
-                placeholder="Search"
-                value={columnFilters.advisor}
-                onChange={(e) =>
-                  setColumnFilters((prev) => ({
-                    ...prev,
-                    advisor: e.target.value,
-                  }))
-                }
-              />
-            </TableCell>
-            <TableCell>
-              <Tooltip title="Search">
-                <TextField
-                  size="small"
-                  variant="standard"
-                  placeholder="Search"
-                  value={columnFilters.distance}
-                  onChange={(e) =>
-                    setColumnFilters((prev) => ({
-                      ...prev,
-                      distance: e.target.value,
-                    }))
-                  }
-                />
-              </Tooltip>
-            </TableCell>
-            <TableCell>
-              <Tooltip title="Search">
-                <TextField
-                  size="small"
-                  variant="standard"
-                  placeholder="Search"
-                  value={columnFilters.eta}
-                  onChange={(e) =>
-                    setColumnFilters((prev) => ({
-                      ...prev,
-                      eta: e.target.value,
-                    }))
-                  }
-                />
-              </Tooltip>
-            </TableCell>
-            <TableCell>
-              <Tooltip title="Search">
-                <TextField
-                  size="small"
-                  variant="standard"
-                  placeholder="Search"
-                  value={columnFilters.cost}
-                  onChange={(e) =>
-                    setColumnFilters((prev) => ({
-                      ...prev,
-                      cost: e.target.value,
-                    }))
-                  }
-                />
-              </Tooltip>
-            </TableCell>
-            {isGrua && (
-              <TableCell>
-                <TextField
-                  size="small"
-                  variant="standard"
-                  placeholder="Search"
-                  value={columnFilters.zoneRate}
-                  onChange={(e) =>
-                    setColumnFilters((prev) => ({
-                      ...prev,
-                      zoneRate: e.target.value,
-                    }))
-                  }
-                />
-              </TableCell>
-            )}
-            <TableCell>
-              <TextField
-                size="small"
-                variant="standard"
-                placeholder="Search"
-                value={columnFilters.district}
-                onChange={(e) =>
-                  setColumnFilters((prev) => ({
-                    ...prev,
-                    district: e.target.value,
-                  }))
-                }
-              />
-            </TableCell>
-            <TableCell>
-              <TextField
-                size="small"
-                variant="standard"
-                placeholder="Search"
-                value={columnFilters.initialBase}
-                onChange={(e) =>
-                  setColumnFilters((prev) => ({
-                    ...prev,
-                    initialBase: e.target.value,
-                  }))
-                }
-              />
-            </TableCell>
-            <TableCell />
+            {allColumns
+              .filter((col) => visibleColumns.includes(col.id))
+              .map((col) => (
+                <TableCell key={col.id}>
+                  {[
+                    "licensePlate",
+                    "type",
+                    "advisor",
+                    "lastConnection",
+                    "movement",
+                    "distance",
+                    "eta",
+                    "cost",
+                    "district",
+                    "initialBase",
+                    "zoneRate",
+                  ].includes(col.id) ? (
+                    <TextField
+                      size="small"
+                      variant="standard"
+                      placeholder="Search"
+                      value={columnFilters[col.id] || ""}
+                      onChange={(e) =>
+                        setColumnFilters((prev) => ({
+                          ...prev,
+                          [col.id]: e.target.value,
+                        }))
+                      }
+                    />
+                  ) : null}
+                </TableCell>
+              ))}
           </TableRow>
         </TableHead>
+
         <TableBody>
           {filteredItems
             .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
@@ -941,41 +782,66 @@ const DispatchResultTable = ({
                       : "inherit",
                   }}
                 >
-                  <TableCell>
-                    <IconButton
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleZoomToDevice(device);
-                      }}
+                  {visibleColumns.includes("location") && (
+                    <TableCell>
+                      <IconButton
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleZoomToDevice(device);
+                        }}
+                      >
+                        <RoomIcon fontSize="small" />
+                      </IconButton>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes("lastConnection") && (
+                    <TableCell>{device.fixTime || "N/A"}</TableCell>
+                  )}
+                  {visibleColumns.includes("movement") && (
+                    <TableCell
+                      sx={{ color: device.speed > 5 ? "green" : "red" }}
                     >
-                      <RoomIcon fontSize="small" />
-                    </IconButton>
-                  </TableCell>
-                  <TableCell>{device.fixTime || "N/A"}</TableCell>
-                  <TableCell sx={{ color: device.speed > 5 ? "green" : "red" }}>
-                    {device.speed > 5 ? "Moving" : "Stop"}
-                  </TableCell>
-                  <TableCell>
-                    {getAvailabilityChip(device.driverAvailability)}
-                  </TableCell>
-                  <TableCell>N/A</TableCell>
-                  <TableCell>{deviceInfo.name || "N/A"}</TableCell>
-                  <TableCell>
-                    {deviceInfo.services?.map((service, index) => (
-                      <Chip
-                        key={index}
-                        label={service.serviceName || service.name || "N/A"}
-                        sx={{ mr: 1, mb: 1 }}
-                      />
-                    )) || "N/A"}
-                  </TableCell>
-                  <TableCell>{deviceInfo.driver || "Not associated"}</TableCell>
-                  <TableCell>{distance}</TableCell>
-                  <TableCell>{eta !== "N/A" ? `${eta} min` : eta}</TableCell>
-                  <TableCell>
-                    {cost !== "Not set" ? `${cost} $` : cost}
-                  </TableCell>
-                  {isGrua && (
+                      {device.speed > 5 ? "Moving" : "Stop"}
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes("appStatus") && (
+                    <TableCell>
+                      {getAvailabilityChip(device.driverAvailability)}
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes("subprocess") && (
+                    <TableCell>N/A</TableCell>
+                  )}
+                  {visibleColumns.includes("licensePlate") && (
+                    <TableCell>{deviceInfo.name || "N/A"}</TableCell>
+                  )}
+                  {visibleColumns.includes("type") && (
+                    <TableCell>
+                      {deviceInfo.services?.map((s, i) => (
+                        <Chip
+                          key={i}
+                          label={s.serviceName || s.name || "N/A"}
+                        />
+                      )) || "N/A"}
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes("advisor") && (
+                    <TableCell>
+                      {deviceInfo.driver || "Not associated"}
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes("distance") && (
+                    <TableCell>{distance}</TableCell>
+                  )}
+                  {visibleColumns.includes("eta") && (
+                    <TableCell>{eta !== "N/A" ? `${eta} min` : eta}</TableCell>
+                  )}
+                  {visibleColumns.includes("cost") && (
+                    <TableCell>
+                      {cost !== "Not set" ? `${cost} $` : cost}
+                    </TableCell>
+                  )}
+                  {isGrua && visibleColumns.includes("zoneRate") && (
                     <TableCell>
                       {zoneRates[device.id] ? (
                         `$${zoneRates[device.id]}`
@@ -986,19 +852,25 @@ const DispatchResultTable = ({
                       )}
                     </TableCell>
                   )}
-                  <TableCell>
-                    {districts[device.id] ? (
-                      districts[device.id]
-                    ) : loadingDistricts.has(device.id) ? (
-                      <CircularProgress size={15} />
-                    ) : (
-                      "N/A"
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {deviceInfo.initialBase || "Never recorded"}
-                  </TableCell>
-                  <TableCell>N/A</TableCell>
+                  {visibleColumns.includes("district") && (
+                    <TableCell>
+                      {districts[device.id] ? (
+                        districts[device.id]
+                      ) : loadingDistricts.has(device.id) ? (
+                        <CircularProgress size={15} />
+                      ) : (
+                        "N/A"
+                      )}
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes("initialBase") && (
+                    <TableCell>
+                      {deviceInfo.initialBase || "Never recorded"}
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes("rimacEta") && (
+                    <TableCell>N/A</TableCell>
+                  )}
                 </TableRow>
               );
             })}

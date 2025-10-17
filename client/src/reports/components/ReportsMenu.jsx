@@ -112,19 +112,19 @@ const ReportsMenu = () => {
           icon={<NotificationsActiveIcon />}
           selected={location.pathname === "/reports/new-event"}
         />
-        <MenuItem
+        {/* <MenuItem
           title={t("reportAssistanceControl")}
           link="/reports/assistance"
           icon={<AssignmentIcon />}
           selected={location.pathname === "/reports/assistance"}
-        />
+        /> */}
         <MenuItem
           title={t("reportsDriverBehavior")}
           link="/reports/driver-behaviour"
           icon={<PsychologyIcon />}
           selected={location.pathname === "/reports/driver-behaviour"}
         />
-        <Accordion
+        {/* <Accordion
           expanded={expanded.includes("dispatch")}
           onChange={handleChange("dispatch")}
           sx={accordinSX}
@@ -160,7 +160,7 @@ const ReportsMenu = () => {
               selected={location.pathname.endsWith("devices/logs")}
             />
           </AccordionDetails>
-        </Accordion>
+        </Accordion> */}
         {/* <MenuItem
           title={t("reportTrips")}
           link="/reports/trip"

@@ -66,6 +66,8 @@ import {
   updateRimacReportStatus,
   updateSearchHistory,
   verifyExistingReading,
+  queryUnassignedDrivers,
+  reassignCaseModel,
 } from "../model/dispatch.js";
 import {
   driverStatusAvailable,
@@ -2188,5 +2190,48 @@ export const postVehicleOdometerReading = async (req, res) => {
       error:
         process.env.NODE_ENV === "development" ? error?.message : undefined,
     });
+  }
+};
+export const getUnassignedDrivers = async (req, res) => {
+  const { search } = req.query;
+
+  try {
+    const drivers = await queryUnassignedDrivers(search || "");
+
+    if (!drivers || drivers.length === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "No unassigned drivers found" });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: "Unassigned drivers fetched successfully",
+      data: drivers,
+    });
+  } catch (error) {
+    console.error("Error in getUnassignedDrivers:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const reassignCaseController = async (req, res) => {
+  const { caseId, driverId, deviceId } = req.body;
+
+  if (!caseId || !driverId || !deviceId) {
+    return res.status(400).json({ success: false, message: "Missing params" });
+  }
+
+  try {
+    const newCaseId = await reassignCaseModel(caseId, driverId, deviceId);
+
+    res.status(200).json({
+      success: true,
+      message: "Case reassigned successfully",
+      newCaseId,
+    });
+  } catch (error) {
+    console.error("Error reassigning case:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };

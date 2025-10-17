@@ -40,12 +40,14 @@ export default (
       )
       .filter((device) => {
         const lowerCaseKeyword = keyword.toLowerCase();
+
         return [
           device.name,
           device.uniqueId,
           device.phone,
           device.model,
           device.contact,
+          device.driver_name || "",
         ].some((s) => s && s.toLowerCase().includes(lowerCaseKeyword));
       });
     switch (filterSort) {
