@@ -107,7 +107,7 @@ const AppContextProvider = ({ children }) => {
       traccarUser?.email === "pieromeza@gmail.com" ||
       traccarUser?.email === "Pieromeza@gmail.com" ||
       traccarUser?.email === "admin@nextop.vip" ||
-      traccarUser?.email === "mohammadsabihka68@gmail.com" ||
+      traccarUser?.email === "admin@admin.com" ||
       traccarUser?.email === "admin@gmail.com"
     ) {
       setTraccarUser((prevUser) => ({

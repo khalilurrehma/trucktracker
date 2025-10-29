@@ -533,6 +533,7 @@
     "reportTrips": "Ture",
     "reportStops": "Antal stop",
     "reportSummary": "Resume",
+    "reportLoadiq": "reportLoadiq",
     "reportDaily": "Daglig opsummering",
     "reportChart": "Graf",
     "reportConfigure": "Konfigurer",

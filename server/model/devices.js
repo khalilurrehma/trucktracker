@@ -740,18 +740,19 @@ export const unassignServicesForDevice = async (deviceId, serviceIds) => {
   }
 };
 
-export const getDeviceServices = async (deviceIds) => {
+export const getDeviceServices = async (deviceIds = []) => {
+  if (!deviceIds.length) return [];
+
+  const placeholders = deviceIds.map(() => '?').join(', ');
   const sql = `
     SELECT ds.device_id, ds.service_type_id, st.name AS service_name
     FROM device_service_relations ds
     LEFT JOIN device_service_type st ON ds.service_type_id = st.id
-    WHERE ds.device_id IN (?)
+    WHERE ds.device_id IN (${placeholders})
   `;
 
-  const values = [deviceIds];
-
   try {
-    const result = await dbQuery(sql, values);
+    const result = await dbQuery(sql, deviceIds);
     return result;
   } catch (error) {
     throw new Error(`getDeviceServices failed: ${error.message}`);

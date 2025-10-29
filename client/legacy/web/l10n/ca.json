@@ -533,6 +533,7 @@
     "reportTrips": "Viatges",
     "reportStops": "Parades",
     "reportSummary": "Resum",
+    "reportLoadiq": "reportLoadiq",
     "reportDaily": "Resum diari",
     "reportChart": "Gràfica",
     "reportConfigure": "Configurar",

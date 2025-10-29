@@ -533,6 +533,7 @@
     "reportTrips": "Ritte",
     "reportStops": "Stops",
     "reportSummary": "Opsomming",
+    "reportLoadiq": "reportLoadiq",
     "reportDaily": "Daaglikse Opsomming",
     "reportChart": "Grafiek",
     "reportConfigure": "Konfigureer",
@@ -596,5 +597,6 @@
     "categoryVan": "Paneelwa",
     "categoryScooter": "Moffiebike",
     "maintenanceStart": "Aan",
+    "Loadiq": "Loadiq",
     "maintenancePeriod": "Periode"
 }

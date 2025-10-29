@@ -73,7 +73,12 @@ const OperationsMenu = () => {
   return (
     <>
       <List>
-        <></>
+          <MenuItem
+          title="Loadiq"
+          link="/operations/geofence/map"
+          icon={<TrackChangesIcon />}
+          selected={location.pathname === "/operations/geofence/map"}
+        />
       </List>
     </>
   );

@@ -533,6 +533,7 @@
   "reportTrips": "Viajes",
   "reportStops": "Paradas",
   "reportSummary": "Resumen",
+  "reportLoadiq": "Loadiq",
   "reportDaily": "Resumen diario",
   "reportChart": "Gráfica",
   "reportConfigure": "Configurar",
@@ -606,5 +607,6 @@
   "categoryVan": "Furgoneta",
   "categoryScooter": "Moto",
   "maintenanceStart": "Iniciar",
+  "Loadiq": "Loadiq",
   "maintenancePeriod": "Período"
 }

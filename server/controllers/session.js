@@ -110,6 +110,12 @@ export const realmUserCalcs = async (req, res) => {
 
 export const companyValidCustomCalc = async (req, res) => {
   const { traccarId } = req.params;
+  if (isNaN(traccarId)) {
+    return res.status(400).json({
+      status: false,
+      message: "Invalid traccarId — must be a number",
+    });
+  }
 
   try {
     const subaccount = await subaccountByTraccarId(traccarId);

@@ -529,6 +529,7 @@
   "reportTrips": "Trips",
   "reportStops": "Stops",
   "reportSummary": "Summary",
+  "reportLoadiq": "Loadiq",
   "reportDaily": "Daily Summary",
   "reportChart": "Chart",
   "reportConfigure": "Configure",
@@ -593,5 +594,6 @@
   "categoryVan": "Van",
   "categoryScooter": "Scooter",
   "maintenanceStart": "Start",
+  "operationLoadiq": "Loadiq",
   "maintenancePeriod": "Period"
 }
