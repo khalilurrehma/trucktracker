@@ -30,6 +30,8 @@ import { createWebSocketServer } from "./websocket/wsServer.js";
 import { setBroadcast } from "./mqtt/mqtt.handler.js";
 import { upload } from "./middlewares/multer.middleware.js";
 import { getAuthenticatedS3String, s3 } from "./services/azure.s3.js";
+import operationRoutes from "./routes/operation/operationRoutes.js";
+import zoneRoutes from "./routes/operation/zoneRoutes.js";
 
 dotenv.config();
 
@@ -62,6 +64,8 @@ app.use("/api", sessionRoute);
 app.use("/api", notificationsRoute);
 app.use("/api", traccarRoute);
 app.use("/api", dispatchRoutes);
+app.use("/api", operationRoutes);
+app.use("/api", zoneRoutes);
 
 app.get("/api", (req, res) => {
   res.send("server running!");

@@ -167,7 +167,7 @@ const SettingsMenu = () => {
                 selected={location.pathname.startsWith("/settings/realms")}
               />
             )}
-            {/* {userId === 1 && (
+            {userId === 1 && (
               <Accordion
                 expanded={expanded.includes("admin_calcs")}
                 onChange={handleChange("admin_calcs")}
@@ -209,7 +209,7 @@ const SettingsMenu = () => {
                   />
                 </AccordionDetails>
               </Accordion>
-            )} */}
+            )}
             {userId === 1 && (
               <Accordion
                 expanded={expanded.includes("config")}
