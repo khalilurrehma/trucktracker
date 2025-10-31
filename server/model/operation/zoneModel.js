@@ -6,6 +6,8 @@ import {
   createFlespiGeofence,
   updateFlespiGeofence,
   deleteFlespiGeofence,
+  createFlespiCalculator,
+  assignCalculatorToGeofence
 } from "../../services/flespiApis.js";
 
 // Utility: convert GeoJSON geometry to Flespi format
@@ -98,7 +100,26 @@ export const createZone = async (zone) => {
     ]);
 
     const geofenceId = geofence[0]?.id;
+   // 4️⃣ Fetch all calculator templates from DB
+    const templates = await dbQuery("SELECT * FROM calculator_templates");
 
+    // 5️⃣ Filter templates that match this zoneType
+    const matchingTemplates = templates.filter(t => t.type === zoneType);
+    if (!matchingTemplates.length) {
+      console.warn(`⚠️ No calculator templates found for zoneType ${zoneType}`);
+    }
+
+    // 6️⃣ Create and assign calculators for this geofence
+    for (const tpl of matchingTemplates) {
+      try {
+        const config = JSON.parse(tpl.config_json);
+        const calc = await createFlespiCalculator(config);
+        await assignCalculatorToGeofence(calc.id, geofenceId);
+        console.log(`✅ Assigned calculator "${tpl.name}" (ID ${calc.id}) to geofence ${geofenceId}`);
+      } catch (err) {
+        console.error(`❌ Failed to create/assign calculator "${tpl.name}":`, err.message);
+      }
+    }
     // 4️⃣ Save geofence ID into zone
     await dbQuery(
       "UPDATE zones SET flespi_geofence_id = ? WHERE id = ?",

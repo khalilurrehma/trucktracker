@@ -559,3 +559,74 @@ export const unassignGeofenceFromDevice = async (deviceId, geofenceId) => {
     throw error;
   }
 };
+
+
+export const createFlespiCalculator = async (calculatorConfig) => {
+  try {
+    const url = `${flespiUrl}/calcs`;
+    const { data } = await axios.post(url, [calculatorConfig], {
+      headers: {
+        Authorization: `FlespiToken ${FlespiToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const created = data.result?.[0] || data[0];
+    if (!created?.id) throw new Error("Flespi did not return calculator ID");
+
+    console.log(`🧮 Created calculator "${created.name}" (ID ${created.id})`);
+    return created;
+  } catch (error) {
+    console.error(
+      "❌ Error creating Flespi calculator:",
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
+// Assign calculator (geofence) to device
+export const assignCalculatorToDevice = async (deviceId, calculatorId) => {
+  try {
+    const url = `${flespiUrl}/devices/${encodeURIComponent(deviceId)}/calcs/${encodeURIComponent(calculatorId)}`;
+
+    const { data } = await axios.put(
+      url,
+      {},
+      {
+        headers: {
+          Authorization: `FlespiToken ${FlespiToken}`,
+        },
+      }
+    );
+
+    console.log(`🔗 Assigned calculator ${calculatorId} → device ${deviceId}`);
+    return data.result || data;
+  } catch (error) {
+    console.error(
+      `❌ Error assigning calculator (${calculatorId} → ${deviceId}):`,
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
+export const assignCalculatorToGeofence = async (calcId, geofenceId) => {
+  try {
+    const url = `${flespiUrl}/calcs/${encodeURIComponent(calcId)}/geofences/${encodeURIComponent(geofenceId)}`;
+
+    const { data } = await axios.post(url, null, {
+      headers: {
+        Authorization: `FlespiToken ${FlespiToken}`,
+      },
+    });
+
+    console.log(`🔗 Assigned calculator ${calcId} → geofence ${geofenceId}`);
+    return data.result || data;
+  } catch (error) {
+    console.error(
+      `❌ Error assigning calculator (${calcId} → geofence ${geofenceId}):`,
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
