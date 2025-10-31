@@ -32,7 +32,7 @@ import { upload } from "./middlewares/multer.middleware.js";
 import { getAuthenticatedS3String, s3 } from "./services/azure.s3.js";
 import operationRoutes from "./routes/operation/operationRoutes.js";
 import zoneRoutes from "./routes/operation/zoneRoutes.js";
-
+import deviceAssignmentRoutes from "./routes/operation/deviceAssignmentRoutes.js";
 dotenv.config();
 
 const app = express();
@@ -66,6 +66,8 @@ app.use("/api", traccarRoute);
 app.use("/api", dispatchRoutes);
 app.use("/api", operationRoutes);
 app.use("/api", zoneRoutes);
+app.use("/api", deviceAssignmentRoutes);
+
 
 app.get("/api", (req, res) => {
   res.send("server running!");

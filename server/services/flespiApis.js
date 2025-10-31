@@ -6,8 +6,6 @@ dotenv.config();
 const FlespiToken = process.env.FlespiToken;
 const flespiUrl = "https://flespi.io/gw";
 const flespiRealmUrl = "https://flespi.io/platform";
-const prodFlespiToken =
-  "DO3Z45affw3w5gOo04nP66scC73W5yIwbzl3tl7wGYQB4uOSn1xjVNllJc8EzE1A";
 
 export const getFlespiDevices = async () => {
   try {
@@ -431,6 +429,133 @@ export const allSubaccountCalc = async (flespId) => {
 
     return subaccountCalcs;
   } catch (error) {
+    throw error;
+  }
+};
+
+export const createFlespiGeofence = async (geofences) => {
+  try {
+    const { data } = await axios.post(
+      `${flespiUrl}/geofences?fields=id,name,geometry,metadata`,
+      geofences,
+      {
+        headers: {
+          Authorization: `FlespiToken ${FlespiToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    return data.result;
+  } catch (error) {
+    console.error("❌ Create geofence error:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const getFlespiGeofence = async (
+  selector = "all",
+  fields = "id,name,priority,geometry,metadata"
+) => {
+  try {
+    const encodedSelector = encodeURIComponent(selector);
+    const { data } = await axios.get(
+      `${flespiUrl}/geofences/${encodedSelector}?fields=${fields}`,
+      {
+        headers: {
+          Authorization: `FlespiToken ${FlespiToken}`,
+        },
+      }
+    );
+    return data.result;
+  } catch (error) {
+    console.error("❌ Get geofence error:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const updateFlespiGeofence = async (selector, updates) => {
+  try {
+    const encodedSelector = encodeURIComponent(selector);
+    const { data } = await axios.put(
+      `${flespiUrl}/geofences/${encodedSelector}?fields=id,name,geometry,metadata`,
+      updates,
+      {
+        headers: {
+          Authorization: `FlespiToken ${FlespiToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    return data.result;
+  } catch (error) {
+    console.error("❌ Update geofence error:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const deleteFlespiGeofence = async (selector) => {
+  try {
+    const encodedSelector = encodeURIComponent(selector);
+    const { data } = await axios.delete(
+      `${flespiUrl}/geofences/${encodedSelector}`,
+      {
+        headers: {
+          Authorization: `FlespiToken ${FlespiToken}`,
+        },
+      }
+    );
+    return data.result;
+  } catch (error) {
+    console.error("❌ Delete geofence error:", error.response?.data || error.message);
+    throw error;
+  }
+};
+// Assign single geofence to a device
+// services/flespiApis.js
+export const assignGeofenceToDevice = async (deviceId, geofenceId) => {
+  try {
+    const url = `${flespiUrl}/devices/${deviceId}/geofences/${geofenceId}`;
+    console.log(`🌍 Assigning Flespi Geofence ${geofenceId} → Device ${deviceId}`);
+
+    const { data } = await axios.post(
+      url,
+      null, // ⬅️ no body at all (important)
+      {
+        headers: {
+          Authorization: `FlespiToken ${FlespiToken}`,
+        },
+      }
+    );
+
+    console.log(`✅ Assigned geofence ${geofenceId} → device ${deviceId}`);
+    return data;
+  } catch (err) {
+    console.error(
+      `❌ Assign geofence error (${geofenceId} → ${deviceId}):`,
+      err.response?.data || err.message
+    );
+    throw err;
+  }
+};
+
+
+
+// Unassign geofence from device
+export const unassignGeofenceFromDevice = async (deviceId, geofenceId) => {
+  try {
+    const url = `${flespiUrl}/devices/${encodeURIComponent(deviceId)}/geofences/${encodeURIComponent(geofenceId)}`;
+    const { data } = await axios.delete(url, {
+      headers: {
+        Authorization: `FlespiToken ${FlespiToken}`,
+      },
+    });
+    console.log(`🗑 Unassigned geofence ${geofenceId} from device ${deviceId}`);
+    return data.result || data;
+  } catch (error) {
+    console.error(
+      `❌ Unassign geofence error (${geofenceId} ← ${deviceId}):`,
+      error.response?.data || error.message
+    );
     throw error;
   }
 };
