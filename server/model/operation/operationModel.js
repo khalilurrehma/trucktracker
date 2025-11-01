@@ -7,6 +7,8 @@ import {
     getFlespiGeofence,
     updateFlespiGeofence,
     deleteFlespiGeofence,
+    createFlespiCalculator,
+    assignCalculatorToGeofence
 } from "../../services/flespiApis.js";
 
 // =====================================================
@@ -50,20 +52,17 @@ export const createOperation = async (operation) => {
         const results = await dbQuery(sql, values);
         const operationId = results.insertId;
 
-        // 2️⃣ Create Flespi Geofence
-        // Before calling createFlespiGeofence
+        // 2️⃣ Prepare geometry for Flespi
         let geometryData = geometry;
-
-        // If it's GeoJSON (has coordinates)
-        if (geometry && geometry.type && geometry.coordinates) {
-            const coords = geometry.coordinates[0]; // Flespi needs the first ring
+        if (geometry?.type === "Polygon" && geometry.coordinates?.[0]) {
+            const coords = geometry.coordinates[0];
             geometryData = {
                 type: "polygon",
-                path: coords.map(([lon, lat]) => ({ lat, lon })), // convert pairs
+                path: coords.map(([lon, lat]) => ({ lat, lon })),
             };
         }
 
-        // then pass geometryData to Flespi
+        // 3️⃣ Create Flespi Geofence
         const geofence = await createFlespiGeofence([
             {
                 name: `OP_AREA-${name}`,
@@ -80,19 +79,43 @@ export const createOperation = async (operation) => {
             },
         ]);
 
+        const geofenceId = geofence?.[0]?.id;
 
-        // 3️⃣ Store geofence_id in the DB
+        // 4️⃣ Update DB with Flespi geofence id
         await dbQuery(
             "UPDATE operations SET flespi_geofence_id = ? WHERE id = ?",
-            [geofence[0].id, operationId]
+            [geofenceId, operationId]
         );
 
-        return { id: operationId, flespi_geofence_id: geofence[0].id, ...operation };
+        // 5️⃣ Get calculator templates of type 'OP_AREA'
+        const templates = await dbQuery(
+            "SELECT * FROM calculator_templates WHERE type = 'OP_AREA'"
+        );
+
+        // 6️⃣ Create and assign calculators for this operation
+        for (const tpl of templates) {
+            try {
+                const config = JSON.parse(tpl.config_json);
+                const calc = await createFlespiCalculator(config);
+                await assignCalculatorToGeofence(calc.id, geofenceId);
+                console.log(
+                    `✅ Assigned calculator "${tpl.name}" (ID ${calc.id}) to geofence ${geofenceId}`
+                );
+            } catch (err) {
+                console.error(
+                    `❌ Failed to create/assign calculator "${tpl.name}":`,
+                    err.message
+                );
+            }
+        }
+
+        return { id: operationId, flespi_geofence_id: geofenceId, ...operation };
     } catch (err) {
         console.error("❌ Error creating operation or geofence:", err);
         throw err;
     }
 };
+
 
 // =====================================================
 // UPDATE OPERATION  ➜  also update Flespi geofence
@@ -185,21 +208,24 @@ export const getOperationById = async (id) => {
 // =====================================================
 export const deleteOperation = async (id) => {
   try {
-    // 1️⃣ Get all zones linked to this operation
+    // ✅ 1) Remove device assignments linked to this operation
+    await dbQuery(
+      "DELETE FROM device_assignments WHERE operation_id = ?",
+      [id]
+    );
+
+    // ✅ 2) Get all zones linked to this operation
     const zones = await dbQuery(
       "SELECT id, flespi_geofence_id FROM zones WHERE operationId = ?",
       [id]
     );
 
-    // 2️⃣ Delete each zone and its Flespi geofence
+    // ✅ 3) Delete zones + their geofences
     for (const zone of zones) {
       try {
-        // Delete Flespi geofence if exists
         if (zone.flespi_geofence_id) {
           await deleteFlespiGeofence(zone.flespi_geofence_id.toString());
         }
-
-        // Delete zone record
         await dbQuery("DELETE FROM zones WHERE id = ?", [zone.id]);
       } catch (zoneErr) {
         console.warn(
@@ -209,25 +235,26 @@ export const deleteOperation = async (id) => {
       }
     }
 
-    // 3️⃣ Find operation geofence ID
+    // ✅ 4) Get operation geofence
     const [op] = await dbQuery(
       "SELECT flespi_geofence_id FROM operations WHERE id = ?",
       [id]
     );
     const geofenceId = op?.flespi_geofence_id;
 
-    // 4️⃣ Delete operation from DB
+    // ✅ 5) Delete operation row
     const results = await dbQuery("DELETE FROM operations WHERE id = ?", [id]);
     if (results.affectedRows === 0) return null;
 
-    // 5️⃣ Delete operation’s Flespi geofence
+    // ✅ 6) Remove operation geofence
     if (geofenceId) {
       await deleteFlespiGeofence(geofenceId.toString());
     }
 
     return true;
+
   } catch (err) {
-    console.error("❌ Error deleting operation or its zones/geofences:", err);
+    console.error("❌ Error deleting operation, assignments, or geofences:", err);
     throw err;
   }
 };

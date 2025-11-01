@@ -138,3 +138,29 @@
     @apply bg-background text-foreground;
   }
 }
+/* --- Reusable UI Utilities --- */
+.card {
+  @apply bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))] p-3 rounded-lg border;
+}
+.input {
+  @apply w-full p-2 bg-[hsl(var(--background))] text-[hsl(var(--foreground))] border rounded-md mt-2;
+}
+.btn {
+  @apply w-full p-2 rounded-md bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] mt-2 font-medium hover:opacity-90 transition;
+}
+.btn-small {
+  @apply px-2 py-1 text-xs rounded border bg-red-600 text-white ml-2;
+}
+
+/* Mode buttons */
+.mode-btn {
+  @apply flex-1 px-3 py-2 rounded-md border bg-[hsl(var(--background))] text-[hsl(var(--foreground))] font-semibold cursor-pointer;
+}
+.mode-btn.active {
+  @apply border-2 border-green-400 bg-green-400 text-black;
+}
+
+/* Small label row */
+.label-row {
+  @apply flex justify-between text-xs mt-2;
+}

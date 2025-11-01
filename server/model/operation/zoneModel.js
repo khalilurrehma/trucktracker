@@ -262,23 +262,32 @@ export const getZoneById = async (id) => {
 // ======================================================
 export const deleteZone = async (id) => {
   try {
-    // Find Flespi geofence ID
+    // ✅ 1) Delete device assignments for this zone
+    await dbQuery(
+      "DELETE FROM device_assignments WHERE zone_id = ?",
+      [id]
+    );
+
+    // ✅ 2) Get Flespi geofence ID before deleting
     const [zoneRow] = await dbQuery(
       "SELECT flespi_geofence_id FROM zones WHERE id = ?",
       [id]
     );
     const geofenceId = zoneRow?.flespi_geofence_id;
 
-    // Delete from DB
+    // ✅ 3) Delete zone from DB
     const results = await dbQuery("DELETE FROM zones WHERE id = ?", [id]);
     if (results.affectedRows === 0) return null;
 
-    // Delete from Flespi
-    if (geofenceId) await deleteFlespiGeofence(geofenceId.toString());
+    // ✅ 4) Delete from Flespi if exists
+    if (geofenceId) {
+      await deleteFlespiGeofence(geofenceId.toString());
+    }
 
     return true;
+
   } catch (err) {
-    console.error("❌ Error deleting zone or geofence:", err.message);
+    console.error("❌ Error deleting zone & device assignments:", err.message);
     throw err;
   }
 };
