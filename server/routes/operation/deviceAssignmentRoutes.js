@@ -6,6 +6,7 @@ import {
   fetchAssignmentById,
   completeAssignment,
   removeAssignment,
+  getOperationStats,
 } from "../../controllers/operation/deviceAssignmentController.js";
 
 const router = express.Router();
@@ -24,5 +25,6 @@ router.put("/device-assignments/:id/complete", completeAssignment);
 
 // DELETE /api/device-assignments/:id
 router.delete("/device-assignments", removeAssignment);
+router.get("/operation-calculator/:deviceId", getOperationStats);
 
 export default router;

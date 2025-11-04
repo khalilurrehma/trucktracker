@@ -89,10 +89,10 @@ export const createZone = async (zone) => {
             zoneType === "QUEUE_AREA"
               ? "#e67e22"
               : zoneType === "DUMP_AREA"
-              ? "#c0392b"
-              : zoneType === "LOAD_PAD"
-              ? "#27ae60"
-              : "#3498db",
+                ? "#c0392b"
+                : zoneType === "LOAD_PAD"
+                  ? "#27ae60"
+                  : "#3498db",
           area_ha,
           max_speed: zone_max_speed_kmh || 0,
         },
@@ -100,26 +100,49 @@ export const createZone = async (zone) => {
     ]);
 
     const geofenceId = geofence[0]?.id;
-   // 4️⃣ Fetch all calculator templates from DB
-    const templates = await dbQuery("SELECT * FROM calculator_templates");
+    const calcMap = {
+      ZONE_AREA: [2193946, 2194117, 2194154, 2194183],
+      QUEUE_AREA: [2193941, 2194117],
+      LOAD_PAD: [2181549, 2193946, 2194117, 2194183],
+      DUMP_AREA: [2181582, 2193946, 2194117],
+    };
 
-    // 5️⃣ Filter templates that match this zoneType
-    const matchingTemplates = templates.filter(t => t.type === zoneType);
-    if (!matchingTemplates.length) {
-      console.warn(`⚠️ No calculator templates found for zoneType ${zoneType}`);
+    const calcIds = calcMap[zoneType];
+    if (!calcIds) {
+      console.warn(`⚠️ No calculator IDs defined for zoneType "${zoneType}"`);
+      return;
     }
 
-    // 6️⃣ Create and assign calculators for this geofence
-    for (const tpl of matchingTemplates) {
+    console.log(`📡 Assigning calculators for ${zoneType} → geofence ${geofenceId}`);
+
+    for (const calcId of calcIds) {
       try {
-        const config = JSON.parse(tpl.config_json);
-        const calc = await createFlespiCalculator(config);
-        await assignCalculatorToGeofence(calc.id, geofenceId);
-        console.log(`✅ Assigned calculator "${tpl.name}" (ID ${calc.id}) to geofence ${geofenceId}`);
+        await assignCalculatorToGeofence(calcId, geofenceId);
+        console.log(`✅ Assigned calc ${calcId} → geofence ${geofenceId}`);
       } catch (err) {
-        console.error(`❌ Failed to create/assign calculator "${tpl.name}":`, err.message);
+        console.error(`❌ Failed assigning calc ${calcId}:`, err.message);
       }
     }
+    // 4️⃣ Fetch all calculator templates from DB
+    // const templates = await dbQuery("SELECT * FROM calculator_templates");
+
+    // // 5️⃣ Filter templates that match this zoneType
+    // const matchingTemplates = templates.filter(t => t.type === zoneType);
+    // if (!matchingTemplates.length) {
+    //   console.warn(`⚠️ No calculator templates found for zoneType ${zoneType}`);
+    // }
+
+    // // 6️⃣ Create and assign calculators for this geofence
+    // for (const tpl of matchingTemplates) {
+    //   try {
+    //     const config = JSON.parse(tpl.config_json);
+    //     const calc = await createFlespiCalculator(config);
+    //     await assignCalculatorToGeofence(calc.id, geofenceId);
+    //     console.log(`✅ Assigned calculator "${tpl.name}" (ID ${calc.id}) to geofence ${geofenceId}`);
+    //   } catch (err) {
+    //     console.error(`❌ Failed to create/assign calculator "${tpl.name}":`, err.message);
+    //   }
+    // }
     // 4️⃣ Save geofence ID into zone
     await dbQuery(
       "UPDATE zones SET flespi_geofence_id = ? WHERE id = ?",

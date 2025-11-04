@@ -4,7 +4,8 @@ import util from "util";
 const dbQuery = util.promisify(pool.query).bind(pool);
 import {
   assignGeofenceToDevice,
-  unassignGeofenceFromDevice
+  unassignGeofenceFromDevice,
+  fetchCalcData 
 } from "../../services/flespiApis.js";
 
 
@@ -117,6 +118,16 @@ export const deleteDeviceAssignment = async (device_id, zone_id) => {
     return result.affectedRows > 0;
   } catch (err) {
     console.error("❌ DB error deleting assignment:", err.message);
+    throw err;
+  }
+};
+
+export const getOperationCalculatorData = async (calcId, deviceId) => {
+  try {
+    const data = await fetchCalcData(calcId, deviceId);
+    return data;
+  } catch (err) {
+    console.error("❌ Model error in getOperationCalculatorData:", err.message);
     throw err;
   }
 };

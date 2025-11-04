@@ -584,3 +584,40 @@ export const detailedTelemetry = async (topic, payload) => {
     topic,
   };
 };
+export const operationCalculator = async (topic, message) => {
+  try {
+    const topicParts = topic.split("/");
+    const deviceIdIndex = topicParts.indexOf("devices") + 1;
+    const flespiDeviceId = parseInt(topicParts[deviceIdIndex]);
+ const key = topicParts.slice(-1)[0];
+    // Cleanly format the operational KPIs
+    const opStats = {
+      flespiDeviceId,
+      durationSec: message.duration || 0,
+      queueTimeAvgMin: message.op_avg_queue_time
+        ? (message.op_avg_queue_time / 60).toFixed(2)
+        : 0,
+      efficiency: message.op_avg_cycle_efficiency || 0,
+      trips: message.op_total_l2d_trips || 0,
+      avgCycleDuration: message.op_avg_cycle_duration || 0,
+      avgVolumeM3: message.op_avg_cycle_volume_m3 || 0,
+      fuelPerM3: message.avg_energy_efficiency_lm3 || 0,
+      vehicleCount: message.op_vehicle_count || 0,
+      loaderCount: message.op_loaders_count || 0,
+      timestamp: message.timestamp
+        ? new Date(message.timestamp * 1000).toISOString()
+        : new Date().toISOString(),
+    };
+
+    console.log("📊 Operation Calculator 2194146 KPIs:", opStats);
+    return {
+      flespiDeviceId,
+      key,
+      value: opStats,
+      topic,
+    };
+  } catch (err) {
+    console.error("❌ Error in operationCalculator:", err.message);
+    return null;
+  }
+};

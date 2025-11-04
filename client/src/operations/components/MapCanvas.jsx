@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef } from "react";
-import { GoogleMap, Polygon, Marker, useJsApiLoader } from "@react-google-maps/api";
-import Swal from "sweetalert2";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { GoogleMap, Polygon, Marker, InfoWindow, useJsApiLoader } from "@react-google-maps/api";
+import { fetchOperationKPI } from "../../apis/deviceAssignmentApi"; // ✅ import API call
 
 const LIBS = ["drawing", "geometry"];
 const MAP_STYLE = { width: "100%", height: "74vh" };
@@ -16,32 +16,50 @@ const COLORS = {
   INVALID: "#ff1744",
 };
 
-const FLEET_MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#f0efe8" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#a2daf2" }] },
-  { featureType: "landscape.man_made", stylers: [{ color: "#f7f1df" }] },
-  { featureType: "landscape.natural", stylers: [{ color: "#dbe5c6" }] },
-  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#cdeac0" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#000" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#fbc880" }] },
-  { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#fdfcf8" }] },
-  { featureType: "road.local", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
-  { featureType: "administrative", elementType: "labels.text.fill", stylers: [{ color: "#444444" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
-  { featureType: "poi", stylers: [{ visibility: "off" }] },
-];
-
 export default function MapCanvas({
-  ops,                // { operations, selectedOperationId, setSelectedOperationId, mode }
-  zones,              // { zones }
-  drawing,            // { setGeometry }
-  allDevices,         // array
+  ops,
+  zones,
+  drawing,
+  allDevices,
+  mqttDeviceLiveLocation = [],
 }) {
   const key = import.meta.env.VITE_GOOGLE_MAP_API;
-  const { isLoaded, loadError } = useJsApiLoader({ googleMapsApiKey: key, libraries: LIBS });
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: key,
+    libraries: LIBS,
+  });
 
+  const [truckPositions, setTruckPositions] = useState({});
+  const [hoveredDevice, setHoveredDevice] = useState(null);
+  const [deviceKPI, setDeviceKPI] = useState({}); // ✅ store KPI data per device
   const mapRef = useRef(null);
   const overlayRef = useRef(null);
+
+  // ✅ Keep one marker per device (live location)
+  useEffect(() => {
+    const updatedPositions = {};
+    mqttDeviceLiveLocation.forEach((msg) => {
+      const lat = parseFloat(msg.latitude);
+      const lng = parseFloat(msg.longitude);
+      if (isNaN(lat) || isNaN(lng)) return;
+      updatedPositions[msg.deviceId] = { lat, lng };
+    });
+    setTruckPositions(updatedPositions);
+  }, [mqttDeviceLiveLocation]);
+
+  // ✅ Fetch KPI when hovering
+  useEffect(() => {
+    if (!hoveredDevice) return;
+    const loadKPI = async () => {
+      if (!deviceKPI[hoveredDevice]) {
+        const kpi = await fetchOperationKPI(hoveredDevice);
+        if (kpi) {
+          setDeviceKPI((prev) => ({ ...prev, [hoveredDevice]: kpi }));
+        }
+      }
+    };
+    loadKPI();
+  }, [hoveredDevice]);
 
   const selectedOperation = useMemo(
     () => ops.operations.find((p) => p.id === ops.selectedOperationId),
@@ -50,9 +68,10 @@ export default function MapCanvas({
 
   useEffect(() => {
     if (!mapRef.current || !selectedOperation) return;
-    const geometry = typeof selectedOperation.geometry === "string"
-      ? JSON.parse(selectedOperation.geometry)
-      : selectedOperation.geometry;
+    const geometry =
+      typeof selectedOperation.geometry === "string"
+        ? JSON.parse(selectedOperation.geometry)
+        : selectedOperation.geometry;
     if (!geometry?.coordinates?.[0]) return;
 
     const g = window.google;
@@ -81,6 +100,7 @@ export default function MapCanvas({
         editable: true,
       },
     });
+
     dm.setMap(map);
 
     g.maps.event.addListener(dm, "overlaycomplete", (e) => {
@@ -93,7 +113,7 @@ export default function MapCanvas({
       drawing.setGeometry(ring, sqm);
     });
   };
-
+  const hoverTimeout = useRef(null);
   if (loadError) return <div>Map failed to load.</div>;
   if (!isLoaded) return <div>Loading map...</div>;
 
@@ -101,19 +121,20 @@ export default function MapCanvas({
     <GoogleMap
       mapContainerStyle={MAP_STYLE}
       center={CENTER}
-      zoom={13}
+      zoom={16}
       onLoad={onMapLoad}
       options={{
-        styles: FLEET_MAP_STYLE,
-        mapTypeControl: false,
+        mapTypeId: "satellite",
+        tilt: 0,
+        heading: 0,
         streetViewControl: false,
         fullscreenControl: false,
-        backgroundColor: "#000",
+        mapTypeControl: false,
         zoomControl: true,
         clickableIcons: false,
       }}
     >
-      {/* Operations */}
+      {/* --- Operations polygons --- */}
       {ops.operations.map((p) => {
         const geometry = typeof p.geometry === "string" ? JSON.parse(p.geometry) : p.geometry;
         if (!geometry?.coordinates?.[0]) return null;
@@ -121,7 +142,7 @@ export default function MapCanvas({
         const selected = p.id === ops.selectedOperationId;
         return (
           <Polygon
-            key={p.id}
+            key={`op-${p.id}`}
             paths={path}
             onClick={() => ops.setSelectedOperationId(p.id)}
             options={{
@@ -134,14 +155,14 @@ export default function MapCanvas({
         );
       })}
 
-      {/* Zones */}
+      {/* --- Zones --- */}
       {zones.zones.map((z) => {
         const geometry = typeof z.geometry === "string" ? JSON.parse(z.geometry) : z.geometry;
         if (!geometry?.coordinates?.[0]) return null;
         const path = geometry.coordinates[0].map(([lng, lat]) => ({ lng, lat }));
         return (
           <Polygon
-            key={z.id}
+            key={`zone-${z.id}`}
             paths={path}
             options={{
               strokeColor: COLORS[z.zoneType] || COLORS.ZONE_AREA,
@@ -153,41 +174,79 @@ export default function MapCanvas({
         );
       })}
 
-      {/* Device markers at zone centroid */}
-      {zones.zones
-        .filter((z) => Array.isArray(z.devices) && z.devices.some((d) => d?.device_id || typeof d === "number"))
-        .flatMap((z) => {
-          const geometry = typeof z.geometry === "string" ? JSON.parse(z.geometry) : z.geometry;
-          if (!geometry?.coordinates?.[0]) return [];
-          const coords = geometry.coordinates[0];
-          const center = {
-            lng: coords.reduce((sum, [lng]) => sum + lng, 0) / coords.length,
-            lat: coords.reduce((sum, [, lat]) => sum + lat, 0) / coords.length,
-          };
-          return (z.devices || [])
-            .map((dRaw) => {
-              const id = typeof dRaw === "object" ? dRaw.device_id : dRaw;
-              const device = allDevices.find((dev) => dev.id === id) || {};
-              return (
-                <Marker
-                  key={`device-${z.id}-${id}`}
-                  position={center}
-                  title={`${device.name || "Device"} (${z.name})`}
-                  icon={{
-                    url: device.completed
-                      ? "http://maps.google.com/mapfiles/ms/icons/green-dot.png"
-                      : "https://maps.google.com/mapfiles/kml/shapes/truck.png",
+      {/* --- Trucks + Hover KPI --- */}
+      {Object.entries(truckPositions).map(([deviceId, pos]) => {
+        const device = allDevices.find((d) => Number(d.flespiId) === Number(deviceId));
+        if (!device) return null;
+
+        const kpi = deviceKPI[deviceId];
+
+        return (
+          <React.Fragment key={`dev-${device.id}`}>
+            <Marker
+              position={pos}
+              title={device.name}
+              icon={{
+                url: "https://maps.google.com/mapfiles/kml/shapes/truck.png",
+                scaledSize: new window.google.maps.Size(36, 36),
+              }}
+              onMouseOver={() => {
+                clearTimeout(hoverTimeout.current);
+                setHoveredDevice(deviceId);
+              }}
+              onMouseOut={() => {
+                hoverTimeout.current = setTimeout(() => {
+                  setHoveredDevice(null);
+                }, 300); // 300 ms delay avoids flicker
+              }}
+            />
+
+            {hoveredDevice === deviceId && kpi && (
+              <InfoWindow position={pos} onCloseClick={() => setHoveredDevice(null)}>
+                <div
+                  onMouseEnter={() => clearTimeout(hoverTimeout.current)}
+                  onMouseLeave={() => setHoveredDevice(null)}
+                  style={{
+                    fontFamily: "Inter, Arial, sans-serif",
+                    minWidth: 220,
+                    background: "white",
+                    borderRadius: 8,
+                    boxShadow: "0 2px 10px rgba(0,0,0,0.15)",
+                    padding: "10px 14px",
+                    color: "#333",
+                    lineHeight: 1.4,
                   }}
-                  onClick={() =>
-                    Swal.fire({
-                      icon: "info",
-                      title: `${device.name || "Device"} assigned to ${z.name}`,
-                    })
-                  }
-                />
-              );
-            });
-        })}
+                >
+                  <div
+                    style={{
+                      borderBottom: "1px solid #e0e0e0",
+                      marginBottom: 6,
+                      paddingBottom: 4,
+                    }}
+                  >
+                    <strong style={{ color: "#1565c0", fontSize: 14 }}>{device.name}</strong>
+                    <div style={{ fontSize: 11, color: "#666" }}>
+                      {new Date(kpi.timestamp).toLocaleString()}
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+                    <div><strong>Eff.:</strong> {kpi.efficiency || 0}%</div>
+                    <div><strong>Trips:</strong> {kpi.trips || 0}</div>
+                    <div><strong>Vol. (m³):</strong> {kpi.avgVolumeM3 || 0}</div>
+                    <div><strong>Fuel/m³:</strong> {kpi.fuelPerM3 || 0}</div>
+                    <div><strong>Queue:</strong> {kpi.queueTimeAvgMin || 0}m</div>
+                    <div><strong>Veh.:</strong> {kpi.vehicleCount || 0}</div>
+                    <div><strong>Loaders:</strong> {kpi.loaderCount || 0}</div>
+                  </div>
+                </div>
+              </InfoWindow>
+
+            )}
+
+          </React.Fragment>
+        );
+      })}
     </GoogleMap>
   );
 }

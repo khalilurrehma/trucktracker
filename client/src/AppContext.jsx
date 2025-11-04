@@ -47,6 +47,9 @@ const AppContextProvider = ({ children }) => {
   const [mqttDeviceIgnitionStatus, setDeviceIgnitionStatus] = useState([]);
   const [mqttDeviceConnected, setDeviceConnected] = useState([]);
   const [mqttDeviceDin, setDeviceDin] = useState([]);
+  const [mqttOperationStats, setMqttOperationStats] = useState([]);
+
+
   const [updateCronLogs, setUpdateCronLogs] = useState([]);
   const [subprocessEvents, setSubprocessEvents] = useState([]);
   const [liveSuggestedServices, setLiveSuggestedServices] = useState([]);
@@ -55,6 +58,7 @@ const AppContextProvider = ({ children }) => {
   const user = useSelector((state) => state.session.user);
 
   const updateMqttMessage = (newMessage, stateType) => {
+    
     if (stateType === "Events") {
       setMqttReportsEvents((prev) => [...prev, newMessage]);
     } else if (stateType === "Alarms") {
@@ -99,6 +103,8 @@ const AppContextProvider = ({ children }) => {
       setLiveSuggestedServices((prev) => [...prev, newMessage]);
     } else if (stateType === "rimacCase") {
       setLiveRimacCases((prev) => [...prev, newMessage]);
+    } else if (stateType === "operationCalculator") {
+      setMqttOperationStats((prev) => [...prev, newMessage]);
     }
   };
 
@@ -238,7 +244,7 @@ const AppContextProvider = ({ children }) => {
 
         setRealmUserCalcs(response.data.data ? formattedRes : []);
       }
-    } catch (error) {}
+    } catch (error) { }
   };
 
   const fetchCompanyValidCustomCalc = async (userId) => {
@@ -250,7 +256,7 @@ const AppContextProvider = ({ children }) => {
       if (response.status === 200) {
         setCompanyValidCalcs(response.data.message);
       }
-    } catch (error) {}
+    } catch (error) { }
   };
 
   const fetchCategoriesData = async (userId) => {
@@ -313,7 +319,7 @@ const AppContextProvider = ({ children }) => {
 
         setSubaccount(id);
       }
-    } catch (error) {}
+    } catch (error) { }
   };
 
   const fetchFlespiToken = async (userId) => {
@@ -322,7 +328,7 @@ const AppContextProvider = ({ children }) => {
       if (response.status === 200) {
         setFlespiToken(response.data.data);
       }
-    } catch (error) {}
+    } catch (error) { }
   };
 
   const fetchTraccarToken = async (userId) => {
@@ -331,7 +337,7 @@ const AppContextProvider = ({ children }) => {
       if (response.status === 200) {
         setTraccarToken(response.data.data[0]);
       }
-    } catch (error) {}
+    } catch (error) { }
   };
 
   const fetchTraccarDeviceList = async () => {
@@ -342,7 +348,7 @@ const AppContextProvider = ({ children }) => {
         // console.log(response.data.message);
         setTraccarDevices(response.data.message);
       }
-    } catch (error) {}
+    } catch (error) { }
   };
 
   const extractIMEIs = async (uniqueIds) => {
@@ -386,7 +392,7 @@ const AppContextProvider = ({ children }) => {
     } else {
     }
     prevDeviceIdsArrayRef.current = deviceIdsArray;
-    return () => {};
+    return () => { };
   }, [deviceIdsArray]);
 
   const arraysAreEqual = (arr1, arr2) => {
@@ -439,6 +445,7 @@ const AppContextProvider = ({ children }) => {
         serverMessage,
         mqttReportsEvents,
         mqttDriverBehaivor,
+        mqttOperationStats,
         traccarDevices,
         mqttDeviceLiveLocation,
         mqttDeviceDin,

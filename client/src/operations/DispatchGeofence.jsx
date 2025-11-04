@@ -10,19 +10,37 @@ import { useDrawing } from "../hooks/useDrawing";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@mui/material";
+import { useAppContext } from "../AppContext";   // ✅ added import
 
 export default function OperationZoneManager() {
   const navigate = useNavigate();
-
+  const { mqttDeviceLiveLocation,mqttOperationStats } = useAppContext(); // ✅ get live MQTT data
   const ops = useOperations();
   const zones = useZones();
   const allDevices = useDevices(ops.selectedOperationId);
   const drawing = useDrawing();
 
+  // ✅ Log live device updates
+  if (mqttDeviceLiveLocation?.length > 0) {
+    mqttDeviceLiveLocation.forEach((msg) => {
+      const device = allDevices.find((d) => Number(d.flespiId) === Number(msg.deviceId));
+    });
+  }
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "360px 1fr" }}>
-      <div style={{ padding: 12, background: "var(--panel)", borderRight: "1px solid var(--border)" }}>
-        <Button startIcon={<ArrowLeft size={18} />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
+      <div
+        style={{
+          padding: 12,
+          background: "var(--panel)",
+          borderRight: "1px solid var(--border)",
+        }}
+      >
+        <Button
+          startIcon={<ArrowLeft size={18} />}
+          onClick={() => navigate(-1)}
+          sx={{ mb: 2 }}
+        >
           Back
         </Button>
 
@@ -38,11 +56,14 @@ export default function OperationZoneManager() {
         )}
       </div>
 
+      {/* ✅ Pass live MQTT data into the map */}
       <MapCanvas
         ops={ops}
         zones={zones}
         drawing={drawing}
         allDevices={allDevices}
+        mqttDeviceLiveLocation={mqttDeviceLiveLocation}
+        mqttOperationStats={mqttOperationStats}
       />
     </div>
   );

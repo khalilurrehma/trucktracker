@@ -30,6 +30,9 @@ const topics = [
     topic: "flespi/interval/gw/calcs/1742077/devices/+/created,updated,deleted", // Default - Reports - Driver Behaivor
   },
   {
+    topic: "flespi/interval/gw/calcs/2193946/devices/+/created,updated,deleted", // Default - Reports - Driver Behaivor
+  },
+  {
     topic: "flespi/interval/gw/calcs/1766118/devices/+/+", // Default - Geofence
   },
   {
@@ -65,7 +68,6 @@ client.on("error", (err) => {
 client.on("message", (topic, message) => {
   try {
     const parsedMessage = message ? JSON.parse(message?.toString()) : {};
-
     mqttEmitter.emit("mqttMessage", { topic, payload: parsedMessage });
   } catch (error) {
     console.error("❌ Failed to parse MQTT message:", error.message);

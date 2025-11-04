@@ -5,6 +5,7 @@ import {
   getAssignmentById,
   markAssignmentCompleted,
   deleteDeviceAssignment,
+  getOperationCalculatorData,
 } from "../../model/operation/deviceAssignmentModel.js";
 
 // ✅ Create
@@ -77,5 +78,41 @@ export const removeAssignment = async (req, res) => {
   } catch (err) {
     console.error("❌ Error removing assignment:", err.message);
     res.status(500).json({ error: err.message });
+  }
+};
+
+export const getOperationStats = async (req, res) => {
+  try {
+    const { deviceId } = req.params;
+    const calcId = req.query.calcId || 2194146; // default fallback calcId
+
+    if (!deviceId) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing deviceId parameter",
+      });
+    }
+
+    const data = await getOperationCalculatorData(calcId, deviceId);
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        message: `No data found for device ${deviceId} (calc ${calcId})`,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Operation calculator KPIs fetched successfully for device ${deviceId}`,
+      data,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching operation calculator data:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch operation calculator data",
+      error: error.message,
+    });
   }
 };

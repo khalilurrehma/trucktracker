@@ -630,3 +630,53 @@ export const assignCalculatorToGeofence = async (calcId, geofenceId) => {
     throw error;
   }
 };
+
+export const fetchCalcData = async (calcId, deviceId) => {
+  try {
+    const url = `${flespiUrl}/calcs/${encodeURIComponent(calcId)}/devices/${encodeURIComponent(
+      deviceId
+    )}/intervals/last?data={"reverse":true,"count":1}`;
+
+    const { data } = await axios.get(url, {
+      headers: {
+        Authorization: `FlespiToken ${FlespiToken}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    });
+
+    const interval = data?.result?.[0];
+    if (!interval) {
+      console.warn(`⚠️ No interval data for calc ${calcId} / device ${deviceId}`);
+      return null;
+    }
+
+    // 🧮 Format key operational KPIs
+    const opStats = {
+      flespiDeviceId: deviceId,
+      durationSec: interval.duration || 0,
+      queueTimeAvgMin: interval.op_avg_queue_time
+        ? (interval.op_avg_queue_time / 60).toFixed(2)
+        : 0,
+      efficiency: interval.op_avg_cycle_efficiency || 0,
+      trips: interval.op_total_l2d_trips || 0,
+      avgCycleDuration: interval.op_avg_cycle_duration || 0,
+      avgVolumeM3: interval.op_avg_cycle_volume_m3 || 0,
+      fuelPerM3: interval.avg_energy_efficiency_lm3 || 0,
+      vehicleCount: interval.op_vehicle_count || 0,
+      loaderCount: interval.op_loaders_count || 0,
+      timestamp: interval.timestamp
+        ? new Date(interval.timestamp * 1000).toISOString()
+        : new Date().toISOString(),
+    };
+
+    console.log(`📊 [Flespi] calc KPIs for device ${deviceId}:`, opStats);
+
+    return opStats;
+  } catch (error) {
+    console.error(
+      `❌ Error fetching calculator (${calcId} / ${deviceId}):`,
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
