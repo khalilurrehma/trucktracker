@@ -60,7 +60,7 @@ export const deleteDeviceAssignment = async (payload) => {
   }
 };
 
-export const fetchOperationKPI = async (deviceId, calcId = 2194146) => {
+export const fetchOperationKPI = async (deviceId, calcId = 2194137) => {
   try {
     const response = await axios.get(`${apiUrl}/operation-calculator/${deviceId}`, {
       params: { calcId },
@@ -68,6 +68,38 @@ export const fetchOperationKPI = async (deviceId, calcId = 2194146) => {
     return response.data.data;
   } catch (error) {
     console.error("❌ Error fetching operation KPI:", error.message);
+    throw error;
+  }
+};
+
+export const getDevicesByOperation = async (operationId) => {
+  try {
+    const { data } = await axios.get(`${apiUrl}/device-assignments`);
+    // Filter devices assigned to the selected operation
+    const assigned = data.filter((a) => a.operation_id === operationId);
+    return assigned.map((a) => ({
+      id: a.device_id,
+      zoneId: a.zone_id,
+      operationId: a.operation_id,
+      flespiId: a.flespi_device_id,
+      name: a.device_name,
+    }));
+  } catch (error) {
+    console.error(`Error fetching devices for operation ${operationId}:`, error);
+    throw error;
+  }
+};
+
+export const getDevicePositions = async (deviceIds = []) => {
+  try {
+    if (!deviceIds.length) throw new Error("Device IDs array is empty.");
+
+    const idsParam = deviceIds.join(",");
+    const { data } = await axios.get(`${apiUrl}/device-positions?ids=${idsParam}`);
+
+    return data.positions || [];
+  } catch (error) {
+    console.error("❌ Error fetching device positions:", error.response?.data || error.message);
     throw error;
   }
 };

@@ -120,18 +120,19 @@ const SubSocket = () => {
               store.dispatch(updateTelemetry({ deviceId, key, value }));
             }
           }
-          if (recievedData?.topic?.includes("calcs/1742074")) {
+          if (recievedData?.topic?.includes("calcs/2194137")) {
             // console.log(recievedData);
             updateMqttMessage(recievedData, "Events");
           }
-          if (recievedData?.topic?.includes("calcs/1742075")) {
+          if (recievedData?.topic?.includes("calcs/2194137")) {
             // console.log(recievedData);
             updateMqttMessage(recievedData, "Alarms");
+
           }
           if (recievedData?.topic?.includes("calcs/1742077")) {
             updateMqttMessage(recievedData, "Behaivor");
           }
-          if (recievedData?.topic?.includes("calcs/2193946")) {
+          if (recievedData?.topic?.includes("calcs/2194137")) {
             updateMqttMessage(recievedData, "operationCalculator");
           }
 
@@ -143,7 +144,7 @@ const SubSocket = () => {
             (Array.isArray(recievedData?.superVisorIds) &&
               recievedData.superVisorIds.includes(sessionUserId))
           ) {
-            console.log(recievedData);
+            // console.log(recievedData);
 
             updateMqttMessage(recievedData, "suggestedServices");
             addNotification(recievedData.message);

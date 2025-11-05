@@ -28,7 +28,7 @@ const setBroadcast = (broadcastFn, broadcastToDriverFn) => {
 mqttEmitter.on("mqttMessage", async ({ topic, payload }) => {
   try {
     switch (true) {
-      case topic.includes("calcs/2193946"):
+      case topic.includes("calcs/2194137"):
         const opData  = await operationCalculator(topic, payload);
         if (opData ) broadcast(opData , { to: "admin" });
         break;
@@ -36,7 +36,7 @@ mqttEmitter.on("mqttMessage", async ({ topic, payload }) => {
         const newEvent = await deviceNewEvent(topic, payload);
         if (newEvent) broadcast(newEvent, { to: "admin" });
         break;
-      case topic.includes("calcs/1742075"): // Default - Operations - Alarms
+      case topic.includes("calcs/2194137"): // Default - Operations - Alarms
         const alarmData = await devicesAlarmMQTT(topic, payload);
         if (alarmData) broadcast(alarmData, { to: "admin" });
         break;

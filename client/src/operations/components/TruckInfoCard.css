@@ -1,0 +1,81 @@
+.truck-info-card {
+  background: white;
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+  min-width: 220px;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  color: #333;
+  transition: transform 0.2s ease;
+}
+
+.truck-info-card:hover {
+  transform: translateY(-2px);
+}
+
+.truck-info-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+}
+
+.truck-info-header h4 {
+  margin: 0;
+  font-size: 14px;
+  color: #1565c0;
+}
+
+.truck-info-time {
+  font-size: 11px;
+  color: #666;
+}
+
+.truck-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 8px;
+  margin-top: 4px;
+}
+
+.truck-info-grid div {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.truck-info-icons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #eee;
+}
+
+.truck-info-icon {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.truck-info-icon:hover {
+  transform: scale(1.15);
+}
+
+.truck-info-icon.locate { color: #f44336; }
+.truck-info-icon.settings { color: #1565c0; }
+.truck-info-icon.info { color: #ff9800; }
+.truck-info-link {
+  color: #007bff;
+  text-decoration: none;
+  margin-left: 4px;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.truck-info-link:hover {
+  color: #0056b3;
+  transform: scale(1.1);
+}

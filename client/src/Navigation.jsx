@@ -135,6 +135,8 @@ import AddSnaphotsDevices from "./settings/AddSnaphotsDevices";
 import RemoveSnapshotsDevices from "./settings/RemoveSnapshotsDevices";
 import RimacFinalReportView from "./operations/RimacFinalReportView";
 import DispatchGeofence from "./operations/DispatchGeofence";
+import DispatchGeofenceDashboard from "./operations/dashboard/DispatchGeofenceDashboard";
+import DispatchGeofenceSettings from "./operations/setting/DispatchGeofenceSettings";
 import DeviceTrackPage from "./other/DeviceTrackPage";
 import DeviceTelemetry from "./settings/DeviceTelemetry";
 import Dashboard from "./dashboard/Dashboard";
@@ -400,6 +402,8 @@ const Navigation = () => {
         <Route path="operations">
           <Route path="dispatch" element={<DispatchResult />} />
           <Route path="geofence/map" element={<DispatchGeofence />} />
+          <Route path="geofence/dashboard/:id" element={<DispatchGeofenceDashboard />} />
+          <Route path="geofence/settings/:id" element={<DispatchGeofenceSettings />} />
           <Route
             path="dispatch/search-history"
             element={<DispatchSearchHistory />}

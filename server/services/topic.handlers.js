@@ -6,6 +6,13 @@ import {
   saveDeviceInitialGeofence,
 } from "../model/devices.js";
 import {
+  pickFirstNumeric,
+  sumNumeric,
+  secondsToMin,
+  formatDuration,
+  toISO,
+} from "../utils/opKpis.js";
+import {
   getLatestOperationAlarms,
   newDeviceEvent,
   newOperationAlarm,
@@ -584,32 +591,76 @@ export const detailedTelemetry = async (topic, payload) => {
     topic,
   };
 };
+
 export const operationCalculator = async (topic, message) => {
   try {
-    const topicParts = topic.split("/");
+    const topicParts = String(topic || "").split("/");
     const deviceIdIndex = topicParts.indexOf("devices") + 1;
-    const flespiDeviceId = parseInt(topicParts[deviceIdIndex]);
- const key = topicParts.slice(-1)[0];
-    // Cleanly format the operational KPIs
+    const flespiDeviceId = Number.parseInt(topicParts[deviceIdIndex], 10);
+    const key = topicParts.slice(-1)[0];
+
+    // ------- Extract KPIs -------
+    const cycleEfficiency = pickFirstNumeric(message, "cycle_efficiency", "operation_efficiency_pct");
+    const tripsToday =
+      pickFirstNumeric(message, "cycle_haul_trips_count") ??
+      pickFirstNumeric(message, "L2D_trip_count", "D2L_trip_count") ??
+      0;
+
+    const cycleDurationSec =
+      pickFirstNumeric(message, "cycle_duration") ??
+      pickFirstNumeric(message, "op_avg_cycle_duration") ??
+      0;
+
+    const avgVolumeM3 =
+      pickFirstNumeric(message, "avg_cycle_volume_m3") ??
+      pickFirstNumeric(message, "op_avg_cycle_volume_m3") ??
+      pickFirstNumeric(message, "trip_volume_m3") ??
+      0;
+
+    const energyPerM3 =
+      pickFirstNumeric(message, "avg_energy_efficiency_lm3") ??
+      pickFirstNumeric(message, "energy_efficiency_lm3") ??
+      0;
+
+    const failures = sumNumeric(
+      message,
+      "L2D_stops_during_trip",
+      "D2L_stops_during_trip"
+    );
+
+    const queueAvgSec = pickFirstNumeric(message, "op_avg_queue_time", "queue_area_stop_time") ?? 0;
+    const vehicleCount =
+      pickFirstNumeric(message, "op_vehicle_count", "zone_vehicle_count", "Active_vehicles") ?? 0;
+    const loaderCount = pickFirstNumeric(message, "op_loaders_count", "active_loaders") ?? 0;
+
+    const ts =
+      pickFirstNumeric(message, "timestamp") ??
+      (Array.isArray(message?.result)
+        ? Math.max(
+            ...message.result
+              .map((it) => (typeof it?.timestamp === "number" ? it.timestamp : -Infinity))
+              .filter((v) => Number.isFinite(v))
+          )
+        : null);
+
     const opStats = {
       flespiDeviceId,
-      durationSec: message.duration || 0,
-      queueTimeAvgMin: message.op_avg_queue_time
-        ? (message.op_avg_queue_time / 60).toFixed(2)
-        : 0,
-      efficiency: message.op_avg_cycle_efficiency || 0,
-      trips: message.op_total_l2d_trips || 0,
-      avgCycleDuration: message.op_avg_cycle_duration || 0,
-      avgVolumeM3: message.op_avg_cycle_volume_m3 || 0,
-      fuelPerM3: message.avg_energy_efficiency_lm3 || 0,
-      vehicleCount: message.op_vehicle_count || 0,
-      loaderCount: message.op_loaders_count || 0,
-      timestamp: message.timestamp
-        ? new Date(message.timestamp * 1000).toISOString()
-        : new Date().toISOString(),
+      efficiency: cycleEfficiency ?? 0,
+      trips: tripsToday || 0,
+      avgVolumeM3: avgVolumeM3 || 0,
+      fuelPerM3: energyPerM3 || 0,
+      failures: failures || 0,
+      vehicleCount,
+      loaderCount,
+      queueTimeAvgMin: secondsToMin(queueAvgSec),
+      durationSec: cycleDurationSec || 0,
+      durationFormatted: formatDuration(cycleDurationSec),
+      queueTimeFormatted: formatDuration(queueAvgSec),
+      timestamp: toISO(ts),
     };
 
-    console.log("📊 Operation Calculator 2194146 KPIs:", opStats);
+    // console.log("📊 Operation KPIs:", opStats);
+
     return {
       flespiDeviceId,
       key,

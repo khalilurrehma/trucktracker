@@ -5,7 +5,8 @@ const dbQuery = util.promisify(pool.query).bind(pool);
 import {
   assignGeofenceToDevice,
   unassignGeofenceFromDevice,
-  fetchCalcData 
+  fetchCalcData,
+  fetchDevicePositions
 } from "../../services/flespiApis.js";
 
 
@@ -56,15 +57,21 @@ export const createDeviceAssignment = async ({ device_id, operation_id, zone_id 
 // ✅ Get all assignments
 export const getAllAssignments = async () => {
   const sql = `
-    SELECT da.*, d.name AS device_name, z.name AS zone_name, o.name AS operation_name
+    SELECT 
+      da.*, 
+      d.name AS device_name,
+      d.flespiId AS flespi_device_id,   -- ✅ include flespiId
+      z.name AS zone_name, 
+      o.name AS operation_name
     FROM device_assignments da
-    LEFT JOIN devices d ON da.device_id = d.id
+    LEFT JOIN new_settings_devices d ON da.device_id = d.traccarId
     LEFT JOIN zones z ON da.zone_id = z.id
     LEFT JOIN operations o ON da.operation_id = o.id
     ORDER BY da.created_at DESC
   `;
   return await dbQuery(sql);
 };
+
 
 // ✅ Get assignment by ID
 export const getAssignmentById = async (id) => {
@@ -128,6 +135,17 @@ export const getOperationCalculatorData = async (calcId, deviceId) => {
     return data;
   } catch (err) {
     console.error("❌ Model error in getOperationCalculatorData:", err.message);
+    throw err;
+  }
+};
+
+
+export const getPositions = async (deviceIds) => {
+  try {
+    const data = await fetchDevicePositions(deviceIds);
+    return data;
+  } catch (err) {
+    console.error("❌ Model error in getPositions:", err.message);
     throw err;
   }
 };

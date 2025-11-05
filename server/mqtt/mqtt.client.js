@@ -24,13 +24,13 @@ const topics = [
     topic: "flespi/interval/gw/calcs/1742074/devices/+/created,updated,deleted", // Default - Reports - Events
   },
   {
-    topic: "flespi/interval/gw/calcs/1742075/devices/+/created,updated,deleted", // Default - Operations - Alarms
+    topic: "flespi/interval/gw/calcs/2194137/devices/+/created,updated,deleted", // Default - Operations - Alarms
   },
   {
     topic: "flespi/interval/gw/calcs/1742077/devices/+/created,updated,deleted", // Default - Reports - Driver Behaivor
   },
   {
-    topic: "flespi/interval/gw/calcs/2193946/devices/+/created,updated,deleted", // Default - Reports - Driver Behaivor
+    topic: "flespi/interval/gw/calcs/2194137/devices/+/created,updated,deleted", // Default - Reports - Driver Behaivor
   },
   {
     topic: "flespi/interval/gw/calcs/1766118/devices/+/+", // Default - Geofence

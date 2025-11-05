@@ -33,6 +33,7 @@ import { getAuthenticatedS3String, s3 } from "./services/azure.s3.js";
 import operationRoutes from "./routes/operation/operationRoutes.js";
 import zoneRoutes from "./routes/operation/zoneRoutes.js";
 import deviceAssignmentRoutes from "./routes/operation/deviceAssignmentRoutes.js";
+import DashboardDataRoutes from "./routes/operation/DashboardDataRoutes.js";
 dotenv.config();
 
 const app = express();
@@ -67,7 +68,7 @@ app.use("/api", dispatchRoutes);
 app.use("/api", operationRoutes);
 app.use("/api", zoneRoutes);
 app.use("/api", deviceAssignmentRoutes);
-
+app.use("/api", DashboardDataRoutes);
 
 app.get("/api", (req, res) => {
   res.send("server running!");

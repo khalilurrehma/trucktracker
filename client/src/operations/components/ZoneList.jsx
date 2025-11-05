@@ -64,9 +64,6 @@ export default function ZoneList({ ops, zones, allDevices }) {
                 💾 Save Assignment
               </button>
 
-              <button className="btn-small" onClick={() => zones.markCompleted(z.id, allDevices)}>
-                ✅ Mark Completed
-              </button>
             </div>
           </div>
         </div>

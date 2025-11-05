@@ -631,6 +631,29 @@ export const assignCalculatorToGeofence = async (calcId, geofenceId) => {
   }
 };
 
+const isNum = (v) => typeof v === "number" && Number.isFinite(v);
+
+function secondsToMin(sec) {
+  if (!isNum(sec)) return 0;
+  return +(sec / 60).toFixed(2);
+}
+
+function formatDuration(sec) {
+  if (!isNum(sec) || sec <= 0) return "0s";
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+function toISO(ts) {
+  if (isNum(ts)) return new Date(ts * 1000).toISOString();
+  return new Date().toISOString();
+}
+
+// --- main function ---
 export const fetchCalcData = async (calcId, deviceId) => {
   try {
     const url = `${flespiUrl}/calcs/${encodeURIComponent(calcId)}/devices/${encodeURIComponent(
@@ -650,26 +673,41 @@ export const fetchCalcData = async (calcId, deviceId) => {
       return null;
     }
 
-    // 🧮 Format key operational KPIs
+    // --- Extract KPIs safely ---
+    const durationSec = isNum(interval.duration) ? interval.duration : 0;
+    const queueTimeSec = isNum(interval.op_avg_queue_time) ? interval.op_avg_queue_time : 0;
+    const efficiency = isNum(interval.op_avg_cycle_efficiency)
+      ? interval.op_avg_cycle_efficiency
+      : 0;
+    const trips = isNum(interval.op_total_l2d_trips) ? interval.op_total_l2d_trips : 0;
+    const avgCycleDuration = isNum(interval.op_avg_cycle_duration)
+      ? interval.op_avg_cycle_duration
+      : 0;
+    const avgVolumeM3 = isNum(interval.op_avg_cycle_volume_m3)
+      ? interval.op_avg_cycle_volume_m3
+      : 0;
+    const fuelPerM3 = isNum(interval.avg_energy_efficiency_lm3)
+      ? interval.avg_energy_efficiency_lm3
+      : 0;
+    const vehicleCount = isNum(interval.op_vehicle_count) ? interval.op_vehicle_count : 0;
+    const loaderCount = isNum(interval.op_loaders_count) ? interval.op_loaders_count : 0;
+
+    // --- Format final stats for UI ---
     const opStats = {
       flespiDeviceId: deviceId,
-      durationSec: interval.duration || 0,
-      queueTimeAvgMin: interval.op_avg_queue_time
-        ? (interval.op_avg_queue_time / 60).toFixed(2)
-        : 0,
-      efficiency: interval.op_avg_cycle_efficiency || 0,
-      trips: interval.op_total_l2d_trips || 0,
-      avgCycleDuration: interval.op_avg_cycle_duration || 0,
-      avgVolumeM3: interval.op_avg_cycle_volume_m3 || 0,
-      fuelPerM3: interval.avg_energy_efficiency_lm3 || 0,
-      vehicleCount: interval.op_vehicle_count || 0,
-      loaderCount: interval.op_loaders_count || 0,
-      timestamp: interval.timestamp
-        ? new Date(interval.timestamp * 1000).toISOString()
-        : new Date().toISOString(),
+      efficiency,
+      trips,
+      avgCycleDuration,
+      avgVolumeM3,
+      fuelPerM3,
+      vehicleCount,
+      loaderCount,
+      durationSec,
+      durationFormatted: formatDuration(durationSec),
+      queueTimeAvgMin: secondsToMin(queueTimeSec),
+      queueTimeFormatted: formatDuration(queueTimeSec),
+      timestamp: toISO(interval.timestamp),
     };
-
-    console.log(`📊 [Flespi] calc KPIs for device ${deviceId}:`, opStats);
 
     return opStats;
   } catch (error) {
@@ -680,3 +718,90 @@ export const fetchCalcData = async (calcId, deviceId) => {
     throw error;
   }
 };
+
+
+export const fetchDevicePositions = async (deviceIds = []) => {
+  try {
+    if (!deviceIds.length) throw new Error("Device IDs array is empty.");
+
+    const ids = deviceIds.join(",");
+    const fields = "position.latitude,position.longitude";
+    const url = `${flespiUrl}/devices/${encodeURIComponent(ids)}/telemetry/${fields}`;
+
+    const { data } = await axios.get(url, {
+      headers: { Authorization: `FlespiToken ${FlespiToken}` },
+    });
+
+    const positions = (data.result || []).map((item) => {
+      const latObj = item.telemetry?.["position.latitude"];
+      const lonObj = item.telemetry?.["position.longitude"];
+
+      // ✅ Extract .value safely
+      const latitude = typeof latObj === "object" ? latObj.value : latObj;
+      const longitude = typeof lonObj === "object" ? lonObj.value : lonObj;
+
+      return {
+        flespiDeviceId: item.id,
+        latitude: parseFloat(latitude) || null,
+        longitude: parseFloat(longitude) || null,
+        timestamp:
+          item.telemetry?.timestamp
+            ? new Date(item.telemetry.timestamp * 1000).toISOString()
+            : null,
+      };
+    });
+
+    return positions;
+  } catch (error) {
+    console.error(
+      "❌ Error fetching device positions:",
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
+export async function getKPIsDashboard(deviceId) {
+  try {
+    if (!deviceId) throw new Error("Device ID is required.");
+
+    const url = `https://flespi.io/gw/calcs/2194163/devices/${deviceId}/intervals/last?data={"reverse":true,"count":1}`;
+
+    const { data } = await axios.get(url, {
+      headers: { Authorization: `FlespiToken ${FlespiToken}` },
+    });
+
+    console.log("📊 [Flespi] KPIs Dashboard:", data);
+
+    const result = data.result?.[0] || {};
+
+    return {
+      flespiDeviceId: deviceId,
+      efficiency: result.operation_efficiency_pct ?? null,
+      totalMaterial: result.operation_total_m3 ?? null,
+      totalMoved: result.total_material_moved_m3 ?? null,
+      materialToday: result.material_moved_today ?? null,
+      remaining: result.remaining_material_m3 ?? null,
+      ETA: result.ETA_completion_h ?? null,
+      vehicles: result.Active_vehicles ?? 0,
+      loaders: result.active_loaders ?? 0,
+      avgCycle: result.avg_cycle_time_min ?? 0,
+      queueTime: result.avg_queue_time_min ?? 0,
+      dayProductivity: result.Day_productivity ?? 0,
+      totalTrips: result.total_trips_today ?? 0,
+      tripProductivity: result.trip_productivity ?? 0,
+      dayGoal: result.day_goal_achievement ?? 0,
+      energyEfficiency: result.energy_efficiency_lm3 ?? 0,
+      haulDistance: result.Total_haul_distance ?? 0,
+      loadCycle: result.load_cycle ?? 0,
+      haulCycle: result.haul_cycle ?? 0,
+      dumpCycle: result.dump_cycle ?? 0,
+      queueCycle: result.queue_cycle ?? 0,
+      returnCycle: result.return_cycle ?? 0,
+      last10Efficiency: result.last_10_op_efficiency ?? [],
+    };
+  } catch (error) {
+    console.error("❌ Error fetching KPIs Dashboard:", error.response?.data || error.message);
+    throw error;
+  }
+}

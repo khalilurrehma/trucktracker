@@ -6,6 +6,7 @@ import {
   markAssignmentCompleted,
   deleteDeviceAssignment,
   getOperationCalculatorData,
+  getPositions
 } from "../../model/operation/deviceAssignmentModel.js";
 
 // ✅ Create
@@ -84,7 +85,7 @@ export const removeAssignment = async (req, res) => {
 export const getOperationStats = async (req, res) => {
   try {
     const { deviceId } = req.params;
-    const calcId = req.query.calcId || 2194146; // default fallback calcId
+    const calcId = req.query.calcId || 2194137; // default fallback calcId
 
     if (!deviceId) {
       return res.status(400).json({
@@ -114,5 +115,22 @@ export const getOperationStats = async (req, res) => {
       message: "Failed to fetch operation calculator data",
       error: error.message,
     });
+  }
+};
+
+export const getDevicePositions = async (req, res) => {
+  try {
+    const { ids } = req.query; // e.g. ?ids=7100602,7100655,7100656
+    if (!ids) {
+      return res.status(400).json({ error: "Missing 'ids' query parameter" });
+    }
+
+    const deviceIds = ids.split(",").map((id) => id.trim());
+    const positions = await getPositions(deviceIds);
+
+    res.status(200).json({ success: true, count: positions.length, positions });
+  } catch (error) {
+    console.error("❌ Controller error:", error.message);
+    res.status(500).json({ error: "Failed to fetch device positions" });
   }
 };

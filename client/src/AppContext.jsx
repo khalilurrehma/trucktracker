@@ -58,15 +58,25 @@ const AppContextProvider = ({ children }) => {
   const user = useSelector((state) => state.session.user);
 
   const updateMqttMessage = (newMessage, stateType) => {
-    
+
     if (stateType === "Events") {
       setMqttReportsEvents((prev) => [...prev, newMessage]);
     } else if (stateType === "Alarms") {
+      console.log("New Alarm MQTT Message:", newMessage);
       setMqttMessages((prev) => [...prev, newMessage]);
     } else if (stateType === "driverBehaivor") {
       setMqttDriverBehaivor((prev) => [...prev, newMessage]);
     } else if (stateType === "deviceLiveLocation") {
-      setDeviceLiveLocation((prev) => [...prev, newMessage]);
+      setDeviceLiveLocation((prev) => {
+        const index = prev.findIndex((p) => p.deviceId === newMessage.deviceId);
+
+        if (index !== -1) {
+          const updated = [...prev];
+          updated[index] = newMessage;
+          return updated;
+        }
+        return [...prev, newMessage];
+      });
     } else if (stateType === "deviceDin") {
       setDeviceDin((prev) => {
         const updatedDevices = [...prev];

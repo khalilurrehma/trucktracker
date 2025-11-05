@@ -7,6 +7,7 @@ import {
   completeAssignment,
   removeAssignment,
   getOperationStats,
+  getDevicePositions,
 } from "../../controllers/operation/deviceAssignmentController.js";
 
 const router = express.Router();
@@ -16,7 +17,7 @@ router.post("/device-assignments", createAssignment);
 
 // GET /api/device-assignments
 router.get("/device-assignments", fetchAllAssignments);
-
+router.get("/device-positions", getDevicePositions);
 // GET /api/device-assignments/:id
 router.get("/device-assignments/:id", fetchAssignmentById);
 

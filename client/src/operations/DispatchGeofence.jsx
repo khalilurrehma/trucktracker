@@ -1,7 +1,9 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import OperationForm from "./components/OperationForm";
 import ZoneForm from "./components/ZoneForm";
 import OperationList from "./components/OperationList";
 import ZoneList from "./components/ZoneList";
+import AlertsPanel from "./components/AlertsPanel";
 import MapCanvas from "./components/MapCanvas";
 import { useOperations } from "../hooks/useOperations";
 import { useZones } from "../hooks/useZones";
@@ -14,12 +16,19 @@ import { useAppContext } from "../AppContext";   // ✅ added import
 
 export default function OperationZoneManager() {
   const navigate = useNavigate();
-  const { mqttDeviceLiveLocation,mqttOperationStats } = useAppContext(); // ✅ get live MQTT data
+  const { mqttDeviceLiveLocation, mqttOperationStats, mqttMessages } = useAppContext(); // ✅ get live MQTT data
   const ops = useOperations();
   const zones = useZones();
   const allDevices = useDevices(ops.selectedOperationId);
   const drawing = useDrawing();
-
+  useEffect(() => {
+    if (ops.operations.length > 0 && !ops.selectedOperationId) {
+      // Assuming operations are sorted oldest → newest
+      const latest = ops.operations[ops.operations.length - 1];
+      ops.setSelectedOperationId(latest.id);
+      console.log("✅ Auto-selected latest operation:", latest.name || latest.id);
+    }
+  }, [ops.operations, ops.selectedOperationId]);
   // ✅ Log live device updates
   if (mqttDeviceLiveLocation?.length > 0) {
     mqttDeviceLiveLocation.forEach((msg) => {
@@ -55,7 +64,11 @@ export default function OperationZoneManager() {
           <ZoneList ops={ops} zones={zones} allDevices={allDevices} />
         )}
       </div>
-
+      {console.log("Rendering MapCanvas with live MQTT data:", {
+        // mqttDeviceLiveLocation,
+        mqttOperationStats,
+        // mqttMessages,
+      })}
       {/* ✅ Pass live MQTT data into the map */}
       <MapCanvas
         ops={ops}
@@ -64,7 +77,12 @@ export default function OperationZoneManager() {
         allDevices={allDevices}
         mqttDeviceLiveLocation={mqttDeviceLiveLocation}
         mqttOperationStats={mqttOperationStats}
+
       />
+
+      {/* 🆕 Alerts Panel */}
+      <AlertsPanel mqttMessages={mqttMessages} />
+
     </div>
   );
 }
