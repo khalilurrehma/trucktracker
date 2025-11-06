@@ -8,6 +8,7 @@ import {
   removeAssignment,
   getOperationStats,
   getDevicePositions,
+  getDevicesByGeofenceController
 } from "../../controllers/operation/deviceAssignmentController.js";
 
 const router = express.Router();
@@ -27,5 +28,6 @@ router.put("/device-assignments/:id/complete", completeAssignment);
 // DELETE /api/device-assignments/:id
 router.delete("/device-assignments", removeAssignment);
 router.get("/operation-calculator/:deviceId", getOperationStats);
+router.get("/operation-devices/:geofenceId", getDevicesByGeofenceController);
 
 export default router;

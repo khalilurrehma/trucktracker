@@ -1,354 +1,334 @@
+// src/operations/components/MapCanvas.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   GoogleMap,
   Polygon,
+  Circle,
   OverlayView,
+  TrafficLayer,
+  TransitLayer,
+  BicyclingLayer,
   useJsApiLoader,
 } from "@react-google-maps/api";
-import {
-  fetchOperationKPI,
-  getDevicesByOperation,
-  getDevicePositions,
-} from "../../apis/deviceAssignmentApi";
-import { GiTruck } from "react-icons/gi";
-import TruckInfoCard from "../components/TruckInfoCard";
+import TruckInfoCard from "./TruckInfoCard";
+import TruckMarker from "./TruckMarker";
+import LayerTogglesPanel from "./LayerTogglesPanel";
+import MapControlRail from "./MapControlRail";
+import { Box } from "@mui/material";
+import { fetchOperationKPI, getDevicePositions, getDevicesByGeofence } from "../../apis/deviceAssignmentApi";
 
 const LIBS = ["drawing", "geometry"];
 const MAP_STYLE = { width: "100%", height: "74vh" };
-const CENTER = { lat: -12.0464, lng: -77.0428 };
+const CENTER = { lat: -12.308503, lng: -76.826321 };
 
 const COLORS = {
-  OPERATION: "#00c853",
-  SELECTED_OPERATION: "#64ffda",
-  QUEUE_AREA: "#fbc02d",
-  LOAD_PAD: "#ef5350",
   DUMP_AREA: "#ab47bc",
+  LOAD_PAD: "#ef5350",
+  QUEUE_AREA: "#fbc02d",
   ZONE_AREA: "#42a5f5",
-  INVALID: "#ff1744",
+  OP_AREA: "#00c853",
+  SELECTED_OPERATION: "#64ffda",
 };
 
-export default function MapCanvas({
-  ops,
-  zones,
-  drawing,
-  mqttDeviceLiveLocation,
-  mqttOperationStats,
-}) {
+export default function MapCanvas({ ops, allDevices, mqttDeviceLiveLocation, mqttOperationStats }) {
   const key = import.meta.env.VITE_GOOGLE_MAP_API;
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: key,
-    libraries: LIBS,
-  });
+  const { isLoaded, loadError } = useJsApiLoader({ googleMapsApiKey: key, libraries: LIBS });
 
-  const [assignedDevices, setAssignedDevices] = useState([]);
+  const [devices, setDevices] = useState([]);
   const [positions, setPositions] = useState([]);
-  const [hoveredDevice, setHoveredDevice] = useState(null);
   const [deviceKPI, setDeviceKPI] = useState({});
+  const [hoveredDevice, setHoveredDevice] = useState(null);
+  const [mapMode, setMapMode] = useState("google_roadmap");
   const mapRef = useRef(null);
-  const overlayRef = useRef(null);
 
-  // --- Load operation & KPI data
-  const loadData = async () => {
-    if (!ops.selectedOperationId) return;
-    try {
-      const devices = await getDevicesByOperation(ops.selectedOperationId);
-      setAssignedDevices(devices);
-
-      const flespiIds = devices.map((d) => d.flespiId).filter(Boolean);
-      if (flespiIds.length) {
-        const pos = await getDevicePositions(flespiIds);
-        setPositions(pos);
-      } else setPositions([]);
-
-      const kpiPromises = devices.map((d) => fetchOperationKPI(d.flespiId));
-      const kpiResults = await Promise.allSettled(kpiPromises);
-      const kpiMap = {};
-      devices.forEach((d, i) => {
-        if (kpiResults[i].status === "fulfilled") {
-          kpiMap[d.flespiId] = kpiResults[i].value;
-        }
-      });
-      setDeviceKPI(kpiMap);
-    } catch (err) {
-      console.error("Error loading data:", err.message);
-    }
-  };
-
-  // --- Update positions live from MQTT
-  useEffect(() => {
-    if (!mqttDeviceLiveLocation?.length) return;
-    setPositions((prev) => {
-      const updated = [...prev];
-      mqttDeviceLiveLocation.forEach(({ deviceId, value }) => {
-        if (!value?.latitude || !value?.longitude) return;
-        const idx = updated.findIndex((p) => p.flespiDeviceId === deviceId);
-        const newPos = {
-          flespiDeviceId: deviceId,
-          latitude: value.latitude,
-          longitude: value.longitude,
-        };
-        if (idx !== -1) updated[idx] = newPos;
-        else updated.push(newPos);
-      });
-      return updated;
-    });
-  }, [mqttDeviceLiveLocation]);
-// 🧠 Live update KPIs from MQTT operation stats
-useEffect(() => {
-  if (!mqttOperationStats?.length) return;
-
-  setDeviceKPI((prev) => {
-    const updated = { ...prev };
-
-    mqttOperationStats.forEach((msg) => {
-      const { flespiDeviceId, value } = msg;
-      if (!flespiDeviceId || !value) return;
-
-      // Merge live KPI data with previous one (keep timestamp if new)
-      updated[flespiDeviceId] = {
-        ...updated[flespiDeviceId],
-        ...value,
-        timestamp: new Date().toISOString(),
-      };
-    });
-
-    return updated;
-  });
-}, [mqttOperationStats]);
-
-  useEffect(() => {
-    loadData();
-  }, [ops.selectedOperationId]);
-
-  useEffect(() => {
-    const interval = setInterval(() => loadData(), 15000);
-    return () => clearInterval(interval);
-  }, [ops.selectedOperationId]);
+  // toggles
+  const [showTraffic, setShowTraffic] = useState(false);
+  const [showTransit, setShowTransit] = useState(false);
+  const [showBicycling, setShowBicycling] = useState(false);
+  const [showZones, setShowZones] = useState(true);
+  const [showTrucks, setShowTrucks] = useState(true);
 
   const selectedOperation = useMemo(
     () => ops.operations.find((p) => p.id === ops.selectedOperationId),
     [ops.operations, ops.selectedOperationId]
   );
 
-  // --- Fit map to selected operation
+  // Load devices & KPIs
+  useEffect(() => {
+    const loadDevicesAndPositions = async () => {
+      if (!selectedOperation || !allDevices?.length) return;
+      try {
+        const geofenceDevices = await getDevicesByGeofence(selectedOperation.id);
+        const mergedDevices = geofenceDevices.map((gdev) => {
+          const fullInfo = allDevices.find((d) => Number(d.flespiId) === Number(gdev.device_id));
+          return { ...gdev, ...fullInfo };
+        });
+        setDevices(mergedDevices);
+
+        const ids = mergedDevices.map((d) => d?.flespiId || d?.device_id);
+        if (!ids.length) return;
+
+        const pos = await getDevicePositions(ids);
+        setPositions(pos);
+
+        const kpiPromises = ids.map((id) => fetchOperationKPI(id));
+        const kpiResults = await Promise.allSettled(kpiPromises);
+        const kpiMap = {};
+        ids.forEach((id, i) => {
+          if (kpiResults[i].status === "fulfilled") kpiMap[id] = kpiResults[i].value;
+        });
+        setDeviceKPI(kpiMap);
+      } catch (err) {
+        console.error("❌ Failed to load geofence devices:", err.message);
+      }
+    };
+    loadDevicesAndPositions();
+  }, [selectedOperation, allDevices]);
+
+  // Live MQTT locations
+  useEffect(() => {
+    if (!mqttDeviceLiveLocation?.length) return;
+    setPositions((prev) => {
+      const updated = [...prev];
+      mqttDeviceLiveLocation.forEach(({ deviceId, value }) => {
+        if (!value?.latitude || !value?.longitude) return;
+        const newPos = {
+          flespiDeviceId: deviceId,
+          latitude: value.latitude,
+          longitude: value.longitude,
+          direction: value.direction || 0,
+          timestamp: Date.now(),
+        };
+        const idx = updated.findIndex((p) => p.flespiDeviceId === deviceId);
+        if (idx !== -1) updated[idx] = { ...updated[idx], ...newPos };
+        else updated.push(newPos);
+      });
+      return updated;
+    });
+  }, [mqttDeviceLiveLocation]);
+
+  // Live KPI updates
+  useEffect(() => {
+    if (!mqttOperationStats?.length) return;
+    setDeviceKPI((prev) => {
+      const updated = { ...prev };
+      mqttOperationStats.forEach(({ flespiDeviceId, value }) => {
+        if (!flespiDeviceId || !value) return;
+        updated[flespiDeviceId] = { ...updated[flespiDeviceId], ...value };
+      });
+      return updated;
+    });
+  }, [mqttOperationStats]);
+
+  // Auto fit to operation
   useEffect(() => {
     if (!mapRef.current || !selectedOperation) return;
+    const g = window.google;
     const geometry =
       typeof selectedOperation.geometry === "string"
         ? JSON.parse(selectedOperation.geometry)
         : selectedOperation.geometry;
-    if (!geometry?.coordinates?.[0]) return;
 
-    const g = window.google;
     const bounds = new g.maps.LatLngBounds();
-    geometry.coordinates[0].forEach(([lng, lat]) => bounds.extend({ lat, lng }));
+    if (geometry?.path?.length) geometry.path.forEach((p) => bounds.extend({ lat: p.lat, lng: p.lon }));
+    if (geometry?.center) {
+      const { lat, lon } = geometry.center;
+      const radiusDeg = geometry.radius / 111;
+      bounds.extend({ lat: lat + radiusDeg, lng: lon + radiusDeg });
+      bounds.extend({ lat: lat - radiusDeg, lng: lon - radiusDeg });
+    }
     mapRef.current.fitBounds(bounds);
   }, [selectedOperation]);
 
-  // --- Initialize drawing manager
-  const onMapLoad = (map) => {
+  const getColor = (eff) => (eff >= 85 ? "#00e676" : eff >= 70 ? "#ffb300" : "#ff5252");
+
+  // Register external basemaps after map loads
+  const handleMapLoad = (map) => {
     mapRef.current = map;
+    if (!window.google || !window.google.maps) return;
     const g = window.google;
-    if (!g?.maps?.drawing) return;
 
-    const dm = new g.maps.drawing.DrawingManager({
-      drawingMode: null,
-      drawingControl: true,
-      drawingControlOptions: {
-        position: g.maps.ControlPosition.TOP_LEFT,
-        drawingModes: ["polygon"],
-      },
-      polygonOptions: {
-        fillColor: COLORS[ops.mode === "OPERATION" ? "OPERATION" : "ZONE_AREA"],
-        fillOpacity: 0.3,
-        strokeColor: COLORS[ops.mode === "OPERATION" ? "OPERATION" : "ZONE_AREA"],
-        strokeWeight: 2,
-        editable: true,
-      },
+    const osmMap = new g.maps.ImageMapType({
+      getTileUrl: (coord, zoom) => `https://tile.openstreetmap.org/${zoom}/${coord.x}/${coord.y}.png`,
+      tileSize: new g.maps.Size(256, 256),
+      name: "OpenStreetMap",
+      maxZoom: 19,
     });
 
-    dm.setMap(map);
-    g.maps.event.addListener(dm, "overlaycomplete", (e) => {
-      if (overlayRef.current) overlayRef.current.setMap(null);
-      overlayRef.current = e.overlay;
-      const path = e.overlay.getPath().getArray();
-      const sqm = g.maps.geometry.spherical.computeArea(path);
-      const coords = path.map((p) => [p.lng(), p.lat()]);
-      drawing.setGeometry(closeRing(coords), sqm);
+    const topoMap = new g.maps.ImageMapType({
+      getTileUrl: (coord, zoom) => `https://a.tile.opentopomap.org/${zoom}/${coord.x}/${coord.y}.png`,
+      tileSize: new g.maps.Size(256, 256),
+      name: "OpenTopoMap",
+      maxZoom: 17,
     });
+
+    const locIQ = new g.maps.ImageMapType({
+      getTileUrl: (coord, zoom) =>
+        `https://tiles.locationiq.com/v3/streets/${zoom}/${coord.x}/${coord.y}.png?key=${import.meta.env.VITE_LOCATIONIQ_KEY}`,
+      tileSize: new g.maps.Size(256, 256),
+      name: "LocationIQ Streets",
+      maxZoom: 18,
+    });
+
+    const cartoLight = new g.maps.ImageMapType({
+      getTileUrl: (coord, zoom) =>
+        `https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/${zoom}/${coord.x}/${coord.y}.png`,
+      tileSize: new g.maps.Size(256, 256),
+      name: "Carto Light",
+      maxZoom: 19,
+    });
+
+    map.mapTypes.set("osm", osmMap);
+    map.mapTypes.set("topo", topoMap);
+    map.mapTypes.set("locIQ", locIQ);
+    map.mapTypes.set("carto", cartoLight);
+  };
+
+  // Basemap cycle
+  const cycleMapType = () => {
+    const sequence = [
+      "google_roadmap",
+      "google_satellite",
+      "google_hybrid",
+      "google_terrain",
+      "osm",
+      "topo",
+      "locIQ",
+      "carto",
+    ];
+    const next = sequence[(sequence.indexOf(mapMode) + 1) % sequence.length];
+    setMapMode(next);
+    const typeId = next.replace("google_", "");
+    mapRef.current?.setMapTypeId(typeId);
+  };
+
+  // Control rail actions
+  const centerOnOperation = () => {
+    if (!mapRef.current || !selectedOperation) return;
+    const g = window.google;
+    const geometry =
+      typeof selectedOperation.geometry === "string"
+        ? JSON.parse(selectedOperation.geometry)
+        : selectedOperation.geometry;
+    const bounds = new g.maps.LatLngBounds();
+    if (geometry?.path) geometry.path.forEach((p) => bounds.extend({ lat: p.lat, lng: p.lon }));
+    if (!bounds.isEmpty()) mapRef.current.fitBounds(bounds);
+  };
+
+  const zoomIn = () => mapRef.current?.setZoom(mapRef.current.getZoom() + 1);
+  const zoomOut = () => mapRef.current?.setZoom(mapRef.current.getZoom() - 1);
+
+  const toggle3D = () => {
+    const tilt = mapRef.current?.getTilt?.() || 0;
+    if (tilt === 0) {
+      mapRef.current?.setMapTypeId("satellite");
+      setMapMode("google_satellite");
+      mapRef.current?.setTilt(45);
+    } else {
+      mapRef.current?.setTilt(0);
+      mapRef.current?.setHeading(0);
+    }
+  };
+
+  const rotate3D = () => {
+    const tilt = mapRef.current?.getTilt?.() || 0;
+    if (tilt === 0) return;
+    const current = mapRef.current.getHeading?.() || 0;
+    mapRef.current.setHeading(current + 90);
   };
 
   if (loadError) return <div>Map failed to load.</div>;
   if (!isLoaded) return <div>Loading map...</div>;
 
-  // --- Helpers
-  const getColor = (eff) =>
-    eff >= 85 ? "#00e676" : eff >= 70 ? "#ffb300" : "#ff5252";
-
-  const getPolygonCenter = (coords) => {
-    if (!coords?.length) return null;
-    let latSum = 0,
-      lngSum = 0;
-    coords.forEach(([lng, lat]) => {
-      latSum += lat;
-      lngSum += lng;
-    });
-    return { lat: latSum / coords.length, lng: lngSum / coords.length };
-  };
-
   return (
-    <>
+    <Box sx={{ position: "relative" }}>
+      <LayerTogglesPanel
+        showTraffic={showTraffic} setShowTraffic={setShowTraffic}
+        showTransit={showTransit} setShowTransit={setShowTransit}
+        showBicycling={showBicycling} setShowBicycling={setShowBicycling}
+        showZones={showZones} setShowZones={setShowZones}
+        showTrucks={showTrucks} setShowTrucks={setShowTrucks}
+      />
+
       <GoogleMap
+        onLoad={handleMapLoad}
         mapContainerStyle={MAP_STYLE}
         center={CENTER}
         zoom={15}
-        onLoad={onMapLoad}
         options={{
-          mapTypeId: "satellite",
+          mapTypeId: mapMode.replace("google_", ""),
+          mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,
-          mapTypeControl: false,
-          zoomControl: true,
+          zoomControl: false,
         }}
       >
-        {/* --- Operation polygons + labels --- */}
-        {ops.operations.map((op) => {
-          const geometry =
-            typeof op.geometry === "string" ? JSON.parse(op.geometry) : op.geometry;
-          const coords = geometry?.coordinates?.[0];
-          if (!coords) return null;
+        {showTraffic && <TrafficLayer />}
+        {showTransit && <TransitLayer />}
+        {showBicycling && <BicyclingLayer />}
 
-          const center = getPolygonCenter(coords);
-          const selected = op.id === ops.selectedOperationId;
+        {/* Zones */}
+        {showZones && ops.operations.map((op) => {
+          const geometry = typeof op.geometry === "string" ? JSON.parse(op.geometry) : op.geometry;
+          if (!geometry) return null;
 
-          return (
-            <React.Fragment key={op.id}>
+          const isSelected = op.id === ops.selectedOperationId;
+          const color = isSelected ? COLORS.SELECTED_OPERATION : COLORS[op.name] || "#9e9e9e";
+          const strokeWeight = isSelected ? 5 : 2;
+          const fillOpacity = isSelected ? 0.35 : 0.25;
+
+          if (geometry.type === "polygon" && geometry.path?.length) {
+            return (
               <Polygon
-                paths={coords.map(([lng, lat]) => ({ lng, lat }))}
-                onClick={() => ops.setSelectedOperationId(op.id)}
-                options={{
-                  strokeColor: selected ? COLORS.SELECTED_OPERATION : COLORS.OPERATION,
-                  strokeWeight: selected ? 3 : 1.5,
-                  fillColor: selected ? COLORS.SELECTED_OPERATION : COLORS.OPERATION,
-                  fillOpacity: selected ? 0.25 : 0.1,
-                }}
+                key={op.id}
+                paths={geometry.path.map((p) => ({ lat: p.lat, lng: p.lon }))}
+                options={{ strokeColor: color, strokeWeight, fillColor: color, fillOpacity }}
               />
-              {center && (
-                <OverlayView position={center} mapPaneName={OverlayView.OVERLAY_LAYER}>
-                  <div
-                    style={{
-                      background: "rgba(0, 0, 0, 0.55)",
-                      color: "#fff",
-                      padding: "4px 8px",
-                      borderRadius: "6px",
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      textAlign: "center",
-                      transform: "translate(-50%, -50%)",
-                    }}
-                  >
-                    🏗️ {op.name || "Operation"}
-                  </div>
-                </OverlayView>
-              )}
-            </React.Fragment>
-          );
+            );
+          }
+
+          if (geometry.type === "circle" && geometry.center) {
+            return (
+              <Circle
+                key={op.id}
+                center={{ lat: geometry.center.lat, lng: geometry.center.lon }}
+                radius={geometry.radius * 1000}
+                options={{ strokeColor: color, strokeWeight, fillColor: color, fillOpacity }}
+              />
+            );
+          }
+          return null;
         })}
 
-        {/* --- Zone polygons + labels --- */}
-        {zones.zones.map((z) => {
-          const geometry =
-            typeof z.geometry === "string" ? JSON.parse(z.geometry) : z.geometry;
-          const coords = geometry?.coordinates?.[0];
-          if (!coords) return null;
-
-          const center = getPolygonCenter(coords);
-
-          return (
-            <React.Fragment key={z.id}>
-              <Polygon
-                paths={coords.map(([lng, lat]) => ({ lng, lat }))}
-                options={{
-                  strokeColor: COLORS[z.zoneType] || COLORS.ZONE_AREA,
-                  strokeWeight: 2,
-                  fillColor: COLORS[z.zoneType] || COLORS.ZONE_AREA,
-                  fillOpacity: 0.25,
-                }}
-              />
-              {center && (
-                <OverlayView position={center} mapPaneName={OverlayView.OVERLAY_LAYER}>
-                  <div
-                    style={{
-                      background: "rgba(33, 33, 33, 0.7)",
-                      color: "#fff",
-                      padding: "3px 8px",
-                      borderRadius: "6px",
-                      fontSize: "11px",
-                      textAlign: "center",
-                      border: `1px solid ${
-                        COLORS[z.zoneType] || COLORS.ZONE_AREA
-                      }`,
-                      transform: "translate(-50%, -50%)",
-                    }}
-                  >
-                    📍 {z.name || "Zone"}
-                  </div>
-                </OverlayView>
-              )}
-            </React.Fragment>
-          );
-        })}
-
-        {/* --- Trucks --- */}
-        {positions.map((pos) => {
-          const device = assignedDevices.find(
-            (d) => Number(d.flespiId) === Number(pos.flespiDeviceId)
-          );
+        {/* Trucks */}
+        {showTrucks && positions.map((pos) => {
+          const device = devices.find((d) => Number(d.flespiId || d.device_id) === Number(pos.flespiDeviceId));
           if (!device) return null;
-
-          const kpi = deviceKPI[device.flespiId];
+          const kpi = deviceKPI[device.flespiId || device.device_id];
           const eff = kpi?.efficiency || 0;
-          const color = getColor(eff);
 
           return (
             <OverlayView
-              key={device.flespiId}
+              key={device.flespiId || device.device_id}
               position={{ lat: pos.latitude, lng: pos.longitude }}
               mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
             >
               <div
-                className="truck-marker"
                 onMouseEnter={() => setHoveredDevice(device)}
                 onMouseLeave={() => setHoveredDevice(null)}
+                style={{ transform: "translate(-50%, -50%)" }}
               >
-                <div
-                  className="efficiency-badge"
-                  style={{
-                    background: kpi ? color : "#9e9e9e",
-                    fontSize: "11px",
-                    padding: "2px 5px",
-                    borderRadius: "4px",
-                    marginBottom: "2px",
-                    textAlign: "center",
-                  }}
-                >
-                  {kpi ? `${eff}%` : "…"}
-                </div>
-                <GiTruck
+                <TruckMarker
                   size={34}
-                  color={
-                    kpi
-                      ? eff >= 85
-                        ? "#00e676"
-                        : eff >= 70
-                        ? "#ffb300"
-                        : "#ff5252"
-                      : "#757575"
-                  }
-                  style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.4))" }}
+                  fill={getColor(eff)}
+                  heading={pos.direction || 0}
+                  label={eff ? `${eff}%` : "0"}
                 />
-                {hoveredDevice?.flespiId === device.flespiId && kpi && (
-                  <TruckInfoCard device={device} kpi={kpi} />
+                {hoveredDevice?.flespiId === device.flespiId && (
+                  <div style={{ marginTop: 6 }}>
+                    {/* keep your existing card */}
+                    <TruckInfoCard device={device} kpi={kpi} />
+                  </div>
                 )}
               </div>
             </OverlayView>
@@ -356,47 +336,14 @@ useEffect(() => {
         })}
       </GoogleMap>
 
-      {/* 🗺️ Legend */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: "10px",
-          left: "10px",
-          background: "rgba(0,0,0,0.65)",
-          padding: "14px 18px",
-          borderRadius: "12px",
-          color: "white",
-          fontSize: "14px",
-          lineHeight: "22px",
-          zIndex: 9999,
-        }}
-      >
-        <strong style={{ display: "block", marginBottom: "6px" }}>
-          🗺️ Zone Legend
-        </strong>
-        {Object.entries({
-          Operation: COLORS.OPERATION,
-          "Queue Area": COLORS.QUEUE_AREA,
-          "Load Pad": COLORS.LOAD_PAD,
-          "Dump Area": COLORS.DUMP_AREA,
-          "General Zone": COLORS.ZONE_AREA,
-        }).map(([label, color]) => (
-          <div key={label} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <span
-              style={{ width: 16, height: 16, background: color, borderRadius: 2 }}
-            ></span>
-            {label}
-          </div>
-        ))}
-      </div>
-    </>
+      <MapControlRail
+        cycleMapType={cycleMapType}
+        centerOnOperation={centerOnOperation}
+        zoomIn={zoomIn}
+        zoomOut={zoomOut}
+        toggle3D={toggle3D}
+        rotate3D={rotate3D}
+      />
+    </Box>
   );
-}
-
-function closeRing(coords) {
-  if (!coords.length) return coords;
-  const [firstLng, firstLat] = coords[0];
-  const [lastLng, lastLat] = coords[coords.length - 1];
-  if (firstLng !== lastLng || firstLat !== lastLat) coords.push(coords[0]);
-  return coords;
 }

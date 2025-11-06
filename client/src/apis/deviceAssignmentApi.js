@@ -89,7 +89,24 @@ export const getDevicesByOperation = async (operationId) => {
     throw error;
   }
 };
+export const getDevicesByGeofence = async (geofenceId) => {
+  try {
+    if (!geofenceId) throw new Error("Missing geofenceId");
 
+    const url = `${apiUrl}/operation-devices/${geofenceId}`;
+    const { data } = await axios.get(url);
+
+    if (!data.success) throw new Error("Flespi API returned error");
+
+    return data.devices || [];
+  } catch (error) {
+    console.error(
+      "❌ Error fetching devices by geofence:",
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
 export const getDevicePositions = async (deviceIds = []) => {
   try {
     if (!deviceIds.length) throw new Error("Device IDs array is empty.");

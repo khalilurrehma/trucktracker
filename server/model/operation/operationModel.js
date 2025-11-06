@@ -196,7 +196,8 @@ export const updateOperation = async (id, operation) => {
 // =====================================================
 export const getAllOperations = async () => {
     try {
-        return await dbQuery("SELECT * FROM operations");
+        // return await dbQuery("SELECT * FROM operations");
+        return await getFlespiGeofence();
     } catch (err) {
         throw err;
     }

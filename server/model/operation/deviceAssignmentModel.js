@@ -6,6 +6,7 @@ import {
   assignGeofenceToDevice,
   unassignGeofenceFromDevice,
   fetchCalcData,
+  fetchGeofenceDevices,
   fetchDevicePositions
 } from "../../services/flespiApis.js";
 
@@ -82,6 +83,7 @@ export const getAssignmentById = async (id) => {
   return result || null;
 };
 
+
 // ✅ Mark assignment completed
 export const markAssignmentCompleted = async (id) => {
   const sql = `
@@ -146,6 +148,15 @@ export const getPositions = async (deviceIds) => {
     return data;
   } catch (err) {
     console.error("❌ Model error in getPositions:", err.message);
+    throw err;
+  }
+};
+export const getDevicesByGeofence = async (geofenceId) => {
+  try {
+    const data = await fetchGeofenceDevices(geofenceId);
+    return data;
+  } catch (err) {
+    console.error("❌ Model error in getDevicesByGeofence:", err.message);
     throw err;
   }
 };

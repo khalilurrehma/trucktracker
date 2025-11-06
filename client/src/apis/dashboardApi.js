@@ -17,3 +17,39 @@ export const getDashboardKPI = async (deviceId) => {
     throw error;
   }
 };
+
+
+export const fetchMultipleOperationKPIs = async (deviceIds = []) => {
+  try {
+    if (!Array.isArray(deviceIds) || deviceIds.length === 0) {
+      throw new Error("Device IDs array is empty.");
+    }
+
+    console.log(`📡 Fetching KPIs for devices: ${deviceIds.join(",")}`);
+
+    // 🧠 Backend endpoint (e.g. /api/dashboard)
+    const { data } = await axios.post(`${apiUrl}/dashboard`, { deviceIds });
+
+    // ✅ Expect backend response like: { success: true, data: [ {...}, {...} ] }
+    if (!data?.data || !Array.isArray(data.data)) {
+      console.warn("⚠️ Unexpected response format:", data);
+      return [];
+    }
+
+    // 🧩 Normalize output
+    const formatted = data.data.map((r) => ({
+      deviceId: r.flespiDeviceId || r.deviceId,
+      status: "fulfilled",
+      data: r,
+    }));
+
+    console.log(`✅ Retrieved KPIs for ${formatted.length} devices via backend`);
+    return formatted;
+  } catch (error) {
+    console.error(
+      "❌ Error in multi-device KPI fetch:",
+      error.response?.data || error.message
+    );
+    return [];
+  }
+};

@@ -50,11 +50,21 @@ const LoginLayout = ({ children }) => {
       <div className={classes.sidebar}>
         {!useMediaQuery(theme.breakpoints.down('lg')) && <LogoImage color={theme.palette.secondary.contrastText} />}
       </div>
-      <Paper className={classes.paper}>
+      <Paper
+        className={classes.paper}
+        style={{
+          backgroundImage: 'url(/truck.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          height: '100vh',
+        }}
+      >
         <form className={classes.form}>
           {children}
         </form>
       </Paper>
+
     </main>
   );
 };

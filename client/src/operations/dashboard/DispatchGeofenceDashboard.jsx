@@ -1,9 +1,21 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getDashboardKPI } from "../../apis/dashboardApi";
 import {
-  Package, TrendingUp, TrendingDown, Clock, Zap, Fuel, Truck, Users,
-  Activity, Target, AlertCircle
+  getDevicesByGeofence
+} from "../../apis/deviceAssignmentApi";
+import { fetchMultipleOperationKPIs } from "../../apis/dashboardApi";
+import {
+  Package,
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  Zap,
+  Fuel,
+  Truck,
+  Users,
+  Activity,
+  Target,
+  AlertCircle,
 } from "lucide-react";
 import { MetricCard } from "./components/MetricCard";
 import { EfficiencyGauge } from "./components/EfficiencyGauge";
@@ -12,35 +24,81 @@ import { EfficiencyChart } from "./components/EfficiencyChart";
 import { StatusCard } from "./components/StatusCard";
 
 const Index = () => {
-  const { id } = useParams(); // 👈 get device ID from URL
-  const [data, setData] = useState(null);
+  const { id } = useParams(); // 👈 Geofence ID
+  const [kpi, setKpi] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!id) return; // prevent running before param exists
+    if (!id) return;
 
-    const fetchKPIs = async () => {
-      try {
-        const res = await getDashboardKPI(id);
-        setData(res);
-      } catch (error) {
-        console.error("Dashboard fetch error:", error);
-      } finally {
-        setLoading(false);
-      }
+   const fetchKPIs = async () => {
+  try {
+    setLoading(true);
+
+    // 1️⃣ Get all devices in this geofence
+    const devices = await getDevicesByGeofence(id);
+    const deviceIds = devices.map((d) => d.device_id || d.flespiId).filter(Boolean);
+
+    if (!deviceIds.length) {
+      console.warn("⚠️ No devices found for geofence:", id);
+      setKpi(null);
+      return;
+    }
+
+    // 2️⃣ Fetch KPI data from backend
+    const response = await fetchMultipleOperationKPIs(deviceIds);
+
+    // ✅ New backend response format
+    const data = response || []; // <- nested "data" field
+    if (!data.length) {
+      setKpi(null);
+      return;
+    }
+
+    // 3️⃣ Aggregate KPIs
+    const aggregate = (key, avg = false) => {
+      const values = data.map((v) => Number(v[key] ?? 0));
+      if (values.length === 0) return 0;
+      const sum = values.reduce((a, b) => a + b, 0);
+      return avg ? sum / values.length : sum;
     };
 
+    const combined = {
+      totalMaterial: aggregate("op_total_volume_m3"),
+      totalMoved: aggregate("total_material_moved_m3"),
+      materialToday: aggregate("material_moved_today"),
+      remaining: aggregate("remaining_material_m3"),
+      ETA: aggregate("ETA_completion_h", true),
+      vehicles: aggregate("op_vehicle_count"),
+      loaders: aggregate("op_loaders_count"),
+      avgCycle: aggregate("avg_cycle_volume_m3", true),
+      queueTime: aggregate("op_avg_queue_time", true),
+      dayProductivity: aggregate("Day_productivity", true),
+      tripProductivity: aggregate("trip_productivity", true),
+      energyEfficiency: aggregate("energy_efficiency_lm3", true),
+      efficiency: aggregate("cycle_efficiency", true),
+      dayGoal: aggregate("day_goal_achievement", true),
+      totalTrips: aggregate("cycle_haul_trips_count"),
+      loadCycle: aggregate("load_cycle", true),
+    };
+
+    setKpi(combined);
+  } catch (error) {
+    console.error("Dashboard fetch error:", error);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
     fetchKPIs();
-    const interval = setInterval(fetchKPIs, 60000); // auto-refresh every minute
+    const interval = setInterval(fetchKPIs, 60000);
     return () => clearInterval(interval);
   }, [id]);
 
   if (loading) return <div className="p-6">Loading dashboard...</div>;
-  if (!data) return <div className="p-6">No KPI data available.</div>;
+  if (!kpi) return <div className="p-6">No KPI data available for this geofence.</div>;
 
-  const kpi = data.device || {};
-
-  // ✅ Safe numeric conversions for display
   const safe = (val, digits = 2) => Number(val ?? 0).toFixed(digits);
 
   return (
@@ -50,10 +108,10 @@ const Index = () => {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-4xl font-bold text-foreground mb-2">
-              Device Dashboard — {id}
+              Operation Dashboard — Geofence {id}
             </h1>
             <p className="text-muted-foreground">
-              Real-time fleet and material tracking
+              Aggregated KPIs for all devices in this geofence
             </p>
           </div>
           <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-success/10 border border-success/20">

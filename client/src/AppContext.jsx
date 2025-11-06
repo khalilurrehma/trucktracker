@@ -62,7 +62,6 @@ const AppContextProvider = ({ children }) => {
     if (stateType === "Events") {
       setMqttReportsEvents((prev) => [...prev, newMessage]);
     } else if (stateType === "Alarms") {
-      console.log("New Alarm MQTT Message:", newMessage);
       setMqttMessages((prev) => [...prev, newMessage]);
     } else if (stateType === "driverBehaivor") {
       setMqttDriverBehaivor((prev) => [...prev, newMessage]);
@@ -114,8 +113,22 @@ const AppContextProvider = ({ children }) => {
     } else if (stateType === "rimacCase") {
       setLiveRimacCases((prev) => [...prev, newMessage]);
     } else if (stateType === "operationCalculator") {
-      setMqttOperationStats((prev) => [...prev, newMessage]);
-    }
+      setMqttOperationStats((prev) => {
+        const index = prev.findIndex(
+          (p) => p.flespiDeviceId === newMessage.flespiDeviceId
+        );
+
+        if (index !== -1) {
+          // ✅ Update existing record
+          const updated = [...prev];
+          updated[index] = { ...updated[index], ...newMessage };
+          return updated;
+        }
+
+        // ✅ Add new entry if device not found
+        return [...prev, newMessage];
+      });
+    };
   };
 
   useEffect(() => {

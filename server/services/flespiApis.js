@@ -718,7 +718,37 @@ export const fetchCalcData = async (calcId, deviceId) => {
     throw error;
   }
 };
+export const fetchGeofenceDevices = async (geofenceId) => {
+  try {
+    if (!geofenceId) throw new Error("Geofence ID is required.");
 
+    const fields = "device_id,geofence_id,name,auto_created";
+    const url = `${flespiUrl}/devices/all/geofences/${geofenceId}?fields=${encodeURIComponent(fields)}`;
+
+    const { data } = await axios.get(url, {
+      headers: {
+        Authorization: `FlespiToken ${FlespiToken}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    });
+
+    // ✅ Return cleaned result array
+    const result = (data.result || []).map((item) => ({
+      device_id: item.device_id,
+      geofence_id: item.geofence_id,
+      name: item.name,
+      auto_created: item.auto_created,
+    }));
+
+    return result;
+  } catch (error) {
+    console.error(
+      "❌ Error fetching geofence devices:",
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
 
 export const fetchDevicePositions = async (deviceIds = []) => {
   try {
@@ -771,7 +801,6 @@ export async function getKPIsDashboard(deviceId) {
       headers: { Authorization: `FlespiToken ${FlespiToken}` },
     });
 
-    console.log("📊 [Flespi] KPIs Dashboard:", data);
 
     const result = data.result?.[0] || {};
 
@@ -805,3 +834,51 @@ export async function getKPIsDashboard(deviceId) {
     throw error;
   }
 }
+
+
+
+
+
+export const fetchOperationStatsForDevices = async (deviceIds = [], calcId) => {
+  try {
+    if (!deviceIds.length) throw new Error("Device IDs array is empty.");
+    const idsParam = deviceIds.join(",");
+    const url = `https://flespi.io/gw/calcs/${calcId}/devices/${idsParam}/intervals/last??data={"fields":"operation_efficiency_pct,operation_total_m3,total_material_moved_m3,material_moved_today,remaining_material_m3,ETA_completion_h,Active_vehicles,active_loaders,avg_cycle_time_min,avg_queue_time_min,Day_productivity,total_trips_today,trip_productivity,day_goal_achievement,energy_efficiency_lm3,Total_haul_distance,load_cycle,haul_cycle,dump_cycle,queue_cycle,return_cycle,last_10_op_efficiency"}`;
+
+    const headers = {
+      Authorization: `FlespiToken ${FlespiToken}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    };
+
+    const { data } = await axios.get(url, { headers });
+
+    // 🧩 Normalize the response
+    console.log("telemetry:", data.result);
+
+    const results = (data.result || []).map((item, index) => {
+      const flespiDeviceId = deviceIds[index]; // Preserve order
+      const telemetry = item.telemetry || {};
+
+      const extract = (key) => {
+        const obj = telemetry[key];
+        if (obj && typeof obj === "object") return obj.value;
+        return obj ?? 0;
+      };
+
+      // 🧩 Add flespiDeviceId into the item itself
+      const itemWithDevice = { ...item, flespiDeviceId };
+
+      return {
+        flespiDeviceId,
+        ...itemWithDevice,
+      };
+    });
+
+
+
+    return results;
+  } catch (error) {
+    console.error("❌ Error fetching operation stats:", error.response?.data || error.message);
+    throw error;
+  }
+};

@@ -149,7 +149,7 @@ const LoginPage = () => {
 
   return (
     <LoginLayout>
-      <div className={classes.options}>
+   <div className={classes.options}>
         {nativeEnvironment && changeEnabled && (
           <Tooltip title={t('settingsServer')}>
             <IconButton onClick={() => navigate('/change-server')}>

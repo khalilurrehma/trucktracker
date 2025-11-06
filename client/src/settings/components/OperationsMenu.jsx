@@ -74,10 +74,10 @@ const OperationsMenu = () => {
     <>
       <List>
           <MenuItem
-          title="Loadiq"
-          link="/operations/geofence/map"
+          title="Load IQ"
+          link="/operations/geofence/list"
           icon={<TrackChangesIcon />}
-          selected={location.pathname === "/operations/geofence/map"}
+          selected={location.pathname === "/operations/geofence/list"}
         />
       </List>
     </>
