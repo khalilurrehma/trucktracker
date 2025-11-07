@@ -30,7 +30,7 @@ const COLORS = {
   SELECTED_OPERATION: "#64ffda",
 };
 
-export default function MapCanvas({ ops, allDevices, mqttDeviceLiveLocation, mqttOperationStats }) {
+export default function MapCanvas({ ops, allDevices, mqttDeviceLiveLocation, mqttOperationStats,mqttGeofences}) {
   const key = import.meta.env.VITE_GOOGLE_MAP_API;
   const { isLoaded, loadError } = useJsApiLoader({ googleMapsApiKey: key, libraries: LIBS });
 
@@ -40,7 +40,9 @@ export default function MapCanvas({ ops, allDevices, mqttDeviceLiveLocation, mqt
   const [hoveredDevice, setHoveredDevice] = useState(null);
   const [mapMode, setMapMode] = useState("google_roadmap");
   const mapRef = useRef(null);
-
+const polygonRefs = useRef({});
+const circleRefs = useRef({});
+const [geofences, setGeofences] = useState([]);
   // toggles
   const [showTraffic, setShowTraffic] = useState(false);
   const [showTransit, setShowTransit] = useState(false);
@@ -119,6 +121,54 @@ export default function MapCanvas({ ops, allDevices, mqttDeviceLiveLocation, mqt
       return updated;
     });
   }, [mqttOperationStats]);
+// ✅ Handle incoming MQTT geofence updates (create or update)
+useEffect(() => {
+  if (!mqttGeofences) return;
+
+  const list = Array.isArray(mqttGeofences) ? mqttGeofences : [mqttGeofences];
+
+  // Update operations directly
+  ops.setOperations?.((prevOps) => {
+    const updatedOps = [...prevOps];
+
+    list.forEach((msg) => {
+      if (!msg) return;
+      const gf = msg.data || msg;
+      const action = msg.action || "updated";
+      if (!gf?.id) return;
+
+      // find operation with same ID
+      const idx = updatedOps.findIndex((op) => Number(op.id) === Number(gf.id));
+
+      if (action === "deleted") {
+        // 🗑 remove if exists
+        if (idx !== -1) updatedOps.splice(idx, 1);
+        return;
+      }
+
+      if (idx !== -1) {
+        // 🔵 update geometry in existing operation
+        updatedOps[idx] = {
+          ...updatedOps[idx],
+          geometry: gf.geometry,
+          name: gf.name || updatedOps[idx].name,
+          _ts: Date.now(),
+        };
+      } else {
+        // 🟢 create new operation/geofence if not found
+        updatedOps.push({
+          id: gf.id,
+          name: gf.name || `GEOFENCE_${gf.id}`,
+          geometry: gf.geometry,
+          type: gf.geometry?.type,
+          _ts: Date.now(),
+        });
+      }
+    });
+
+    return updatedOps;
+  });
+}, [mqttGeofences]);
 
   // Auto fit to operation
   useEffect(() => {
@@ -299,6 +349,52 @@ export default function MapCanvas({ ops, allDevices, mqttDeviceLiveLocation, mqt
           }
           return null;
         })}
+{/* ✅ ---- LIVE MQTT GEOFENCES ---- */}
+{Array.isArray(geofences) &&
+  geofences.map((gf) => {
+    const { id, name, geometry, _ts } = gf || {};
+    if (!geometry) return null;
+
+    const color = COLORS?.[name] || "#26c6da"; // default color
+    const key = id ? `gf-${id}-${_ts || 0}` : `gf-${Date.now()}`;
+
+    // Circle
+    if (geometry.type === "circle" && geometry.center) {
+      return (
+        <Circle
+          key={key}
+          onLoad={(c) => (circleRefs.current[id] = c)}
+          center={{ lat: geometry.center.lat, lng: geometry.center.lon }}
+          radius={Number(geometry.radius) * 1000 || 0}
+          options={{
+            strokeColor: color,
+            strokeWeight: 2,
+            fillColor: color,
+            fillOpacity: 0.25,
+          }}
+        />
+      );
+    }
+
+    // Polygon
+    if (geometry.type === "polygon" && Array.isArray(geometry.path)) {
+      const path = geometry.path.map((p) => ({ lat: p.lat, lng: p.lon }));
+      return (
+        <Polygon
+          key={key}
+          onLoad={(p) => (polygonRefs.current[id] = p)}
+          paths={path}
+          options={{
+            strokeColor: color,
+            strokeWeight: 2,
+            fillColor: color,
+            fillOpacity: 0.25,
+          }}
+        />
+      );
+    }
+    return null;
+  })}
 
         {/* Trucks */}
         {showTrucks && positions.map((pos) => {

@@ -48,6 +48,7 @@ const AppContextProvider = ({ children }) => {
   const [mqttDeviceConnected, setDeviceConnected] = useState([]);
   const [mqttDeviceDin, setDeviceDin] = useState([]);
   const [mqttOperationStats, setMqttOperationStats] = useState([]);
+  const [mqttGeofences, setMqttGeofences] = useState([]);
 
 
   const [updateCronLogs, setUpdateCronLogs] = useState([]);
@@ -100,6 +101,27 @@ const AppContextProvider = ({ children }) => {
 
         return updatedDevices;
       });
+    } else if (stateType === "geofencesData") {
+      const { data, action } = newMessage; // comes from handleGeofenceEvent
+      const geofenceId = data?.id;
+
+      setMqttGeofences((prev) => {
+        let updated = [...prev];
+        const index = updated.findIndex((g) => g.id === geofenceId);
+
+        if (action === "deleted") {
+          // remove deleted geofence
+          updated = updated.filter((g) => g.id !== geofenceId);
+        } else if (index !== -1) {
+          // update existing one
+          updated[index] = { ...updated[index], ...data };
+        } else {
+          // new geofence created
+          updated.push(data);
+        }
+        return updated;
+      });
+
     } else if (stateType === "engineIgnitionStatus") {
       setDeviceIgnitionStatus((prev) => [...prev, newMessage]);
     } else if (stateType === "connected") {
@@ -454,6 +476,7 @@ const AppContextProvider = ({ children }) => {
         setAssignedDevices,
         assignedDevices,
         mqttMessages,
+        mqttGeofences,
         deviceIdsArray,
         newAllDevices,
         newDevices,

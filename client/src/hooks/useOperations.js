@@ -58,6 +58,7 @@ export function useOperations() {
 
   return {
     operations,
+    setOperations,
     selectedOperationId,
     setSelectedOperationId,
     saveOperation,

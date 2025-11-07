@@ -135,6 +135,9 @@ const SubSocket = () => {
           if (recievedData?.topic?.includes("calcs/2194137")) {
             updateMqttMessage(recievedData, "operationCalculator");
           }
+          if (recievedData?.topic?.includes("gw/geofences")) {
+            updateMqttMessage(recievedData, "geofencesData");
+          }
 
           if (
             (recievedData.suggestedServices ===

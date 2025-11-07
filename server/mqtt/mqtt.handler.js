@@ -12,7 +12,7 @@ import {
   handleDeviceIgnition,
   handleDeviceLiveLocation,
   handleInReferenceStage,
-  mqttDoutAlerts,
+  handleGeofenceEvent,
   operationCalculator,
 } from "../services/topic.handlers.js";
 import { mqttEmitter } from "./mqtt.client.js";
@@ -28,9 +28,13 @@ const setBroadcast = (broadcastFn, broadcastToDriverFn) => {
 mqttEmitter.on("mqttMessage", async ({ topic, payload }) => {
   try {
     switch (true) {
+      case topic.includes("gw/geofences"):
+        const geofencesData = await handleGeofenceEvent(topic, payload);
+        if (geofencesData) broadcast(geofencesData, { to: "admin" });
+        break;
       case topic.includes("calcs/2194137"):
-        const opData  = await operationCalculator(topic, payload);
-        if (opData ) broadcast(opData , { to: "admin" });
+        const opData = await operationCalculator(topic, payload);
+        if (opData) broadcast(opData, { to: "admin" });
         break;
       case topic.includes("calcs/1742074"): // Default - Reports - Events
         const newEvent = await deviceNewEvent(topic, payload);

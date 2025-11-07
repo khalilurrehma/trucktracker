@@ -672,3 +672,104 @@ export const operationCalculator = async (topic, message) => {
     return null;
   }
 };
+// handleGeofenceEvent.js
+export async function handleGeofenceEvent(
+  topic,
+  message,
+  {
+    upsert = null,      // optional
+    remove = null,      // optional
+    broadcast = null,   // optional
+  } = {}
+) {
+  // ------------------ helpers ------------------
+  const normalizeGeometry = (g = {}) => {
+    const t = String(g.type || "").toLowerCase();
+
+    if (t === "circle") {
+      const c = g.center || g.centre || {};
+      return {
+        type: "circle",
+        center: { lat: Number(c.lat), lon: Number(c.lon) },
+        radius: Number(g.radius), // Flespi = km
+      };
+    }
+
+    if (t === "polygon") {
+      if (Array.isArray(g.path)) {
+        return {
+          type: "polygon",
+          path: g.path.map(p => ({ lat: Number(p.lat), lon: Number(p.lon) })),
+        };
+      }
+
+      const ring = g.coordinates?.[0] || [];
+      return {
+        type: "polygon",
+        path: ring.map(([lon, lat]) => ({
+          lat: Number(lat),
+          lon: Number(lon),
+        })),
+      };
+    }
+
+    return g;
+  };
+
+  const resolveAction = (topic = "", msg = {}) => {
+    const last = topic.split("/").slice(-1)[0].toLowerCase();
+    if (["created", "updated", "deleted"].includes(last)) return last;
+
+    const code = Number(msg.event_code);
+    if (code === 3) return "deleted";
+    if (code === 2) return "updated";
+    if (code === 0 || code === 1) return "created";
+
+    return "updated";
+  };
+
+  const buildGeofence = (id, msg = {}) => {
+    const base = msg.http_data || msg.new || msg.old || {};
+    return {
+      id: Number(id),
+      name: base.name || "",
+      priority: Number(base.priority ?? 50),
+      enabled: base.enabled !== false,
+      geometry: normalizeGeometry(base.geometry || {}),
+      metadata: { ...(base.metadata || {}) },
+    };
+  };
+
+  // ------------------ parse topic ------------------
+  const parts = String(topic).split("/");
+  const idx = parts.indexOf("geofences");
+  if (idx < 0) return null;
+
+  const geofenceId = Number(parts[idx + 1]);
+  const action = resolveAction(topic, message);
+
+  // ------------------ DB operations ------------------
+  let model = { id: geofenceId };
+
+  if (action !== "deleted") {
+    model = buildGeofence(geofenceId, message);
+    if (typeof upsert === "function") await upsert(model);
+  } else {
+    if (typeof remove === "function") await remove(geofenceId);
+  }
+
+  // ------------------ unified payload ------------------
+  const payload = {
+    type: "geofence",
+    action,
+    topic,
+    timestamp: Number(message?.timestamp) || Math.floor(Date.now() / 1000),
+    data: model,
+    diff: {
+      new: message?.new ?? null,
+      old: message?.old ?? null,
+    },
+  };
+
+  return payload;
+}

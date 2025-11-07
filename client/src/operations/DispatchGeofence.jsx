@@ -14,7 +14,7 @@ import { useAppContext } from "../AppContext";
 export default function OperationZoneManager() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { mqttDeviceLiveLocation, mqttOperationStats, mqttMessages } =
+  const { mqttDeviceLiveLocation, mqttOperationStats, mqttMessages,mqttGeofences } =
     useAppContext();
 
   const ops = useOperations();
@@ -62,7 +62,7 @@ export default function OperationZoneManager() {
         </Button>
         <OperationList ops={ops} />
       </div>
-      {console.log(mqttOperationStats)}
+      {console.log(mqttGeofences)}
 
       {/* Map and alerts */}
       <div className="map-section">
@@ -71,6 +71,7 @@ export default function OperationZoneManager() {
           allDevices={allDevices}
           mqttDeviceLiveLocation={mqttDeviceLiveLocation}
           mqttOperationStats={mqttOperationStats}
+          mqttGeofences={mqttGeofences}
         />
         <AlertsPanel mqttMessages={mqttMessages} />
       </div>
