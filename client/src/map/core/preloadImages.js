@@ -49,6 +49,7 @@ export const mapIcons = {
   train: trainSvg,
   tram: tramSvg,
   truck: truckSvg,
+  dumper: truckSvg,
   van: vanSvg,
 };
 

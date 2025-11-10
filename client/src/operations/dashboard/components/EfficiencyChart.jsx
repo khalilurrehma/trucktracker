@@ -9,21 +9,34 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const data = [
-  { time: "10/12", efficiency: 85 },
-  { time: "11/12", efficiency: 88 },
-  { time: "12/12", efficiency: 78 },
-  { time: "13/12", efficiency: 92 },
-  { time: "14/12", efficiency: 86 },
-  { time: "15/12", efficiency: 89 },
-  { time: "16/12", efficiency: 83 },
-  { time: "17/12", efficiency: 91 },
-  { time: "18/12", efficiency: 87 },
-  { time: "19/12", efficiency: 85 },
-  { time: "20/12", efficiency: 82 },
-];
+// receives props: { delay, value: kpi.last10Efficiency }
+export const EfficiencyChart = ({ delay = 0, value = [] }) => {
+  // Map incoming KPI data
+  const chartData =
+    value?.length > 0
+      ? value
+          .filter((e) => e.efficiency != null)
+          .map((e) => ({
+            time: e.date?.slice(5) || "—", // e.g. "11-05" → "11-05"
+            efficiency: Number(e.efficiency || 0),
+          }))
+      : [
+          { time: "10/12", efficiency: 85 },
+          { time: "11/12", efficiency: 88 },
+          { time: "12/12", efficiency: 78 },
+          { time: "13/12", efficiency: 92 },
+          { time: "14/12", efficiency: 86 },
+        ];
 
-export const EfficiencyChart = ({ delay = 0 }) => {
+  // Resolve Tailwind theme colors safely
+  const getVar = (v, fallback) => {
+    const css = getComputedStyle(document.documentElement).getPropertyValue(v);
+    return css?.trim() ? `hsl(${css.trim()})` : fallback;
+  };
+  const borderColor = getVar("--border", "#e5e7eb");
+  const textColor = getVar("--muted-foreground", "#6b7280");
+  const primaryColor = getVar("--primary", "#3b82f6");
+
   return (
     <Card
       className="p-6 bg-card border-border slide-up"
@@ -34,42 +47,37 @@ export const EfficiencyChart = ({ delay = 0 }) => {
       </h3>
 
       <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+        <LineChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" stroke={borderColor} />
 
           <XAxis
             dataKey="time"
-            stroke="hsl(var(--muted-foreground))"
-            tick={{
-              fill: "hsl(var(--muted-foreground))",
-              fontSize: 12,
-            }}
+            stroke={textColor}
+            tick={{ fill: textColor, fontSize: 12 }}
           />
 
           <YAxis
-            stroke="hsl(var(--muted-foreground))"
-            tick={{
-              fill: "hsl(var(--muted-foreground))",
-              fontSize: 12,
-            }}
-            domain={[70, 95]}
+            stroke={textColor}
+            tick={{ fill: textColor, fontSize: 12 }}
+            domain={[0, 100]}
           />
 
           <Tooltip
             contentStyle={{
               backgroundColor: "hsl(var(--popover))",
-              border: "1px solid hsl(var(--border))",
+              border: `1px solid ${borderColor}`,
               borderRadius: "8px",
             }}
             labelStyle={{ color: "hsl(var(--foreground))" }}
+            formatter={(val) => [`${val.toFixed(1)} %`, "Efficiency"]}
           />
 
           <Line
             type="monotone"
             dataKey="efficiency"
-            stroke="hsl(var(--primary))"
+            stroke={primaryColor}
             strokeWidth={3}
-            dot={{ fill: "hsl(var(--primary))", r: 4 }}
+            dot={{ fill: primaryColor, r: 4 }}
             activeDot={{ r: 6 }}
             animationBegin={delay}
             animationDuration={1000}

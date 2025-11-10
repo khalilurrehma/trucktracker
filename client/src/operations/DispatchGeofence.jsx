@@ -18,9 +18,7 @@ export default function OperationZoneManager() {
     useAppContext();
 
   const ops = useOperations();
-  const zones = useZones();
   const allDevices = useDevices(ops.selectedOperationId);
-  const drawing = useDrawing();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -62,7 +60,6 @@ export default function OperationZoneManager() {
         </Button>
         <OperationList ops={ops} />
       </div>
-      {console.log(mqttGeofences)}
 
       {/* Map and alerts */}
       <div className="map-section">

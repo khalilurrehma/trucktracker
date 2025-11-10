@@ -60,7 +60,7 @@ export const deleteDeviceAssignment = async (payload) => {
   }
 };
 
-export const fetchOperationKPI = async (deviceId, calcId = 2194137) => {
+export const fetchOperationKPI = async (deviceId, calcId = 2214462) => {
   try {
     const response = await axios.get(`${apiUrl}/operation-calculator/${deviceId}`, {
       params: { calcId },

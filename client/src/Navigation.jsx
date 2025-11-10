@@ -137,6 +137,7 @@ import RimacFinalReportView from "./operations/RimacFinalReportView";
 import DispatchGeofence from "./operations/DispatchGeofence";
 import DispatchGeofenceList from "./operations/DispatchGeofenceList";
 import DispatchGeofenceDashboard from "./operations/dashboard/DispatchGeofenceDashboard";
+import DispatchDeviceDashboard from "./operations/dashboard/DispatchDeviceDashboard";
 import DispatchGeofenceSettings from "./operations/setting/DispatchGeofenceSettings";
 import DeviceTrackPage from "./other/DeviceTrackPage";
 import DeviceTelemetry from "./settings/DeviceTelemetry";
@@ -405,6 +406,7 @@ const Navigation = () => {
           <Route path="geofence/list" element={<DispatchGeofenceList />} />
           <Route path="geofence/map" element={<DispatchGeofence />} />
           <Route path="geofence/dashboard/:id" element={<DispatchGeofenceDashboard />} />
+          <Route path="geofence/device/:id" element={<DispatchDeviceDashboard />} />
           <Route path="geofence/settings/:id" element={<DispatchGeofenceSettings />} />
           <Route
             path="dispatch/search-history"

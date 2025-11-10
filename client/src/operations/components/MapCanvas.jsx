@@ -11,7 +11,7 @@ import {
   useJsApiLoader,
 } from "@react-google-maps/api";
 import TruckInfoCard from "./TruckInfoCard";
-import TruckMarker from "./TruckMarker";
+import VehicleMarker from "./VehicleMarker";
 import LayerTogglesPanel from "./LayerTogglesPanel";
 import MapControlRail from "./MapControlRail";
 import { Box } from "@mui/material";
@@ -30,7 +30,7 @@ const COLORS = {
   SELECTED_OPERATION: "#64ffda",
 };
 
-export default function MapCanvas({ ops, allDevices, mqttDeviceLiveLocation, mqttOperationStats,mqttGeofences}) {
+export default function MapCanvas({ ops, allDevices, mqttDeviceLiveLocation, mqttOperationStats, mqttGeofences }) {
   const key = import.meta.env.VITE_GOOGLE_MAP_API;
   const { isLoaded, loadError } = useJsApiLoader({ googleMapsApiKey: key, libraries: LIBS });
 
@@ -40,9 +40,9 @@ export default function MapCanvas({ ops, allDevices, mqttDeviceLiveLocation, mqt
   const [hoveredDevice, setHoveredDevice] = useState(null);
   const [mapMode, setMapMode] = useState("google_roadmap");
   const mapRef = useRef(null);
-const polygonRefs = useRef({});
-const circleRefs = useRef({});
-const [geofences, setGeofences] = useState([]);
+  const polygonRefs = useRef({});
+  const circleRefs = useRef({});
+  const [geofences, setGeofences] = useState([]);
   // toggles
   const [showTraffic, setShowTraffic] = useState(false);
   const [showTransit, setShowTransit] = useState(false);
@@ -121,54 +121,54 @@ const [geofences, setGeofences] = useState([]);
       return updated;
     });
   }, [mqttOperationStats]);
-// ✅ Handle incoming MQTT geofence updates (create or update)
-useEffect(() => {
-  if (!mqttGeofences) return;
+  // ✅ Handle incoming MQTT geofence updates (create or update)
+  useEffect(() => {
+    if (!mqttGeofences) return;
 
-  const list = Array.isArray(mqttGeofences) ? mqttGeofences : [mqttGeofences];
+    const list = Array.isArray(mqttGeofences) ? mqttGeofences : [mqttGeofences];
 
-  // Update operations directly
-  ops.setOperations?.((prevOps) => {
-    const updatedOps = [...prevOps];
+    // Update operations directly
+    ops.setOperations?.((prevOps) => {
+      const updatedOps = [...prevOps];
 
-    list.forEach((msg) => {
-      if (!msg) return;
-      const gf = msg.data || msg;
-      const action = msg.action || "updated";
-      if (!gf?.id) return;
+      list.forEach((msg) => {
+        if (!msg) return;
+        const gf = msg.data || msg;
+        const action = msg.action || "updated";
+        if (!gf?.id) return;
 
-      // find operation with same ID
-      const idx = updatedOps.findIndex((op) => Number(op.id) === Number(gf.id));
+        // find operation with same ID
+        const idx = updatedOps.findIndex((op) => Number(op.id) === Number(gf.id));
 
-      if (action === "deleted") {
-        // 🗑 remove if exists
-        if (idx !== -1) updatedOps.splice(idx, 1);
-        return;
-      }
+        if (action === "deleted") {
+          // 🗑 remove if exists
+          if (idx !== -1) updatedOps.splice(idx, 1);
+          return;
+        }
 
-      if (idx !== -1) {
-        // 🔵 update geometry in existing operation
-        updatedOps[idx] = {
-          ...updatedOps[idx],
-          geometry: gf.geometry,
-          name: gf.name || updatedOps[idx].name,
-          _ts: Date.now(),
-        };
-      } else {
-        // 🟢 create new operation/geofence if not found
-        updatedOps.push({
-          id: gf.id,
-          name: gf.name || `GEOFENCE_${gf.id}`,
-          geometry: gf.geometry,
-          type: gf.geometry?.type,
-          _ts: Date.now(),
-        });
-      }
+        if (idx !== -1) {
+          // 🔵 update geometry in existing operation
+          updatedOps[idx] = {
+            ...updatedOps[idx],
+            geometry: gf.geometry,
+            name: gf.name || updatedOps[idx].name,
+            _ts: Date.now(),
+          };
+        } else {
+          // 🟢 create new operation/geofence if not found
+          updatedOps.push({
+            id: gf.id,
+            name: gf.name || `GEOFENCE_${gf.id}`,
+            geometry: gf.geometry,
+            type: gf.geometry?.type,
+            _ts: Date.now(),
+          });
+        }
+      });
+
+      return updatedOps;
     });
-
-    return updatedOps;
-  });
-}, [mqttGeofences]);
+  }, [mqttGeofences]);
 
   // Auto fit to operation
   useEffect(() => {
@@ -318,6 +318,7 @@ useEffect(() => {
         {showBicycling && <BicyclingLayer />}
 
         {/* Zones */}
+
         {showZones && ops.operations.map((op) => {
           const geometry = typeof op.geometry === "string" ? JSON.parse(op.geometry) : op.geometry;
           if (!geometry) return null;
@@ -327,74 +328,122 @@ useEffect(() => {
           const strokeWeight = isSelected ? 5 : 2;
           const fillOpacity = isSelected ? 0.35 : 0.25;
 
+          // helper to get center for label
+          const getCenter = (geom) => {
+            if (geom.type === "circle" && geom.center) return geom.center;
+            if (geom.type === "polygon" && geom.path?.length) {
+              const latSum = geom.path.reduce((sum, p) => sum + p.lat, 0);
+              const lonSum = geom.path.reduce((sum, p) => sum + p.lon, 0);
+              return { lat: latSum / geom.path.length, lng: lonSum / geom.path.length };
+            }
+            return null;
+          };
+
+          const center = getCenter(geometry);
+
           if (geometry.type === "polygon" && geometry.path?.length) {
             return (
-              <Polygon
-                key={op.id}
-                paths={geometry.path.map((p) => ({ lat: p.lat, lng: p.lon }))}
-                options={{ strokeColor: color, strokeWeight, fillColor: color, fillOpacity }}
-              />
+              <React.Fragment key={`op-${op.id}`}>
+                <Polygon
+                  paths={geometry.path.map((p) => ({ lat: p.lat, lng: p.lon }))}
+                  options={{ strokeColor: color, strokeWeight, fillColor: color, fillOpacity }}
+                />
+                {center && (
+                  <OverlayView
+                    position={center}
+                    mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+                  >
+                    <div
+                      style={{
+                        background: "rgba(0,0,0,0.6)",
+                        color: "rgba(0,0,0,0.6)",
+                        fontWeight: "bold",
+                        transform: "translate(-50%, -50%)",
+                      }}
+                    >
+                      {op.name}
+                    </div>
+                  </OverlayView>
+                )}
+              </React.Fragment>
             );
           }
 
           if (geometry.type === "circle" && geometry.center) {
             return (
-              <Circle
-                key={op.id}
-                center={{ lat: geometry.center.lat, lng: geometry.center.lon }}
-                radius={geometry.radius * 1000}
-                options={{ strokeColor: color, strokeWeight, fillColor: color, fillOpacity }}
-              />
+              <React.Fragment key={`op-${op.id}`}>
+                <Circle
+                  center={{ lat: geometry.center.lat, lng: geometry.center.lon }}
+                  radius={geometry.radius * 1000}
+                  options={{ strokeColor: color, strokeWeight, fillColor: color, fillOpacity }}
+                />
+                <OverlayView
+                  position={{ lat: geometry.center.lat, lng: geometry.center.lon }}
+                  mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+                >
+                  <div
+                     style={{
+                        background: "rgba(0,0,0,0.6)",
+                        color: "rgba(0,0,0,0.6)",
+                        fontWeight: "bold",
+                        transform: "translate(-50%, -50%)",
+                      }}
+                  >
+                    {op.name}
+                  </div>
+                </OverlayView>
+              </React.Fragment>
             );
           }
+
           return null;
         })}
-{/* ✅ ---- LIVE MQTT GEOFENCES ---- */}
-{Array.isArray(geofences) &&
-  geofences.map((gf) => {
-    const { id, name, geometry, _ts } = gf || {};
-    if (!geometry) return null;
+        {/* ✅ ---- LIVE MQTT GEOFENCES ---- */}
+        {Array.isArray(geofences) &&
+          geofences.map((gf) => {
+            const { id, name, geometry, _ts } = gf || {};
+            if (!geometry) return null;
 
-    const color = COLORS?.[name] || "#26c6da"; // default color
-    const key = id ? `gf-${id}-${_ts || 0}` : `gf-${Date.now()}`;
+            const color = COLORS?.[name] || "#26c6da"; // default color
+            const key = id ? `gf-${id}-${_ts || 0}` : `gf-${Date.now()}`;
 
-    // Circle
-    if (geometry.type === "circle" && geometry.center) {
-      return (
-        <Circle
-          key={key}
-          onLoad={(c) => (circleRefs.current[id] = c)}
-          center={{ lat: geometry.center.lat, lng: geometry.center.lon }}
-          radius={Number(geometry.radius) * 1000 || 0}
-          options={{
-            strokeColor: color,
-            strokeWeight: 2,
-            fillColor: color,
-            fillOpacity: 0.25,
-          }}
-        />
-      );
-    }
+            // Circle
+            if (geometry.type === "circle" && geometry.center) {
+              return (
+                <Circle
+                  key={key}
+                  onLoad={(c) => (circleRefs.current[id] = c)}
+                  center={{ lat: geometry.center.lat, lng: geometry.center.lon }}
+                  radius={Number(geometry.radius) * 1000 || 0}
+                  options={{
+                    strokeColor: color,
+                    strokeWeight: 2,
+                    fillColor: color,
+                    fillOpacity: 0.25,
+                  }}
+                />
+              );
+            }
 
-    // Polygon
-    if (geometry.type === "polygon" && Array.isArray(geometry.path)) {
-      const path = geometry.path.map((p) => ({ lat: p.lat, lng: p.lon }));
-      return (
-        <Polygon
-          key={key}
-          onLoad={(p) => (polygonRefs.current[id] = p)}
-          paths={path}
-          options={{
-            strokeColor: color,
-            strokeWeight: 2,
-            fillColor: color,
-            fillOpacity: 0.25,
-          }}
-        />
-      );
-    }
-    return null;
-  })}
+            // Polygon
+            if (geometry.type === "polygon" && Array.isArray(geometry.path)) {
+              const path = geometry.path.map((p) => ({ lat: p.lat, lng: p.lon }));
+              return (
+                <Polygon
+                  key={key}
+                  onLoad={(p) => (polygonRefs.current[id] = p)}
+                  paths={path}
+                  options={{
+                    strokeColor: color,
+                    strokeWeight: 2,
+                    fillColor: color,
+                    fillOpacity: 0.25,
+                  }}
+                />
+              );
+            }
+            return null;
+          })}
 
         {/* Trucks */}
         {showTrucks && positions.map((pos) => {
@@ -414,8 +463,8 @@ useEffect(() => {
                 onMouseLeave={() => setHoveredDevice(null)}
                 style={{ transform: "translate(-50%, -50%)" }}
               >
-                <TruckMarker
-                  size={34}
+                <VehicleMarker
+                  type={device.category}
                   fill={getColor(eff)}
                   heading={pos.direction || 0}
                   label={eff ? `${eff}%` : "0"}

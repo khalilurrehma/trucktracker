@@ -593,6 +593,7 @@
     "categoryTram": "Raitiovaunu",
     "categoryTrolleybus": "Johdinauto",
     "categoryTruck": "Kuorma-auto",
+    "categoryDumper": "Dumper",
     "categoryVan": "Pakettiauto",
     "categoryScooter": "Potkulauta",
     "maintenanceStart": "Alku",

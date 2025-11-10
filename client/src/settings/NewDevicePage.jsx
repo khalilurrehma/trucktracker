@@ -10,6 +10,7 @@ import {
   TextField,
   Autocomplete,
 } from "@mui/material";
+
 import makeStyles from "@mui/styles/makeStyles";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { DropzoneArea } from "react-mui-dropzone";
@@ -248,12 +249,6 @@ const NewDevicePage = () => {
               <Typography variant="subtitle1">{t("sharedExtra")}</Typography>
             </AccordionSummary>
             <AccordionDetails className={classes.details}>
-              {/* <SelectField
-                value={item.groupId || 0}
-                onChange={(event) => setItem({ ...item, groupId: Number(event.target.value) })}
-                endpoint="/api/groups"
-                label={t('groupParent')}
-              /> */}
               <Autocomplete
                 options={groups}
                 getOptionLabel={(option) => `${option?.name}(${option?.id})`}
@@ -269,27 +264,6 @@ const NewDevicePage = () => {
                   <TextField {...params} label={t("groupParent")} />
                 )}
               />
-              {/* <Autocomplete
-                options={servicesTypes}
-                getOptionLabel={(option) => option.name}
-                value={
-                  servicesTypes.find((opt) => opt.id === item.service_type) ||
-                  null
-                }
-                onChange={(event, newValue) => {
-                  setItem({
-                    ...item,
-                    service_type: newValue?.id,
-                    serviceType: newValue || null,
-                  });
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label={t("settingsVehicleServiceType")}
-                  />
-                )}
-              /> */}
 
               <TextField
                 value={item.cost_by_km || ""}

@@ -5,32 +5,32 @@ import { Card } from "./ui/card";
  * @param {{ value: number, title: string, delay?: number }} props
  */
 export const EfficiencyGauge = ({ value, title, delay = 0 }) => {
+  const targetValue = Math.round(value ?? 0, 2); // ✅ Round once at start
   const [animatedValue, setAnimatedValue] = useState(0);
 
   useEffect(() => {
     let current = 0;
-    const increment = value / 50;
+    const increment = targetValue / 50; // smooth animation
 
     const timer = setTimeout(() => {
       const interval = setInterval(() => {
         current += increment;
-        if (current >= value) {
-          setAnimatedValue(value);
+        if (current >= targetValue) {
+          setAnimatedValue(targetValue);
           clearInterval(interval);
         } else {
-          setAnimatedValue(Math.floor(current));
+          setAnimatedValue(Math.round(current,2)); // ✅ round every frame
         }
       }, 20);
     }, delay);
 
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [value, delay]);
+    return () => clearTimeout(timer);
+  }, [targetValue, delay]);
 
   const radius = 90;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (animatedValue / 100) * circumference;
+  const strokeDashoffset =
+    circumference - (animatedValue / 100) * circumference;
 
   return (
     <Card
@@ -66,7 +66,9 @@ export const EfficiencyGauge = ({ value, title, delay = 0 }) => {
         </svg>
 
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <div className="text-5xl font-bold text-primary">{animatedValue}</div>
+          <div className="text-5xl font-bold text-primary">
+            {animatedValue}
+          </div>
           <div className="text-xl text-muted-foreground">%</div>
         </div>
       </div>
