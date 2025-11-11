@@ -1,61 +1,63 @@
+import React, { useEffect, useState } from "react";
 import { Card } from "./ui/card";
 
-/**
- * @param {Object} props
- * @param {string} props.title
- * @param {string|number} props.value
- * @param {string} [props.subtitle]
- * @param {React.ElementType} props.icon
- * @param {string} [props.iconColor]
- * @param {string} [props.valueColor]
- * @param {"up"|"down"|"neutral"} [props.trend]
- * @param {number} [props.delay]
- */
-export const MetricCard = ({
-  title,
-  value,
-  subtitle,
-  icon: Icon,
-  iconColor = "text-primary",
-  valueColor = "text-foreground",
-  trend,
-  delay = 0,
-}) => {
-  // Map trends to colors
-  const trendClass =
-    trend === "up"
-      ? "text-success bg-success/10"
-      : trend === "down"
-      ? "text-destructive bg-destructive/10"
-      : trend === "neutral"
-      ? "text-muted-foreground bg-muted"
-      : "";
+export const MetricCard = ({ title, value, subtitle, icon: Icon, delay = 0 }) => {
+  const [isDark, setIsDark] = useState(
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e) => setIsDark(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   return (
     <Card
-      className={`p-6 bg-card border-border hover:border-primary/50 transition-all duration-300 slide-up`}
+      className={`p-6 rounded-xl border transition-all duration-300 transform hover:scale-[1.02]
+        ${isDark
+          ? "bg-[#141414] border-gray-700 text-gray-100"
+          : "bg-white border-gray-200 text-gray-900"
+        }`}
       style={{ animationDelay: `${delay}ms` }}
     >
-      <div className="flex items-start justify-between mb-4">
-        <div className={`p-3 rounded-lg bg-secondary/50 ${iconColor}`}>
-          <Icon className="w-6 h-6" />
-        </div>
-
-        {trend && (
+      <div className="flex items-start justify-between mb-3">
+        {Icon && (
           <div
-            className={`text-xs font-medium px-2 py-1 rounded ${trendClass}`}
+            className={`p-3 rounded-lg ${
+              isDark ? "bg-gray-800 text-indigo-400" : "bg-gray-100 text-indigo-500"
+            }`}
           >
-            {trend === "up" ? "↑" : trend === "down" ? "↓" : "→"}
+            <Icon className="w-6 h-6" />
           </div>
         )}
       </div>
 
-      <h3 className="text-sm font-medium text-muted-foreground mb-2">
+      <h3
+        className={`text-sm font-medium mb-2 ${
+          isDark ? "text-gray-400" : "text-gray-600"
+        }`}
+      >
         {title}
       </h3>
-      <p className={`text-3xl font-bold mb-1 ${valueColor}`}>{value}</p>
+
+      <p
+        className={`text-3xl font-bold mb-1 ${
+          isDark ? "text-white" : "text-gray-900"
+        }`}
+      >
+        {value}
+      </p>
+
       {subtitle && (
-        <p className="text-xs text-muted-foreground">{subtitle}</p>
+        <p
+          className={`text-xs ${
+            isDark ? "text-gray-400" : "text-gray-500"
+          }`}
+        >
+          {subtitle}
+        </p>
       )}
     </Card>
   );

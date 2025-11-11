@@ -1,11 +1,12 @@
+import { useEffect, useState } from "react";
 import { Card } from "./ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 
-// fallback palette (use your Tailwind colors or shadcn tokens here)
-const DEFAULT_COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6"];
+const LIGHT_COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6"];
+const DARK_COLORS  = ["#60a5fa", "#4ade80", "#facc15", "#f87171", "#a78bfa"];
 
 export const CycleBreakdown = ({ delay = 0, value = {} }) => {
-  // Convert KPI object → chart data array
+  // Prepare chart data safely
   const data = [
     { name: "Load", value: Number(value?.load || 0) },
     { name: "Haul", value: Number(value?.haul || 0) },
@@ -14,28 +15,28 @@ export const CycleBreakdown = ({ delay = 0, value = {} }) => {
     { name: "Return", value: Number(value?.ret || 0) },
   ];
 
-  // Resolve CSS vars safely (dark/light mode compatible)
-  const resolveColor = (varName, fallback) => {
-    const css = getComputedStyle(document.documentElement).getPropertyValue(varName);
-    return css?.trim() ? `hsl(${css.trim()})` : fallback;
-  };
+  // 🌗 Live system theme detection
+  const [isDark, setIsDark] = useState(
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+  );
 
-  const colors = [
-    resolveColor("--chart-1", DEFAULT_COLORS[0]),
-    resolveColor("--chart-2", DEFAULT_COLORS[1]),
-    resolveColor("--chart-3", DEFAULT_COLORS[2]),
-    resolveColor("--chart-4", DEFAULT_COLORS[3]),
-    resolveColor("--chart-5", DEFAULT_COLORS[4]),
-  ];
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e) => setIsDark(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  const colors = isDark ? DARK_COLORS : LIGHT_COLORS;
 
   return (
     <Card
-      className="p-6 bg-card border-border slide-up"
+      className={`p-6 rounded-xl transition-all duration-300 border animate-slide-up
+                  hover:border-indigo-400 hover:shadow-md
+                  ${isDark ? "bg-[#141414] border-gray-700 text-gray-100" : "bg-white border-gray-200 text-gray-900"}`}
       style={{ animationDelay: `${delay}ms` }}
     >
-      <h3 className="text-lg font-semibold text-foreground mb-4">
-        Cycle Breakdown
-      </h3>
+      <h3 className="text-lg font-semibold mb-4">Cycle Breakdown</h3>
 
       <ResponsiveContainer width="100%" height={300}>
         <PieChart>
@@ -55,15 +56,19 @@ export const CycleBreakdown = ({ delay = 0, value = {} }) => {
             }
           >
             {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={colors[index]} />
+              <Cell
+                key={`cell-${index}`}
+                fill={colors[index % colors.length]}
+              />
             ))}
           </Pie>
 
           <Tooltip
             contentStyle={{
-              backgroundColor: "hsl(var(--popover))",
-              border: "1px solid hsl(var(--border))",
+              backgroundColor: isDark ? "#1f1f1f" : "#ffffff",
+              border: isDark ? "1px solid #333" : "1px solid #ddd",
               borderRadius: "8px",
+              color: isDark ? "#f3f3f3" : "#111",
             }}
             formatter={(val, name) => [`${val.toFixed(1)} min`, name]}
           />
@@ -73,7 +78,13 @@ export const CycleBreakdown = ({ delay = 0, value = {} }) => {
             height={36}
             iconType="circle"
             formatter={(value) => (
-              <span className="text-sm text-foreground">{value}</span>
+              <span
+                className={`text-sm ${
+                  isDark ? "text-gray-300" : "text-gray-700"
+                }`}
+              >
+                {value}
+              </span>
             )}
           />
         </PieChart>

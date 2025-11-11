@@ -466,7 +466,8 @@ export default function MapCanvas({ ops, allDevices, mqttDeviceLiveLocation, mqt
                 <VehicleMarker
                   type={device.category}
                   fill={getColor(eff)}
-                  heading={pos.direction || 0}
+                  heading={ 0}
+                  // heading={pos.direction || 0}
                   label={eff ? `${eff}%` : "0"}
                 />
                 {hoveredDevice?.flespiId === device.flespiId && (

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Card } from "./ui/card";
 import {
   LineChart,
@@ -9,40 +10,44 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-// receives props: { delay, value: kpi.last10Efficiency }
 export const EfficiencyChart = ({ delay = 0, value = [] }) => {
-  // Map incoming KPI data
   const chartData =
     value?.length > 0
       ? value
           .filter((e) => e.efficiency != null)
           .map((e) => ({
-            time: e.date?.slice(5) || "—", // e.g. "11-05" → "11-05"
+            time: e.date?.slice(5) || "—",
             efficiency: Number(e.efficiency || 0),
           }))
       : [
-          { time: "10/12", efficiency: 85 },
-          { time: "11/12", efficiency: 88 },
-          { time: "12/12", efficiency: 78 },
-          { time: "13/12", efficiency: 92 },
-          { time: "14/12", efficiency: 86 },
         ];
 
-  // Resolve Tailwind theme colors safely
-  const getVar = (v, fallback) => {
-    const css = getComputedStyle(document.documentElement).getPropertyValue(v);
-    return css?.trim() ? `hsl(${css.trim()})` : fallback;
-  };
-  const borderColor = getVar("--border", "#e5e7eb");
-  const textColor = getVar("--muted-foreground", "#6b7280");
-  const primaryColor = getVar("--primary", "#3b82f6");
+  // 🌗 Live theme detection
+  const [isDark, setIsDark] = useState(
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e) => setIsDark(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  // 🎨 Theme-aware colors
+  const borderColor = isDark ? "#2f2f2f" : "#e5e7eb";
+  const textColor = isDark ? "#d1d5db" : "#6b7280";
+  const bgColor = isDark ? "#141414" : "#ffffff";
+  const primaryColor = isDark ? "#60a5fa" : "#3b82f6";
 
   return (
     <Card
-      className="p-6 bg-card border-border slide-up"
+      className={`p-6 rounded-xl transition-all duration-300 
+                  border animate-slide-up hover:border-indigo-400 hover:shadow-md 
+                  ${isDark ? "bg-[#141414] border-gray-700 text-gray-100" : "bg-white border-gray-200 text-gray-900"}`}
       style={{ animationDelay: `${delay}ms` }}
     >
-      <h3 className="text-lg font-semibold text-foreground mb-4">
+      <h3 className="text-lg font-semibold mb-4">
         Daily Efficiency Evolution
       </h3>
 
@@ -64,11 +69,12 @@ export const EfficiencyChart = ({ delay = 0, value = [] }) => {
 
           <Tooltip
             contentStyle={{
-              backgroundColor: "hsl(var(--popover))",
+              backgroundColor: bgColor,
               border: `1px solid ${borderColor}`,
               borderRadius: "8px",
+              color: textColor,
             }}
-            labelStyle={{ color: "hsl(var(--foreground))" }}
+            labelStyle={{ color: textColor }}
             formatter={(val) => [`${val.toFixed(1)} %`, "Efficiency"]}
           />
 

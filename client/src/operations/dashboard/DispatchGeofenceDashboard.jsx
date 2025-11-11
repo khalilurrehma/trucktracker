@@ -29,13 +29,24 @@ import timezone from "dayjs/plugin/timezone";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
+const useSystemTheme = () => {
+  const [theme, setTheme] = useState(window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
 
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const listener = (e) => setTheme(e.matches ? "dark" : "light");
+    mq.addEventListener("change", listener);
+    return () => mq.removeEventListener("change", listener);
+  }, []);
+
+  return theme;
+};
 const Index = () => {
   const { id } = useParams();
   const [kpi, setKpi] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(dayjs().tz("America/Lima")); // ✅ Default to today (GMT-5)
-
+  const theme = useSystemTheme();
 
   useEffect(() => {
     if (!id) return;
@@ -158,7 +169,8 @@ const Index = () => {
   const safe = (val, digits = 2) => Number(val ?? 0).toFixed(digits);
 
   return (
-    <div className="min-h-screen bg-background p-6 fade-in">
+    <div className={`min-h-screen p-6 fade-in ${theme === "dark" ? "bg-[#0a0a0a] text-gray-100" : "bg-white text-gray-900"
+      }`}>
       <div className="max-w-[1800px] mx-auto space-y-6">
 
         {/* Header with Back Button */}
@@ -168,7 +180,11 @@ const Index = () => {
             {/* 🔗 Back Button */}
             <a
               href="/operations/geofence/list"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted/20 transition-colors"
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors duration-300
+            ${theme === "dark"
+                  ? "border-gray-700 text-gray-200 hover:bg-[#1f1f1f]"
+                  : "border-gray-300 text-gray-700 hover:bg-gray-100"
+                }`}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -189,38 +205,56 @@ const Index = () => {
 
             {/* Title & Subtitle */}
             <div>
-              <h1 className="text-4xl font-bold text-foreground mb-2">
+              <h1
+                className={`text-4xl font-bold mb-1 ${theme === "dark" ? "text-gray-100" : "text-gray-900"
+                  }`}
+              >
                 Operation Dashboard — Geofence {id}
               </h1>
-              <p className="text-muted-foreground">
+              <p
+                className={`text-base ${theme === "dark" ? "text-gray-400" : "text-gray-600"
+                  }`}
+              >
                 Aggregated KPIs for all devices in this geofence
               </p>
             </div>
           </div>
 
+
+
+          {/* Right Section: Live Badge + Date Picker */}
           {/* Right Section: Live Badge + Date Picker */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-success/10 border border-success/20">
-              <Activity className="w-5 h-5 text-success animate-pulse" />
-              <span className="text-sm font-medium text-success">Live</span>
+            {/* 🔴 Live Badge */}
+            <div
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-300 ${theme === "dark"
+                  ? "bg-green-900/20 border-green-800 text-green-400"
+                  : "bg-green-50 border-green-200 text-green-600"
+                }`}
+            >
+              <Activity className="w-5 h-5 animate-pulse" />
+              <span className="text-sm font-medium">Live</span>
             </div>
 
+            {/* 📅 Date Picker */}
             <LocalizationProvider dateAdapter={AdapterDayjs}>
               <DatePicker
                 label="Select Date (GMT-5)"
                 value={selectedDate}
                 onChange={(newValue) => setSelectedDate(newValue)}
-                maxDate={dayjs().tz("America/Lima").endOf("day")} // ⛔ prevent selecting future dates
-                disableFuture // also blocks future in calendar UI
+                maxDate={dayjs().tz("America/Lima").endOf("day")}
+                disableFuture
                 slotProps={{
                   textField: {
                     size: "small",
-                    className: "bg-background border border-muted rounded-md w-[180px]",
+                    className: `${theme === "dark"
+                        ? "bg-[#1f1f1f] border border-gray-700 text-gray-100"
+                        : "bg-white border border-gray-300 text-gray-900"
+                      } rounded-md w-[180px] transition-colors duration-300`,
                   },
                 }}
                 clearable
               />
-
             </LocalizationProvider>
           </div>
         </div>
