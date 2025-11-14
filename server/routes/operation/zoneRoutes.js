@@ -11,6 +11,7 @@ router.put('/zones/:id', zoneController.updateZone);
 
 // Route to get all zones
 router.get('/zones', zoneController.getAllZones);
+router.get('/zones/operation/:operationId', zoneController.getZonesByOperationId);
 
 // Route to get a single zone by ID
 router.get('/zones/:id', zoneController.getZoneById);

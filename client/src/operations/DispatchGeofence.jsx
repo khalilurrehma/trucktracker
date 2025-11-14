@@ -1,138 +1,279 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Button, IconButton } from "@mui/material";
-import { ArrowLeft, Menu } from "lucide-react";
-import MapCanvas from "./components/MapCanvas";
-import OperationList from "./components/OperationList";
-import AlertsPanel from "./components/AlertsPanel";
-import { useOperations } from "../hooks/useOperations";
-import { useZones } from "../hooks/useZones";
-import { useDevices } from "../hooks/useDevices";
-import { useDrawing } from "../hooks/useDrawing";
-import { useAppContext } from "../AppContext";
+import React, { useEffect, useRef, useState } from "react";
+import ReactDOM from "react-dom";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import { createRoot } from "react-dom/client";
+import VehicleMarker from "@/operations/components/VehicleMarker";
 
-export default function OperationZoneManager() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { mqttDeviceLiveLocation, mqttOperationStats, mqttMessages,mqttGeofences } =
-    useAppContext();
+import { getOperationById } from "@/apis/operationApi";
+import { getZonesByOperationId, deleteZone } from "@/apis/zoneApi";
+import { getDevicesByPositionOperation } from "@/apis/deviceAssignmentApi";
 
-  const ops = useOperations();
-  const allDevices = useDevices(ops.selectedOperationId);
+import { useAppContext } from "@/AppContext";
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import IconButton from "@mui/material/IconButton";
+import Swal from "sweetalert2";
 
+const colors = {
+  QUEUE_AREA: "#e67e22",
+  LOAD_PAD: "#27ae60",
+  DUMP_AREA: "#c0392b",
+  ZONE_AREA: "#3498db",
+};
+
+export default function OperationWithZonesMap() {
+  const mapRef = useRef(null);
+  const layersRef = useRef({});
+  const hasFitBounds = useRef(false);   // <---- ADDED FIX
+
+  const [operation, setOperation] = useState(null);
+  const [zones, setZones] = useState([]);
+  const [devices, setDevices] = useState([]);
+  const [positions, setPositions] = useState([]);
+
+  const { mqttDeviceLiveLocation } = useAppContext();
+
+  const operationId = new URLSearchParams(window.location.search).get("id");
+
+  /* ---------------- LOAD ALL DATA ---------------- */
   useEffect(() => {
-    if (ops.operations.length > 0 && !ops.selectedOperationId) {
-      const latest = ops.operations[ops.operations.length - 1];
-      ops.setSelectedOperationId(latest.id);
-    }
-  }, [ops.operations, ops.selectedOperationId]);
+    const loadData = async () => {
+      if (!operationId) return;
 
+      const op = await getOperationById(operationId);
+      const zoneList = await getZonesByOperationId(operationId);
+      const deviceList = await getDevicesByPositionOperation(op.id);
+
+      setDevices(deviceList.devices);
+
+      setOperation({
+        ...op,
+        geometry:
+          typeof op.geometry === "string" ? JSON.parse(op.geometry) : op.geometry,
+      });
+
+      setZones(
+        zoneList.map((z) => ({
+          ...z,
+          geometry: typeof z.geometry === "string" ? JSON.parse(z.geometry) : z.geometry,
+        }))
+      );
+    };
+
+    loadData();
+  }, [operationId]);
+
+  /* ---------------- MQTT LIVE POSITION UPDATES ---------------- */
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const geoId = params.get("id");
-    if (geoId && ops.operations?.length > 0) {
-      const found = ops.operations.find((g) => String(g.id) === String(geoId));
-      if (found) ops.setSelectedOperationId(found.id);
+    if (!mqttDeviceLiveLocation?.length) return;
+
+    setPositions((prev) => {
+      const updated = [...prev];
+
+      mqttDeviceLiveLocation.forEach(({ deviceId, value }) => {
+        if (!value?.latitude || !value?.longitude) return;
+
+        const newPos = {
+          flespiDeviceId: deviceId,
+          lat: value.latitude,
+          lon: value.longitude,
+          direction: value.direction || 0,
+          timestamp: Date.now(),
+        };
+
+        const idx = updated.findIndex((p) => p.flespiDeviceId === deviceId);
+
+        if (idx !== -1) updated[idx] = { ...updated[idx], ...newPos };
+        else updated.push(newPos);
+      });
+
+      return updated;
+    });
+  }, [mqttDeviceLiveLocation]);
+
+  /* ---------------- MERGE LIVE POSITIONS ---------------- */
+  const devicesWithPos = devices.map((d) => {
+    const live = positions.find((p) => p.flespiDeviceId === d.flespi_device_id);
+
+    return {
+      ...d,
+      lat: live?.lat || d.lat,
+      lon: live?.lon || d.lon,
+      direction: live?.direction || 0,
+    };
+  });
+
+  /* ---------------- INIT MAP ---------------- */
+  useEffect(() => {
+    if (!operation || !operation.geometry) return;
+
+    if (!mapRef.current) {
+      mapRef.current = L.map("operation-map", {
+        center: [-12.19, -77.015],
+        zoom: 14,
+      });
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(
+        mapRef.current
+      );
     }
-  }, [location.search, ops.operations]);
+
+    drawEverything();
+  }, [operation, zones, devicesWithPos]);
+
+  /* ---------------- DRAW EVERYTHING ---------------- */
+  const drawEverything = () => {
+    const map = mapRef.current;
+
+    Object.values(layersRef.current).forEach((layer) => map.removeLayer(layer));
+    layersRef.current = {};
+
+    /* ------ Draw Operation Boundary ------ */
+    const opLayer = L.geoJSON(operation.geometry, {
+      style: { color: "#8e44ad", weight: 3, fillOpacity: 0.05 },
+    }).addTo(map);
+
+    // FIX: only fitBounds ONCE
+    if (!hasFitBounds.current) {
+      map.fitBounds(opLayer.getBounds());
+      hasFitBounds.current = true;
+    }
+
+    layersRef.current["operation"] = opLayer;
+
+    /* ------ Draw Zones ------ */
+    zones.forEach((zone) => {
+      const color = colors[zone.zoneType] || "#2980b9";
+
+      const layer = L.geoJSON(zone.geometry, {
+        style: { color, weight: 2, fillOpacity: 0.25 },
+      }).addTo(map);
+
+      layersRef.current[zone.id] = layer;
+    });
+
+    /* ------ Draw Devices ------ */
+    devicesWithPos.forEach((dev) => {
+      if (!dev.lat || !dev.lon) return;
+
+      const divId = `dev-marker-${dev.id}`;
+
+      const icon = L.divIcon({
+        html: `<div id="${divId}" style="transform: translate(-50%, -50%);"></div>`,
+        className: "",
+        iconSize: [50, 50],
+      });
+
+      let marker = layersRef.current[`device-${dev.id}`];
+
+      if (!marker) {
+        marker = L.marker([dev.lat, dev.lon], { icon }).addTo(map);
+        layersRef.current[`device-${dev.id}`] = marker;
+      } else {
+        marker.setLatLng([dev.lat, dev.lon]);
+      }
+
+      setTimeout(() => {
+        const el = document.getElementById(divId);
+        if (el) {
+          if (!el._reactRoot) el._reactRoot = createRoot(el);
+
+          el._reactRoot.render(
+            <VehicleMarker
+              type={dev.category}
+              deviceName={dev.device_name}
+              direction={dev.direction}
+            />
+          );
+        }
+      }, 0);
+    });
+  };
+
+  /* ---------------- DELETE ZONE ---------------- */
+  const handleDeleteZone = async (zoneId) => {
+    Swal.fire({
+      title: "Delete Zone?",
+      icon: "warning",
+      showCancelButton: true,
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        await deleteZone(zoneId);
+        setZones((prev) => prev.filter((z) => z.id !== zoneId));
+      }
+    });
+  };
+
+  const handleEditZone = (zoneId) =>
+    (window.location.href = `/operations/geofence/edit-zone/${zoneId}`);
 
   return (
-    <div className="manager-wrapper">
-      {/* Hamburger button for mobile */}
-      <IconButton
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="menu-toggle"
+    <div style={{ display: "flex", height: "100vh" }}>
+      <div
+        style={{
+          width: "320px",
+          padding: "15px",
+          borderRight: "1px solid #ccc",
+          overflowY: "auto",
+        }}
       >
-        <Menu />
-      </IconButton>
-
-      {/* Sidebar */}
-      <div className={`sidebar ${sidebarOpen ? "open" : "closed"}`}>
-        <Button
-          startIcon={<ArrowLeft size={18} />}
-          onClick={() => navigate(-1)}
-          sx={{ mb: 2 }}
-          fullWidth
+        <button
+          onClick={() => window.history.back()}
+          style={{
+            marginBottom: "10px",
+            padding: "6px 12px",
+            borderRadius: "6px",
+            border: "1px solid #ccc",
+            cursor: "pointer",
+          }}
         >
-          Back
-        </Button>
-        <OperationList ops={ops} />
+          ← Back
+        </button>
+
+        <h3 style={{ marginBottom: 10 }}>
+          Zones in Operation #{operationId}
+        </h3>
+
+        {zones.map((zone) => (
+          <div
+            key={zone.id}
+            style={{
+              padding: "12px",
+              marginBottom: "12px",
+              borderRadius: "8px",
+              borderLeft: `6px solid ${colors[zone.zoneType]}`,
+              boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <div>
+                <strong>{zone.name}</strong>
+                <div style={{ fontSize: "12px", opacity: 0.7 }}>
+                  {zone.zoneType.replace("_", " ")}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "6px" }}>
+                <IconButton size="small" onClick={() => handleEditZone(zone.id)}>
+                  <EditIcon fontSize="small" />
+                </IconButton>
+
+                <IconButton
+                  size="small"
+                  onClick={() => handleDeleteZone(zone.id)}
+                  sx={{ color: "#c0392b" }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Map and alerts */}
-      <div className="map-section">
-        <MapCanvas
-          ops={ops}
-          allDevices={allDevices}
-          mqttDeviceLiveLocation={mqttDeviceLiveLocation}
-          mqttOperationStats={mqttOperationStats}
-          mqttGeofences={mqttGeofences}
-        />
-        <AlertsPanel mqttMessages={mqttMessages} />
-      </div>
-
-      {/* Inline responsive styles */}
-      <style>
-        {`
-          .manager-wrapper {
-            display: flex;
-            height: 100vh;
-            width: 100%;
-            overflow: hidden;
-          }
-          .sidebar {
-            flex: 0 0 360px;
-            background: var(--panel, #121212);
-            border-right: 1px solid var(--border, #222);
-            padding: 12px;
-            transition: transform 0.3s ease-in-out;
-            z-index: 20;
-          }
-          .map-section {
-            flex: 1;
-            position: relative;
-            overflow: hidden;
-          }
-          .menu-toggle {
-            display: none;
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(255,255,255,0.8);
-            z-index: 30;
-          }
-
-          /* Mobile styles */
-          @media (max-width: 768px) {
-            .manager-wrapper {
-              flex-direction: column;
-            }
-            .sidebar {
-              position: absolute;
-              top: 0;
-              left: 0;
-              width: 80%;
-              max-width: 300px;
-              height: 100%;
-              background: #111;
-              transform: translateX(-100%);
-              box-shadow: 2px 0 10px rgba(0,0,0,0.3);
-            }
-            .sidebar.open {
-              transform: translateX(0);
-            }
-            .menu-toggle {
-              display: inline-flex;
-            }
-            .map-section {
-              flex: 1;
-              height: 100vh;
-            }
-          }
-        `}
-      </style>
+      <div id="operation-map" style={{ flex: 1 }} />
     </div>
   );
 }

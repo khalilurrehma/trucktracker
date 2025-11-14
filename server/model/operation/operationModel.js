@@ -23,9 +23,11 @@ export const createOperation = async (operation) => {
         op_max_speed_kmh,
         op_total_bank_volume_m3,
         op_swell_factor,
+        day_volume_m3_goal,
         user_id,
     } = operation;
 
+    const DayVolumeM3Goal = parseFloat(day_volume_m3_goal);
     const opMaxSpeedKmh = parseFloat(op_max_speed_kmh);
     const opTotalBankVolumeM3 = parseFloat(op_total_bank_volume_m3);
     const opSwellFactor = parseFloat(op_swell_factor);
@@ -33,8 +35,8 @@ export const createOperation = async (operation) => {
 
     const sql = `
     INSERT INTO operations
-    (name, geometry, area_sqm, area_ha, op_max_speed_kmh, op_total_bank_volume_m3, op_swell_factor, user_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    (name, geometry, area_sqm, area_ha, op_max_speed_kmh, op_total_bank_volume_m3, op_swell_factor,day_volume_m3_goal, user_id)
+    VALUES (?, ?, ?, ?, ?, ?,?, ?, ?)
   `;
     const values = [
         name,
@@ -44,6 +46,7 @@ export const createOperation = async (operation) => {
         opMaxSpeedKmh,
         opTotalBankVolumeM3,
         opSwellFactor,
+        DayVolumeM3Goal,
         user_id,
     ];
 
@@ -70,11 +73,11 @@ export const createOperation = async (operation) => {
                 enabled: true,
                 geometry: geometryData,
                 metadata: {
-                    operation_id: operationId,
-                    user_id,
-                    color: "#3498db",
-                    area_ha,
-                    max_speed: opMaxSpeedKmh,
+                    op_id: operationId,
+                    day_volume_m3_goal: DayVolumeM3Goal,
+                    op_max_speed_kmh: opMaxSpeedKmh,
+                    op_swell_factor: opSwellFactor,
+                    op_total_bank_volume_m3: opTotalBankVolumeM3,
                 },
             },
         ]);
@@ -110,7 +113,7 @@ export const createOperation = async (operation) => {
         // }
 
 
-        const calcIds = [2193946, 2194117, 2194146, 2194152, 2194163, 2194183];
+        const calcIds = [2193946, 2194117, 2194146, 2194152, 2194137, 2194183];
 
         for (const calcId of calcIds) {
             try {
@@ -131,7 +134,7 @@ export const createOperation = async (operation) => {
 // =====================================================
 // UPDATE OPERATION  ➜  also update Flespi geofence
 // =====================================================
-export const updateOperation = async (id, operation) => {
+ export const updateOperation = async (id, operation) => {
     const {
         name,
         geometry,
@@ -139,16 +142,27 @@ export const updateOperation = async (id, operation) => {
         area_ha,
         op_max_speed_kmh,
         op_total_bank_volume_m3,
+        day_volume_m3_goal,
         op_swell_factor,
+        priority,
+        enabled
     } = operation;
 
     const sql = `
-    UPDATE operations
-    SET name = ?, geometry = ?, area_sqm = ?, area_ha = ?, 
-        op_max_speed_kmh = ?, op_total_bank_volume_m3 = ?, 
-        op_swell_factor = ?, updated_at = CURRENT_TIMESTAMP
-    WHERE id = ?
-  `;
+        UPDATE operations
+        SET 
+            name = ?, 
+            geometry = ?, 
+            area_sqm = ?, 
+            area_ha = ?, 
+            op_max_speed_kmh = ?, 
+            op_total_bank_volume_m3 = ?,  
+            day_volume_m3_goal = ?, 
+            op_swell_factor = ?, 
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `;
+
     const values = [
         name,
         JSON.stringify(geometry),
@@ -156,6 +170,7 @@ export const updateOperation = async (id, operation) => {
         area_ha,
         parseFloat(op_max_speed_kmh),
         parseFloat(op_total_bank_volume_m3),
+        parseFloat(day_volume_m3_goal),
         parseFloat(op_swell_factor),
         id,
     ];
@@ -171,15 +186,27 @@ export const updateOperation = async (id, operation) => {
         );
         const geofenceId = op?.flespi_geofence_id;
 
-        // Update Flespi Geofence if exists
+        // Convert GeoJSON → Flespi polygon format
+        let geometryData = geometry;
+        if (geometry?.type === "Polygon" && geometry.coordinates?.[0]) {
+            geometryData = {
+                type: "polygon",
+                path: geometry.coordinates[0].map(([lon, lat]) => ({ lat, lon }))
+            };
+        }
+
+        // Update Flespi Geofence
         if (geofenceId) {
             await updateFlespiGeofence(geofenceId.toString(), {
-                name,
-                geometry,
+                name: name,
+                enabled: enabled,
+                geometry: geometryData,
                 metadata: {
-                    area_ha,
-                    max_speed: parseFloat(op_max_speed_kmh),
-                    updated: true,
+                    day_volume_m3_goal: day_volume_m3_goal,
+                    op_max_speed_kmh: op_max_speed_kmh,
+                    op_swell_factor: op_swell_factor,
+                    op_total_bank_volume_m3: op_total_bank_volume_m3,
+                    priority: priority
                 },
             });
         }
@@ -196,8 +223,8 @@ export const updateOperation = async (id, operation) => {
 // =====================================================
 export const getAllOperations = async () => {
     try {
-        // return await dbQuery("SELECT * FROM operations");
-        return await getFlespiGeofence();
+        return await dbQuery("SELECT * FROM operations");
+        // return await getFlespiGeofence();
     } catch (err) {
         throw err;
     }

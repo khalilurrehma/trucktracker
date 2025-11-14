@@ -72,6 +72,17 @@ export const fetchOperationKPI = async (deviceId, calcId = 2214462) => {
   }
 };
 
+export const getDevicesByPositionOperation = async (operationId) => {
+  try {
+    const { data } = await axios.get(`${apiUrl}/operation-devices/position/${operationId}`);
+    // Filter devices assigned to the selected operation
+    const assigned = data;
+    return assigned;
+  } catch (error) {
+    console.error(`Error fetching devices for operation ${operationId}:`, error);
+    throw error;
+  }
+};
 export const getDevicesByOperation = async (operationId) => {
   try {
     const { data } = await axios.get(`${apiUrl}/device-assignments`);

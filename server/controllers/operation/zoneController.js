@@ -77,3 +77,21 @@ export const deleteZone = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+export const getZonesByOperationId = async (req, res) => {
+  const { operationId } = req.params;
+
+  try {
+    const zones = await zoneModel.getZonesByOperationId(operationId);
+
+    if (!zones || zones.length === 0) {
+      return res.status(200).json([]); // return empty list, not 404
+    }
+
+    res.status(200).json(zones);
+  } catch (err) {
+    console.error("Error fetching zones by operation:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+};

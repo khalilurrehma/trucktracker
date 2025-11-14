@@ -237,3 +237,20 @@
     transform: translate(-50%, 0);
   }
 }
+.leaflet-tooltip {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.zone-label {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  text-shadow: 0 0 3px rgba(0,0,0,0.9);
+  pointer-events: none;
+}

@@ -4,7 +4,7 @@ import svgr from "vite-plugin-svgr";
 import { VitePWA } from "vite-plugin-pwa";
 import tailwindcss from "tailwindcss";
 import autoprefixer from "autoprefixer";
-
+import { fileURLToPath, URL } from "node:url";
 /* eslint-disable no-template-curly-in-string */
 export default defineConfig(() => ({
   server: {
@@ -51,6 +51,7 @@ export default defineConfig(() => ({
         ],
       },
     }),
+
   ],
   css: {
     postcss: {
@@ -59,5 +60,10 @@ export default defineConfig(() => ({
   },
   optimizeDeps: {
     include: ["date-fns"],
+  },
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+    },
   },
 }));

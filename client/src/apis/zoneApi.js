@@ -47,6 +47,15 @@ export const getZoneById = async (id) => {
     throw error;
   }
 };
+export const getZonesByOperationId = async (operationId) => {
+  try {
+    const response = await axios.get(`${apiUrl}/zones/operation/${operationId}`);
+    return response.data;  // Return the zone with the given ID
+  } catch (error) {
+    console.error("Error fetching zone:", error);
+    throw error;
+  }
+};
 
 // Delete a zone
 export const deleteZone = async (id) => {

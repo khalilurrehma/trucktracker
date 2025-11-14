@@ -18,14 +18,19 @@ import {
   Chip,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import EditIcon from "@mui/icons-material/Edit";
 import MapIcon from "@mui/icons-material/Map";
+import AddCircleIcon from "@mui/icons-material/AddCircle";
 import DashboardIcon from "@mui/icons-material/Dashboard";
-import SettingsIcon from "@mui/icons-material/Settings";
+import DeleteIcon from "@mui/icons-material/Delete";       // 👈 NEW
+import Swal from "sweetalert2";                           // 👈 NEW
 import { ToastContainer } from "react-toastify";
 import { useAppContext } from "../AppContext";
 import { useOperations } from "../hooks/useOperations";
 import { useNavigate } from "react-router-dom";
 import { alpha, useTheme } from "@mui/material/styles";
+import CollectionFab from "@/settings/components/CollectionFab";
+import { deleteOperation } from "@/apis/operationApi";
 
 const PAGE_SIZE = 10;
 
@@ -46,7 +51,7 @@ function zoneTypeFromName(name = "") {
 
 export default function GeofenceList() {
   const theme = useTheme();
-  const { allDevices, mqttDeviceLiveLocation, mqttOperationStats } = useAppContext(); // (unused here but kept)
+  const { allDevices, mqttDeviceLiveLocation, mqttOperationStats } = useAppContext();
   const ops = useOperations();
   const navigate = useNavigate();
 
@@ -63,24 +68,27 @@ export default function GeofenceList() {
     }
   }, [ops.operations]);
 
-  // ✅ Theme-aware, consistent icon style (same as Map control rail)
-  const iconButtonSx = useMemo(() => ({
-    m: 0.25,
-    width: 36,
-    height: 36,
-    color: theme.palette.text.primary,
-    bgcolor: alpha(theme.palette.background.default, 0.6),
-    border: `1px solid ${alpha(theme.palette.divider, 0.6)}`,
-    "&:hover": {
-      bgcolor: alpha(theme.palette.background.default, 0.9),
-    },
-  }), [theme]);
+  // ✅ Theme-aware, consistent icon style
+  const iconButtonSx = useMemo(
+    () => ({
+      m: 0.25,
+      width: 36,
+      height: 36,
+      color: theme.palette.text.primary,
+      bgcolor: alpha(theme.palette.background.default, 0.6),
+      border: `1px solid ${alpha(theme.palette.divider, 0.6)}`,
+      "&:hover": {
+        bgcolor: alpha(theme.palette.background.default, 0.9),
+      },
+    }),
+    [theme]
+  );
 
-  // ✅ Search + filter (client-side) — and really skip OP_AREA by name
+  // ✅ Search + filter
   const filtered = useMemo(() => {
     const needle = searchQuery.trim().toLowerCase();
     return (geofences || [])
-      .filter((g) => /OP_AREA/i.test(g?.name || "")) // skip OP_AREA
+      .filter((g) => /OP_AREA/i.test(g?.name || "")) // keep OP_AREA
       .filter((g) => (g?.name || "").toLowerCase().includes(needle));
   }, [geofences, searchQuery]);
 
@@ -132,10 +140,19 @@ export default function GeofenceList() {
           <Table>
             <TableHead>
               <TableRow sx={{ backgroundColor: alpha("#1976d2", 0.08) }}>
-                <TableCell sx={{ color: "#1976d2", fontWeight: "bold" }}>Name</TableCell>
-                <TableCell sx={{ color: "#1976d2", fontWeight: "bold" }}>Type</TableCell>
-                <TableCell sx={{ color: "#1976d2", fontWeight: "bold" }}>Metadata</TableCell>
-                <TableCell align="center" sx={{ color: "#1976d2", fontWeight: "bold" }}>
+                <TableCell sx={{ color: "#1976d2", fontWeight: "bold" }}>
+                  Name
+                </TableCell>
+                <TableCell sx={{ color: "#1976d2", fontWeight: "bold" }}>
+                  Type
+                </TableCell>
+                <TableCell sx={{ color: "#1976d2", fontWeight: "bold" }}>
+                  Metadata
+                </TableCell>
+                <TableCell
+                  align="center"
+                  sx={{ color: "#1976d2", fontWeight: "bold" }}
+                >
                   Action
                 </TableCell>
               </TableRow>
@@ -166,10 +183,10 @@ export default function GeofenceList() {
                             : "inherit",
                       }}
                     >
-                      {/* 🏷️ Geofence Name */}
+                      {/* Name */}
                       <TableCell>{geo?.name || "—"}</TableCell>
 
-                      {/* 🗺️ Zone Type chip */}
+                      {/* Type chip */}
                       <TableCell>
                         <Chip
                           size="small"
@@ -182,41 +199,123 @@ export default function GeofenceList() {
                         />
                       </TableCell>
 
-                      {/* 📊 Metadata Summary */}
+                      {/* Metadata summary */}
                       <TableCell>
-                        {geo?.metadata ? (
-                          <>
-                            <div>Goal: {geo.metadata?.Day_volume_m3_goal ?? "—"} m³</div>
-                            <div>Bank: {geo.metadata?.op_total_bank_volume_m3 ?? "—"} m³</div>
-                            <div>Speed: {geo.metadata?.op_max_speed_kmh ?? "—"} km/h</div>
-                            <div>Swell: {geo.metadata?.op_swell_factor ?? "—"}%</div>
-                          </>
-                        ) : (
-                          <em>No metadata</em>
-                        )}
+                        <div>Goal: {geo?.day_volume_m3_goal ?? "—"} m³</div>
+                        <div>Bank: {geo?.op_total_bank_volume_m3 ?? "—"} m³</div>
+                        <div>Speed: {geo?.op_max_speed_kmh ?? "—"} km/h</div>
+                        <div>Swell: {geo?.op_swell_factor ?? "—"}%</div>
                       </TableCell>
 
-                      {/* ⚙️ Actions (same icon look & feel) */}
-                      <TableCell align="center" onClick={(e) => e.stopPropagation()}>
+                      {/* Actions */}
+                      <TableCell
+                        align="center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* Edit */}
+                        <Tooltip title="Edit Operation" arrow>
+                          <IconButton
+                            color="primary"
+                            sx={iconButtonSx}
+                            onClick={() =>
+                              navigate(`/operations/geofence/edit/${geo.id}`)
+                            }
+                            size="small"
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+
+                        {/* View on map */}
                         <Tooltip title="View on Map" arrow>
                           <IconButton
                             color="primary"
                             sx={iconButtonSx}
-                            onClick={() => navigate(`/operations/geofence/map?id=${geo.id}`)}
+                            onClick={() =>
+                              navigate(`/operations/geofence/map?id=${geo.id}`)
+                            }
                             size="small"
                           >
                             <MapIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
 
+                        {/* Dashboard */}
                         <Tooltip title="Dashboard" arrow>
                           <IconButton
                             color="success"
                             sx={iconButtonSx}
-                            onClick={() => navigate(`/operations/geofence/dashboard/${geo.id}`)}
+                            onClick={() =>
+                              navigate(
+                                `/operations/geofence/dashboard/${geo.flespi_geofence_id}`
+                              )
+                            }
                             size="small"
                           >
                             <DashboardIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+
+                        {/* Create Zone */}
+                        <Tooltip title="Create Zone" arrow>
+                          <IconButton
+                            color="warning"
+                            sx={iconButtonSx}
+                            onClick={() =>
+                              navigate(
+                                `/operations/geofence/create-zone?parent=${geo.id}`
+                              )
+                            }
+                            size="small"
+                          >
+                            <AddCircleIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+
+                        {/* Delete Operation */}
+                        <Tooltip title="Delete Operation" arrow>
+                          <IconButton
+                            color="error"
+                            sx={iconButtonSx}
+                            size="small"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+
+
+                              const confirm = await Swal.fire({
+                                icon: "warning",
+                                title: "Delete Operation?",
+                                text: "This will remove the operation and its geofence. This action cannot be undone.",
+                                showCancelButton: true,
+                                confirmButtonText: "Delete",
+                                cancelButtonText: "Cancel",
+                              });
+
+                              if (!confirm.isConfirmed) return;
+
+                              try {
+                                await deleteOperation(geo.id);
+
+                                // Remove from local state
+                                setGeofences((prev) =>
+                                  prev.filter((g) => g.id !== geo.id)
+                                );
+
+                                Swal.fire({
+                                  icon: "success",
+                                  title: "Deleted",
+                                  text: "Operation has been removed successfully.",
+                                });
+                              } catch (err) {
+                                Swal.fire({
+                                  icon: "error",
+                                  title: "Error",
+                                  text: "Unable to delete operation.",
+                                });
+                              }
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
                       </TableCell>
@@ -228,7 +327,7 @@ export default function GeofenceList() {
           </Table>
         </TableContainer>
 
-        {/* 📄 Pagination */}
+        {/* Pagination */}
         <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
           <Pagination
             count={totalPages}
@@ -239,6 +338,8 @@ export default function GeofenceList() {
           />
         </Box>
       </Box>
+
+      <CollectionFab editPath="/operations/geofence/create" />
     </PageLayout>
   );
 }

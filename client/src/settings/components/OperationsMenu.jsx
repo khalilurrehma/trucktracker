@@ -15,11 +15,11 @@ import CasesIcon from "@mui/icons-material/Cases";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import HistoryIcon from "@mui/icons-material/History";
 import { useLocation } from "react-router-dom";
-import { useTranslation } from "../../common/components/LocalizationProvider";
-import MenuItem from "../../common/components/MenuItem";
-import { useAppContext } from "../../AppContext";
+import { useTranslation } from "@/common/components/LocalizationProvider";
+import MenuItem from "@/common/components/MenuItem";
+import { useAppContext } from "@/AppContext";
 import axios from "axios";
-import { useSuperVisor } from "../../common/util/permissions";
+import { useSuperVisor } from "@/common/util/permissions";
 
 const OperationsMenu = () => {
   let url;

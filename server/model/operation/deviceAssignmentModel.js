@@ -160,3 +160,67 @@ export const getDevicesByGeofence = async (geofenceId) => {
     throw err;
   }
 };
+export const getDevicesByOperation = async (operationId) => {
+  try {
+    if (!operationId) throw new Error("Missing operationId");
+
+    // 1. Fetch assigned devices
+    const sql = `
+      SELECT 
+        da.*, 
+        d.name AS device_name,
+        d.category AS category,
+        d.flespiId AS flespi_device_id,
+        z.name AS zone_name, 
+        o.name AS operation_name
+      FROM device_assignments da
+      LEFT JOIN new_settings_devices d ON da.device_id = d.traccarId
+      LEFT JOIN zones z ON da.zone_id = z.id
+      LEFT JOIN operations o ON da.operation_id = o.id
+      WHERE da.operation_id = ?
+      ORDER BY da.created_at DESC
+    `;
+
+    const devices = await dbQuery(sql, [operationId]);
+
+    // If no devices, return empty
+    if (!devices || devices.length === 0) {
+      return [];
+    }
+    const deviceIds = devices
+      .map((d) => d.flespiId || d.flespi_device_id)
+      .filter((id) => !!id);
+
+    console.log("Device IDs:", deviceIds);
+
+    // 3. Fetch positions
+    let positions = [];
+
+    if (deviceIds.length > 0) {
+      const posData = await fetchDevicePositions(deviceIds);
+      positions = posData || [];
+    }
+
+    console.log("Positions:", positions);
+
+    // 4. Merge positions into device objects
+    const devicesWithPositions = devices.map((d) => {
+      const flespiId = d.flespiId || d.flespi_device_id;
+
+      const pos = positions.find((p) => p.flespiDeviceId === flespiId);
+
+      return {
+        ...d,
+        lat: pos.latitude,
+        lon: pos.longitude
+      };
+    });
+
+    // 5. Final response
+    return devicesWithPositions;
+
+  } catch (err) {
+    console.error("❌ Model error in getDevicesByOperation:", err.message);
+    throw err;
+  }
+};

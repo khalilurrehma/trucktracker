@@ -75,29 +75,57 @@ export const createZone = async (zone) => {
     const flespiGeometry = toFlespiGeometry(geometry);
 
     // 3️⃣ Create Flespi geofence
+    // 1️⃣ Start with common metadata
+    let metadata = {
+      op_id: operationId,
+    };
+
+    // 2️⃣ Add QUEUE fields
+    if (zoneType === "QUEUE_AREA") {
+      metadata = {
+        ...metadata,
+        ideal_queue_duration_m,
+        queue_max_vehicles_count: max_vehicles_count,
+      };
+    }
+
+    // 3️⃣ Add DUMP fields
+    if (zoneType === "DUMP_AREA") {
+      metadata = {
+        ...metadata,
+        dump_area_max_duration_min,
+      };
+    }
+
+    // 4️⃣ Add LOAD_PAD fields
+    if (zoneType === "LOAD_PAD") {
+      metadata = {
+        ...metadata,
+        load_pad_max_duration_min,
+      };
+    }
+
+    // 5️⃣ Add ZONE_AREA fields
+    if (zoneType === "ZONE_AREA") {
+      metadata = {
+        ...metadata,
+        zone_max_speed_kmh,
+        zone_bank_volume_m3,
+        zone_bank_swell_factor,
+      };
+    }
+
+    // 6️⃣ Create Flespi Geofence
     const geofence = await createFlespiGeofence([
       {
         name: `${zoneType}-${name}`,
         priority: 100,
         enabled: true,
         geometry: flespiGeometry,
-        metadata: {
-          zone_id: zoneId,
-          operation_id: operationId,
-          zone_type: zoneType,
-          color:
-            zoneType === "QUEUE_AREA"
-              ? "#e67e22"
-              : zoneType === "DUMP_AREA"
-                ? "#c0392b"
-                : zoneType === "LOAD_PAD"
-                  ? "#27ae60"
-                  : "#3498db",
-          area_ha,
-          max_speed: zone_max_speed_kmh || 0,
-        },
+        metadata,
       },
     ]);
+
 
     const geofenceId = geofence[0]?.id;
     const calcMap = {
@@ -166,21 +194,39 @@ export const updateZone = async (id, zone) => {
     geometry,
     area_sqm,
     area_ha,
+
     ideal_queue_duration_m,
     max_vehicles_count,
+
     dump_area_max_duration_min,
     load_pad_max_duration_min,
+
     zone_max_speed_kmh,
     zone_bank_volume_m3,
     zone_bank_swell_factor,
   } = zone;
 
+  /* ---------------------------------------------
+      1) UPDATE SQL — Only store values allowed for 
+         the zoneType (others become NULL)
+  --------------------------------------------- */
   const sql = `
     UPDATE zones
-    SET name = ?, zoneType = ?, geometry = ?, area_sqm = ?, area_ha = ?,
-        ideal_queue_duration_m = ?, max_vehicles_count = ?, dump_area_max_duration_min = ?, 
-        load_pad_max_duration_min = ?, zone_max_speed_kmh = ?, 
-        zone_bank_volume_m3 = ?, zone_bank_swell_factor = ?, updated_at = CURRENT_TIMESTAMP
+    SET 
+      name = ?, 
+      zoneType = ?, 
+      geometry = ?, 
+      area_sqm = ?, 
+      area_ha = ?,
+
+      ideal_queue_duration_m = ?, 
+      max_vehicles_count = ?, 
+      dump_area_max_duration_min = ?, 
+      load_pad_max_duration_min = ?, 
+
+      zone_max_speed_kmh = ?, 
+      zone_bank_volume_m3 = ?, 
+      zone_bank_swell_factor = ?
     WHERE id = ?
   `;
 
@@ -190,37 +236,92 @@ export const updateZone = async (id, zone) => {
     JSON.stringify(geometry),
     area_sqm,
     area_ha,
+
+    // QUEUE AREA
     zoneType === "QUEUE_AREA" ? ideal_queue_duration_m : null,
     zoneType === "QUEUE_AREA" ? max_vehicles_count : null,
+
+    // DUMP AREA
     zoneType === "DUMP_AREA" ? dump_area_max_duration_min : null,
+
+    // LOADING AREA
     zoneType === "LOAD_PAD" ? load_pad_max_duration_min : null,
+
+    // ZONE AREA
     zoneType === "ZONE_AREA" ? zone_max_speed_kmh : null,
     zoneType === "ZONE_AREA" ? zone_bank_volume_m3 : null,
     zoneType === "ZONE_AREA" ? zone_bank_swell_factor : null,
+
     id,
   ];
 
   try {
+    /* ---------------------------------------------
+        2) Update SQL
+    --------------------------------------------- */
     const results = await dbQuery(sql, values);
     if (results.affectedRows === 0) return { message: "Zone not found" };
 
-    // Get Flespi geofence ID
+    /* ---------------------------------------------
+        3) Get geofence ID
+    --------------------------------------------- */
     const [zoneRow] = await dbQuery(
       "SELECT flespi_geofence_id FROM zones WHERE id = ?",
       [id]
     );
+
     const geofenceId = zoneRow?.flespi_geofence_id;
 
     if (geofenceId) {
+      /* ---------------------------------------------
+          Build metadata EXACTLY like createZone()
+      --------------------------------------------- */
+
+      const metadata = {
+        zone_type: zoneType,
+        area_ha,
+        color:
+          zoneType === "QUEUE_AREA"
+            ? "#e67e22"
+            : zoneType === "DUMP_AREA"
+              ? "#c0392b"
+              : zoneType === "LOAD_PAD"
+                ? "#27ae60"
+                : "#3498db",
+
+        updated: true,
+      };
+
+      // Add QUEUE metadata
+      if (zoneType === "QUEUE_AREA") {
+        metadata.ideal_queue_duration_m = ideal_queue_duration_m;
+        metadata.max_vehicles_count = max_vehicles_count;
+      }
+
+      // ADD LOADPAD metadata
+      if (zoneType === "LOAD_PAD") {
+        metadata.load_pad_max_duration_min = load_pad_max_duration_min;
+      }
+
+      // ADD DUMP metadata
+      if (zoneType === "DUMP_AREA") {
+        metadata.dump_area_max_duration_min = dump_area_max_duration_min;
+      }
+
+      // ADD ZONE AREA metadata
+      if (zoneType === "ZONE_AREA") {
+        metadata.zone_max_speed_kmh = zone_max_speed_kmh;
+        metadata.zone_bank_volume_m3 = zone_bank_volume_m3;
+        metadata.zone_bank_swell_factor = zone_bank_swell_factor;
+      }
+
+      /* ---------------------------------------------
+          4) Update Flespi Geofence
+      --------------------------------------------- */
       await updateFlespiGeofence(geofenceId.toString(), {
         name: `${zoneType}-${name}`,
         geometry: toFlespiGeometry(geometry),
-        metadata: {
-          zone_type: zoneType,
-          area_ha,
-          max_speed: zone_max_speed_kmh || 0,
-          updated: true,
-        },
+        metadata,
       });
     }
 
@@ -230,6 +331,7 @@ export const updateZone = async (id, zone) => {
     throw err;
   }
 };
+
 
 // ======================================================
 // GET ALL ZONES
@@ -279,7 +381,19 @@ export const getZoneById = async (id) => {
     throw err;
   }
 };
+export const getZonesByOperationId = async (operationId) => {
+  try {
+    const results = await dbQuery(
+      "SELECT * FROM zones WHERE operationId = ?",
+      [operationId]
+    );
 
+    return results; // always return array
+  } catch (err) {
+    console.error("Error fetching zones by operationId:", err.message);
+    throw err;
+  }
+};
 // ======================================================
 // DELETE ZONE → also delete Flespi geofence
 // ======================================================

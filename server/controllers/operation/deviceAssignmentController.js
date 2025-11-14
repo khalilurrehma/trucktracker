@@ -7,7 +7,8 @@ import {
   deleteDeviceAssignment,
   getOperationCalculatorData,
   getPositions,
-  getDevicesByGeofence
+  getDevicesByGeofence,
+  getDevicesByOperation
 } from "../../model/operation/deviceAssignmentModel.js";
 
 // ✅ Create
@@ -119,6 +120,26 @@ export const getOperationStats = async (req, res) => {
   }
 };
 
+export const getDevicesByOperationController = async (req, res) => {
+  try {
+    const { operationId } = req.params;
+    if (!operationId) {
+      return res.status(400).json({ error: "Missing operationId parameter" });
+    }
+
+    const devices = await getDevicesByOperation(operationId);
+
+    res.status(200).json({
+      success: true,
+      count: devices.length,
+      operationId,
+      devices,
+    });
+  } catch (error) {
+    console.error("❌ Controller error in getDevicesByGeofence:", error.message);
+    res.status(500).json({ error: "Failed to fetch devices by geofence" });
+  }
+};
 export const getDevicesByGeofenceController = async (req, res) => {
   try {
     const { geofenceId } = req.params;
