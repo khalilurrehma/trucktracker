@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
+
 import {
     Accordion,
     AccordionSummary,
@@ -10,269 +12,185 @@ import {
     Switch,
     FormControlLabel,
 } from "@mui/material";
+
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Swal from "sweetalert2";
+
 import PageLayout from "@/common/components/PageLayout";
 import OperationsMenu from "@/settings/components/OperationsMenu";
 import useSettingsStyles from "@/settings/common/useSettingsStyles";
-import { createOperation } from "@/apis/operationApi";
-import { useCatch } from "@/reactHelper";
-import GeofenceEditor from "@/operations/components/GeofenceEditor";
 
-const GeofenceCreate = () => {
+import {
+    getAllDeviceAssignments,
+    createDeviceAssignment
+} from "@/apis/deviceAssignmentApi";
+
+
+export default function AssignDeviceToParent() {
+    const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
     const classes = useSettingsStyles();
 
+    const parentId = Number(searchParams.get("parent"));
     const user = useSelector((state) => state.session.user);
 
-    // 🔥 STATE FIXED — always deep clone op_metadata
-    const [attributes, setAttributes] = useState({
-        ...user.attributes,
-        op_metadata: { ...(user.attributes.op_metadata || {}) },
-        geofence: user.attributes.geofence || null
-    });
+    const [devices, setDevices] = useState([]);
+    const [assignments, setAssignments] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const handleSave = useCatch(async () => {
-        const meta = attributes.op_metadata || {};
+    /* ---------------- FETCH DEVICES + ASSIGNMENTS ---------------- */
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const assignmentList = await getAllDeviceAssignments();
+                setAssignments(assignmentList);
 
-        const finalPayload = {
-            name: attributes.op_name,
-            geometry: attributes.geofence?.geometry || null,
-            area_sqm: attributes.geofence?.area_sqm || null,
-            area_ha: attributes.geofence?.area_ha || null,
-            day_volume_m3_goal: parseFloat(meta.Day_volume_m3_goal) || null,
-            op_max_speed_kmh: parseFloat(meta.op_max_speed_kmh) || null,
-            op_total_bank_volume_m3: parseFloat(meta.op_total_bank_volume_m3) || null,
-            op_swell_factor: parseFloat(meta.op_swell_factor) || null,
-            user_id: user.id,
+                const uniqueDevices = [
+                    ...new Map(
+                        assignmentList.map((item) => [
+                            item.device_id,
+                            {
+                                id: item.device_id,
+                                name: item.device_name,
+                                flespi: item.flespi_device_id,
+                            },
+                        ])
+                    ).values(),
+                ];
+
+                setDevices(uniqueDevices);
+            } catch (err) {
+                console.error(err);
+                Swal.fire("Error", "Failed to load devices", "error");
+            }
+            setLoading(false);
         };
 
+        load();
+    }, []);
+
+    /* ---------------- ASSIGN DEVICE ---------------- */
+    const handleAssign = async (deviceId) => {
         try {
-            await createOperation(finalPayload);
-            console.log("FINAL PAYLOAD TO SEND:", finalPayload);
+            const exists = assignments.some(
+                (a) => a.device_id === deviceId && a.operation_id === parentId
+            );
+
+            if (exists) {
+                return Swal.fire({
+                    icon: "warning",
+                    title: "Already Assigned",
+                    text: "This device is already assigned to this operation.",
+                });
+            }
+
+            await createDeviceAssignment({
+                device_id: deviceId,
+                operation_id: parentId,
+                zone_id: parentId,
+            });
 
             Swal.fire({
                 icon: "success",
-                title: "Operation created",
-                text: "Your operation geofence was successfully saved!",
-                timer: 2000,
+                title: "Assigned!",
+                text: "Device assigned successfully.",
+                timer: 1800,
                 showConfirmButton: false,
             });
 
-            // 🔥 RESET THE FORM HERE
-            setAttributes({
-                ...user.attributes,
-                op_metadata: {},
-                geofence: null,
-                op_name: "",
-                op_priority: 10,
-                op_enabled: true,
-            });
-
+            navigate(-1);
         } catch (error) {
-            Swal.fire({
-                icon: "error",
-                title: "Error",
-                text: error?.response?.data?.message || "Something went wrong.",
-            });
-            throw error;
+            console.error(error);
+            Swal.fire("Error", "Could not assign device", "error");
         }
-    });
+    };
 
+    if (loading) return (
+        <PageLayout
+            menu={<OperationsMenu />}
+            breadcrumbs={["settingsTitle", "sharedPreferences"]}
+        >
+            <Container maxWidth="xl" className={classes.container}>
+                <Typography variant="subtitle1">Loading devices...</Typography>
+            </Container>
+        </PageLayout>
+    );
 
-
+    /* ---------------- RENDER ---------------- */
     return (
         <PageLayout
             menu={<OperationsMenu />}
             breadcrumbs={["settingsTitle", "sharedPreferences"]}
         >
             <Container maxWidth="xl" className={classes.container}>
+
                 <Accordion defaultExpanded>
                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                        <Typography variant="subtitle1">Operation Settings</Typography>
+                        <Typography variant="subtitle1">
+                            Assign Device to Parent #{parentId}
+                        </Typography>
                     </AccordionSummary>
 
                     <AccordionDetails className={classes.details}>
 
-                        {/* NAME */}
-                        <TextField
-                            label="Name"
-                            fullWidth
-                            margin="normal"
-                            value={attributes.op_name || ""}
-                            onChange={(e) =>
-                                setAttributes(prev => ({
-                                    ...prev,
-                                    op_name: e.target.value
-                                }))
-                            }
-                        />
-
-                        {/* PRIORITY */}
-                        <TextField
-                            label="Priority"
-                            fullWidth
-                            type="number"
-                            margin="normal"
-                            value={attributes.op_priority ?? 10}
-                            onChange={(e) =>
-                                setAttributes(prev => ({
-                                    ...prev,
-                                    op_priority: Number(e.target.value)
-                                }))
-                            }
-                        />
-
-                        {/* ENABLED */}
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={attributes.op_enabled ?? false}
-                                    onChange={(e) =>
-                                        setAttributes(prev => ({
-                                            ...prev,
-                                            op_enabled: e.target.checked
-                                        }))
-                                    }
-                                />
-                            }
-                            label="Enabled"
-                        />
-
-                        {/* MAP */}
-                        <div style={{ marginTop: 40, width: "100%" }}>
-                            <Typography variant="subtitle1" sx={{ mb: 2 }}>
-                                Operation Area
-                            </Typography>
-
-                            <GeofenceEditor
-                                value={attributes.geofence}
-                                onChange={(result) =>
-                                    setAttributes(prev => ({
-                                        ...prev,
-                                        geofence: {
-                                            ...prev.geofence,
-                                            geometry: result.geometry || null,
-                                            area_sqm: result.area_sqm || null,
-                                            area_ha: result.area_ha || null
-                                        }
-                                    }))
-                                }
-                            />
-
+                        <div style={{ marginBottom: 20 }}>
+                            <button
+                                onClick={() => navigate(-1)}
+                                style={{
+                                    padding: "6px 12px",
+                                    border: "1px solid #ccc",
+                                    borderRadius: 6,
+                                    cursor: "pointer"
+                                }}
+                            >
+                                ← Back
+                            </button>
                         </div>
 
-                        {/* METADATA */}
-                        <div style={{ width: "100%", marginTop: 30 }}>
-                            <Typography variant="subtitle1" sx={{ mb: 1 }}>
-                                Metadata
-                            </Typography>
+                        {devices.length === 0 && (
+                            <Typography>No devices found.</Typography>
+                        )}
 
-                            {/* Day Volume Goal */}
-                            <TextField
-                                label="Day_volume_m3_goal"
-                                fullWidth
-                                margin="normal"
-                                value={attributes.op_metadata?.Day_volume_m3_goal || ""}
-                                onChange={(e) =>
-                                    setAttributes(prev => ({
-                                        ...prev,
-                                        op_metadata: {
-                                            ...prev.op_metadata,
-                                            Day_volume_m3_goal: e.target.value
-                                        }
-                                    }))
-                                }
-                            />
+                        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                            {devices.map((dev) => (
+                                <div
+                                    key={dev.id}
+                                    style={{
+                                        padding: 12,
+                                        border: "1px solid #ddd",
+                                        borderRadius: 8,
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                    }}
+                                >
+                                    <div>
+                                        <strong>{dev.name}</strong>
+                                        <div style={{ fontSize: 12, opacity: 0.6 }}>
+                                            Flespi: {dev.flespi}
+                                        </div>
+                                    </div>
 
-                            {/* OP ID */}
-                            <TextField
-                                label="op_id"
-                                fullWidth
-                                margin="normal"
-                                value={attributes.op_metadata?.op_id || ""}
-                                onChange={(e) =>
-                                    setAttributes(prev => ({
-                                        ...prev,
-                                        op_metadata: {
-                                            ...prev.op_metadata,
-                                            op_id: e.target.value
-                                        }
-                                    }))
-                                }
-                            />
-
-                            {/* Max Speed */}
-                            <TextField
-                                label="op_max_speed_kmh"
-                                fullWidth
-                                margin="normal"
-                                value={attributes.op_metadata?.op_max_speed_kmh || ""}
-                                onChange={(e) =>
-                                    setAttributes(prev => ({
-                                        ...prev,
-                                        op_metadata: {
-                                            ...prev.op_metadata,
-                                            op_max_speed_kmh: e.target.value
-                                        }
-                                    }))
-                                }
-                            />
-
-                            {/* Swell Factor */}
-                            <TextField
-                                label="op_swell_factor"
-                                fullWidth
-                                margin="normal"
-                                value={attributes.op_metadata?.op_swell_factor || ""}
-                                onChange={(e) =>
-                                    setAttributes(prev => ({
-                                        ...prev,
-                                        op_metadata: {
-                                            ...prev.op_metadata,
-                                            op_swell_factor: e.target.value
-                                        }
-                                    }))
-                                }
-                            />
-
-                            {/* Total Bank Volume */}
-                            <TextField
-                                label="op_total_bank_volume_m3"
-                                fullWidth
-                                margin="normal"
-                                value={attributes.op_metadata?.op_total_bank_volume_m3 || ""}
-                                onChange={(e) =>
-                                    setAttributes(prev => ({
-                                        ...prev,
-                                        op_metadata: {
-                                            ...prev.op_metadata,
-                                            op_total_bank_volume_m3: e.target.value
-                                        }
-                                    }))
-                                }
-                            />
+                                    <button
+                                        onClick={() => handleAssign(dev.id)}
+                                        style={{
+                                            background: "#1976d2",
+                                            color: "#fff",
+                                            border: "none",
+                                            padding: "8px 16px",
+                                            borderRadius: 6,
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        Assign
+                                    </button>
+                                </div>
+                            ))}
                         </div>
-
-                        {/* SAVE BUTTON */}
-                        <button
-                            onClick={handleSave}
-                            style={{
-                                marginTop: 30,
-                                padding: "10px 20px",
-                                background: "#1976d2",
-                                color: "white",
-                                borderRadius: 6,
-                                border: "none",
-                                cursor: "pointer"
-                            }}
-                        >
-                            Save
-                        </button>
                     </AccordionDetails>
                 </Accordion>
+
             </Container>
         </PageLayout>
     );
-};
-
-export default GeofenceCreate;
+}

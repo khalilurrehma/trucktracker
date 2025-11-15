@@ -212,6 +212,21 @@ export default function GeofenceList() {
                         align="center"
                         onClick={(e) => e.stopPropagation()}
                       >
+                        {/* Create Zone */}
+                        <Tooltip title="Create Zone" arrow>
+                          <IconButton
+                            color="warning"
+                            sx={iconButtonSx}
+                            onClick={() =>
+                              navigate(
+                                `/operations/geofence/create-zone?parent=${geo.id}`
+                              )
+                            }
+                            size="small"
+                          >
+                            <AddCircleIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                         {/* Edit */}
                         <Tooltip title="Edit Operation" arrow>
                           <IconButton
@@ -257,13 +272,13 @@ export default function GeofenceList() {
                         </Tooltip>
 
                         {/* Create Zone */}
-                        <Tooltip title="Create Zone" arrow>
+                        <Tooltip title="Add Devices" arrow>
                           <IconButton
                             color="warning"
                             sx={iconButtonSx}
                             onClick={() =>
                               navigate(
-                                `/operations/geofence/create-zone?parent=${geo.id}`
+                                `/operations/geofence/assign-device?parent=${geo.id}`
                               )
                             }
                             size="small"

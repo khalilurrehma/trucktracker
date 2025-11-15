@@ -143,6 +143,7 @@ import DispatchGeofenceZoneEdit from "./operations/DispatchGeofenceZoneEdit";
 import DispatchGeofenceDashboard from "./operations/dashboard/DispatchGeofenceDashboard";
 import DispatchDeviceDashboard from "./operations/dashboard/DispatchDeviceDashboard";
 import DispatchGeofenceSettings from "./operations/setting/DispatchGeofenceSettings";
+import DispatchGeofenceAssignDevice from "./operations/DispatchGeofenceAssignDevice";
 import DeviceTrackPage from "./other/DeviceTrackPage";
 import DeviceTelemetry from "./settings/DeviceTelemetry";
 import Dashboard from "./dashboard/Dashboard";
@@ -416,6 +417,7 @@ const Navigation = () => {
           <Route path="geofence/dashboard/:id" element={<DispatchGeofenceDashboard />} />
           <Route path="geofence/device/:id" element={<DispatchDeviceDashboard />} />
           <Route path="geofence/settings/:id" element={<DispatchGeofenceSettings />} />
+          <Route path="geofence/assign-device" element={<DispatchGeofenceAssignDevice />} />
           <Route
             path="dispatch/search-history"
             element={<DispatchSearchHistory />}

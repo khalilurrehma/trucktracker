@@ -24,7 +24,7 @@ export const createDeviceAssignment = async ({ device_id, operation_id, zone_id 
       [device_id]
     );
     const [zone] = await dbQuery(
-      "SELECT flespi_geofence_id, name FROM zones WHERE id = ?",
+      "SELECT flespi_geofence_id, name FROM operations WHERE id = ?",
       [zone_id]
     );
 
@@ -61,7 +61,7 @@ export const getAllAssignments = async () => {
     SELECT 
       da.*, 
       d.name AS device_name,
-      d.flespiId AS flespi_device_id,   -- ✅ include flespiId
+      d.flespiId AS flespi_device_id,  
       z.name AS zone_name, 
       o.name AS operation_name
     FROM device_assignments da

@@ -87,7 +87,7 @@ export const removeAssignment = async (req, res) => {
 export const getOperationStats = async (req, res) => {
   try {
     const { deviceId } = req.params;
-    const calcId = req.query.calcId || 2194137; // default fallback calcId
+    const calcId = req.query.calcId || 2194137;
 
     if (!deviceId) {
       return res.status(400).json({
