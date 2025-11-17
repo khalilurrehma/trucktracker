@@ -22,15 +22,16 @@ import EditIcon from "@mui/icons-material/Edit";
 import MapIcon from "@mui/icons-material/Map";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import DashboardIcon from "@mui/icons-material/Dashboard";
-import DeleteIcon from "@mui/icons-material/Delete";       // 👈 NEW
-import Swal from "sweetalert2";                           // 👈 NEW
+import DeleteIcon from "@mui/icons-material/Delete";
+import DevicesIcon from "@mui/icons-material/Devices";
+import Swal from "sweetalert2";
 import { ToastContainer } from "react-toastify";
 import { useAppContext } from "../AppContext";
 import { useOperations } from "../hooks/useOperations";
 import { useNavigate } from "react-router-dom";
 import { alpha, useTheme } from "@mui/material/styles";
 import CollectionFab from "@/settings/components/CollectionFab";
-import { deleteOperation } from "@/apis/operationApi";
+import { getAllOperations, deleteOperation } from "@/apis/operationApi";
 
 const PAGE_SIZE = 10;
 
@@ -51,7 +52,6 @@ function zoneTypeFromName(name = "") {
 
 export default function GeofenceList() {
   const theme = useTheme();
-  const { allDevices, mqttDeviceLiveLocation, mqttOperationStats } = useAppContext();
   const ops = useOperations();
   const navigate = useNavigate();
 
@@ -62,11 +62,19 @@ export default function GeofenceList() {
 
   // ✅ Load geofences from ops hook
   useEffect(() => {
-    if (ops.operations?.length) {
-      setGeofences(ops.operations);
-      setPage(1);
-    }
-  }, [ops.operations]);
+    const loadOperations = async () => {
+      try {
+        const operations = await getAllOperations();
+        setGeofences(operations);
+        setPage(1);
+      } catch (err) {
+        console.error("Error loading operations:", err);
+      }
+    };
+
+    loadOperations();
+  }, []);
+
 
   // ✅ Theme-aware, consistent icon style
   const iconButtonSx = useMemo(
@@ -88,7 +96,6 @@ export default function GeofenceList() {
   const filtered = useMemo(() => {
     const needle = searchQuery.trim().toLowerCase();
     return (geofences || [])
-      .filter((g) => /OP_AREA/i.test(g?.name || "")) // keep OP_AREA
       .filter((g) => (g?.name || "").toLowerCase().includes(needle));
   }, [geofences, searchQuery]);
 
@@ -283,7 +290,7 @@ export default function GeofenceList() {
                             }
                             size="small"
                           >
-                            <AddCircleIcon fontSize="small" />
+                            <DevicesIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
 
