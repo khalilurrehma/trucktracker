@@ -219,28 +219,14 @@ export default function GeofenceList() {
                         align="center"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        {/* Create Zone */}
-                        <Tooltip title="Create Zone" arrow>
-                          <IconButton
-                            color="warning"
-                            sx={iconButtonSx}
-                            onClick={() =>
-                              navigate(
-                                `/operations/geofence/create-zone?parent=${geo.id}`
-                              )
-                            }
-                            size="small"
-                          >
-                            <AddCircleIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
+
                         {/* Edit */}
                         <Tooltip title="Edit Operation" arrow>
                           <IconButton
                             color="primary"
                             sx={iconButtonSx}
                             onClick={() =>
-                              navigate(`/operations/geofence/edit/${geo.id}`)
+                              navigate(`/operations/edit-wizard/${geo.id}/operation`)
                             }
                             size="small"
                           >
@@ -277,23 +263,6 @@ export default function GeofenceList() {
                             <DashboardIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-
-                        {/* Create Zone */}
-                        <Tooltip title="Add Devices" arrow>
-                          <IconButton
-                            color="warning"
-                            sx={iconButtonSx}
-                            onClick={() =>
-                              navigate(
-                                `/operations/geofence/assign-device?parent=${geo.id}`
-                              )
-                            }
-                            size="small"
-                          >
-                            <DevicesIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-
                         {/* Delete Operation */}
                         <Tooltip title="Delete Operation" arrow>
                           <IconButton
@@ -361,7 +330,7 @@ export default function GeofenceList() {
         </Box>
       </Box>
 
-      <CollectionFab editPath="/operations/geofence/create" />
+      <CollectionFab editPath="/operations/wizard/create-operation" />
     </PageLayout>
   );
 }

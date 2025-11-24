@@ -336,18 +336,7 @@ export default function OperationWithZonesMap() {
     });
   };
 
-  /* ---------------- DELETE ZONE ---------------- */
-  const handleDeleteZone = (id) => {
-    Swal.fire({
-      title: "Delete Zone?",
-      icon: "warning",
-      showCancelButton: true,
-    }).then(async (res) => {
-      if (!res.isConfirmed) return;
-      await deleteZone(id);
-      setZones((z) => z.filter((x) => x.id !== id));
-    });
-  };
+
 
   return (
     <>
@@ -398,29 +387,6 @@ export default function OperationWithZonesMap() {
                   <div style={{ fontSize: 12, opacity: 0.7 }}>
                     {zone.zoneType.replace("_", " ")}
                   </div>
-                </div>
-
-                <div style={{ display: "flex", gap: 6 }}>
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEditZone(zone.id);
-                    }}
-                  >
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-
-                  <IconButton
-                    size="small"
-                    sx={{ color: "#c0392b" }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteZone(zone.id);
-                    }}
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
                 </div>
               </div>
             </div>

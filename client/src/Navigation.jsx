@@ -147,7 +147,10 @@ import DispatchGeofenceAssignDevice from "./operations/DispatchGeofenceAssignDev
 import DeviceTrackPage from "./other/DeviceTrackPage";
 import DeviceTelemetry from "./settings/DeviceTelemetry";
 import Dashboard from "./dashboard/Dashboard";
-
+import { WizardProvider } from "@/operations/wizard/WizardContext";
+import WizardRouter from "@/operations/wizard/WizardRouter";
+import EditWizardEntry from "@/operations/editWizard/EditWizardEntry";
+import { EditWizardProvider } from "@/operations/editWizard/EditWizardContext";
 const Navigation = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -407,6 +410,22 @@ const Navigation = () => {
         </Route>
 
         <Route path="operations">
+          <Route
+            path="wizard/*"
+            element={
+              <WizardProvider>
+                <WizardRouter />
+              </WizardProvider>
+            }
+          />
+          <Route
+            path="edit-wizard/:operationId/*"
+            element={
+              <EditWizardProvider>
+                <EditWizardEntry />
+              </EditWizardProvider>
+            }
+          />
           <Route path="dispatch" element={<DispatchResult />} />
           <Route path="geofence/list" element={<DispatchGeofenceList />} />
           <Route path="geofence/create" element={<DispatchGeofenceCreate />} />
