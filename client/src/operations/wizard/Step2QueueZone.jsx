@@ -20,7 +20,7 @@ import OperationsMenu from "@/settings/components/OperationsMenu";
 import useSettingsStyles from "@/settings/common/useSettingsStyles";
 import GeofenceZoneEditor from "@/operations/components/GeofenceZoneEditor";
 import { useWizard } from "./WizardContext";
-
+import CircleInputs from "@/operations/components/CircleInputs";
 const META_FIELDS = {
   QUEUE: [
     { key: "ideal_queue_duration_m", label: "Ideal Queue Duration (min)" },
@@ -42,21 +42,40 @@ const zoneTypeMap = {
   ZONE_AREA: "ZONE_AREA",
 };
 
+const DEFAULT_METADATA = {
+  zone_type: "QUEUE",
+  ideal_queue_duration_m: "",
+  queue_max_vehicles_count: "",
+};
+
+const DEFAULT_ZONE = {
+  name: "",
+  enabled: true,
+  zoneType: "QUEUE",
+  capacity: "",
+  geofence: null,
+  metadata: DEFAULT_METADATA,
+};
+
 export default function Step2QueueZone({ goNext, goPrev }) {
   const classes = useSettingsStyles();
-  const { operation, setQueueZone } = useWizard();
+  const {
+    operation,
+    queueZone,
+    zoneArea,
+    loadPadZone,
+    dumpZone,
+    setQueueZone
+  } = useWizard();
 
-  const [zone, setZone] = useState({
-    name: "",
-    enabled: true,
-    zoneType: "QUEUE",
-    capacity: "",
-    geofence: null,
-    metadata: {
-      zone_type: "QUEUE",
-      ideal_queue_duration_m: "",
-      queue_max_vehicles_count: "",
-    },
+  const [zone, setZone] = useState(() => ({
+    ...DEFAULT_ZONE,
+    metadata: { ...DEFAULT_METADATA },
+  }));
+  const [circle, setCircle] = useState({
+    lat: "",
+    lng: "",
+    radius: 0,
   });
 
   useEffect(() => {
@@ -65,12 +84,26 @@ export default function Step2QueueZone({ goNext, goPrev }) {
     }
   }, [operation]);
 
+  // Rehydrate when navigating back
+  useEffect(() => {
+    if (queueZone) {
+      setZone({
+        ...DEFAULT_ZONE,
+        ...queueZone,
+        // Normalize backend value back to UI enum so META_FIELDS works
+        zoneType: queueZone.zoneType === "QUEUE_AREA" ? "QUEUE" : queueZone.zoneType,
+        metadata: { ...DEFAULT_METADATA, ...(queueZone.metadata || {}) },
+      });
+      if (queueZone.circle) setCircle(queueZone.circle);
+    }
+  }, [queueZone]);
+
   const handleTypeChange = (type) => {
     const fields = META_FIELDS[type] || [];
     const newMetadata = { zone_type: type };
 
     fields.forEach((f) => {
-      newMetadata[f.key] = zone.metadata[f.key] || "";
+      newMetadata[f.key] = (zone.metadata || {})[f.key] || "";
     });
 
     setZone((prev) => ({
@@ -81,10 +114,10 @@ export default function Step2QueueZone({ goNext, goPrev }) {
   };
 
   useEffect(() => {
-    // Force QUEUE
-    handleTypeChange("QUEUE");
+    // Force QUEUE only when nothing stored
+    if (!queueZone) handleTypeChange("QUEUE");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [queueZone]);
 
   const handleNext = () => {
     if (!zone.name) {
@@ -106,6 +139,8 @@ export default function Step2QueueZone({ goNext, goPrev }) {
       area_ha: geo.area_ha || null,
       enabled: zone.enabled,
       capacity: zone.capacity ? Number(zone.capacity) : null,
+      circle,
+      metadata: { ...DEFAULT_METADATA, ...meta, zone_type: backendZoneType },
 
       ideal_queue_duration_m:
         backendZoneType === "QUEUE_AREA"
@@ -161,7 +196,7 @@ export default function Step2QueueZone({ goNext, goPrev }) {
             </div>
 
             <TextField
-              label="Zone Name"
+              label="QUEUE Name"
               fullWidth
               margin="normal"
               value={zone.name}
@@ -169,17 +204,23 @@ export default function Step2QueueZone({ goNext, goPrev }) {
                 setZone((prev) => ({ ...prev, name: e.target.value }))
               }
             />
-          
-           
 
+
+            <CircleInputs circle={circle} setCircle={setCircle} />
             <div style={{ marginTop: 40 }}>
               <Typography variant="subtitle1" sx={{ mb: 2 }}>
                 Draw Queue Area (inside Operation geometry)
               </Typography>
-
               <GeofenceZoneEditor
                 value={zone.geofence}
-                parentBoundary={operation?.geometry || null}
+                circle={circle}
+                parentBoundary={operation?.geometry}
+                zoneType="QUEUE_AREA"
+                otherGeofences={[
+                  zoneArea && { geometry: zoneArea.geometry, zoneType: "ZONE_AREA" },
+                  loadPadZone && { geometry: loadPadZone.geometry, zoneType: "LOAD_PAD" },
+                  dumpZone && { geometry: dumpZone.geometry, zoneType: "DUMP_AREA" },
+                ].filter(Boolean)}
                 onChange={(geo) =>
                   setZone((prev) => ({
                     ...prev,
@@ -196,7 +237,7 @@ export default function Step2QueueZone({ goNext, goPrev }) {
                 fullWidth
                 type="number"
                 margin="normal"
-                value={zone.metadata[field.key] || ""}
+                value={zone.metadata?.[field.key] || ""}
                 onChange={(e) =>
                   setZone((prev) => ({
                     ...prev,

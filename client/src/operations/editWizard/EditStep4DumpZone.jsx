@@ -17,7 +17,7 @@ import OperationsMenu from "@/settings/components/OperationsMenu";
 import GeofenceZoneEditor from "@/operations/components/GeofenceZoneEditor";
 import useSettingsStyles from "@/settings/common/useSettingsStyles";
 import { useEditWizard } from "./EditWizardContext";
-
+import CircleInputs from "@/operations/components/CircleInputs";
 const META_FIELDS = {
   DUMP_AREA: [
     { key: "dump_area_max_duration_min", label: "Dump Area Max Duration (min)" },
@@ -29,7 +29,11 @@ export default function EditStep4DumpZone({ goNext, goPrev }) {
   const { dumpZone, setDumpZone, operation } = useEditWizard();
 
   const [local, setLocal] = useState(null);
-
+  const [circle, setCircle] = useState({
+    lat: "",
+    lng: "",
+    radius: 0,
+  });
   useEffect(() => {
     if (dumpZone) {
       setLocal({
@@ -74,7 +78,7 @@ export default function EditStep4DumpZone({ goNext, goPrev }) {
               }
             />
 
-        
+               <CircleInputs circle={circle} setCircle={setCircle} />
 
             <div style={{ marginTop: 40 }}>
               <Typography variant="subtitle1" sx={{ mb: 2 }}>
@@ -82,7 +86,9 @@ export default function EditStep4DumpZone({ goNext, goPrev }) {
               </Typography>
 
               <GeofenceZoneEditor
-                value={local.geofence}
+              circle={circle}
+                zoneType="DUMP_AREA"
+                value={{ ...local.geofence, name: local.name }}
                 parentBoundary={operation.geometry}
                 onChange={(geo) =>
                   setLocal((prev) => ({ ...prev, geofence: geo }))

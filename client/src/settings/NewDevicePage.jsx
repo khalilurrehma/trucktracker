@@ -272,6 +272,7 @@ const NewDevicePage = () => {
                 }
                 label={t("sharedCostByKm")}
               />
+
               <TextField
                 value={item.phone || ""}
                 onChange={(event) =>
@@ -307,6 +308,37 @@ const NewDevicePage = () => {
                 }))}
                 label={t("deviceCategory")}
               />
+              {item.category === "dumptruck" && (
+                <>
+                  <TextField
+                    value={item.vehicle_capacity_m3 || ""}
+                    type="number"
+                    onChange={(event) =>
+                      setItem({
+                        ...item,
+                        vehicle_capacity_m3: event.target.value,
+                      })
+                    }
+                    label={t("vehicle_capacity_m3")}
+                    fullWidth
+                    sx={{ mt: 2 }}
+                  />
+
+                  <TextField
+                    value={item.vehicle_fill_factor_ideal || ""}
+                    type="number"
+                    onChange={(event) =>
+                      setItem({
+                        ...item,
+                        vehicle_fill_factor_ideal: event.target.value,
+                      })
+                    }
+                    label={t("vehicle_fill_factor_ideal")}
+                    fullWidth
+                    sx={{ mt: 2 }}
+                  />
+                </>
+              )}
               <SelectField
                 value={item.calendarId || 0}
                 onChange={(event) =>

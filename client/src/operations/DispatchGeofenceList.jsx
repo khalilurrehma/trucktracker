@@ -150,9 +150,9 @@ export default function GeofenceList() {
                 <TableCell sx={{ color: "#1976d2", fontWeight: "bold" }}>
                   Name
                 </TableCell>
-                <TableCell sx={{ color: "#1976d2", fontWeight: "bold" }}>
+                {/* <TableCell sx={{ color: "#1976d2", fontWeight: "bold" }}>
                   Type
-                </TableCell>
+                </TableCell> */}
                 <TableCell sx={{ color: "#1976d2", fontWeight: "bold" }}>
                   Metadata
                 </TableCell>
@@ -194,7 +194,7 @@ export default function GeofenceList() {
                       <TableCell>{geo?.name || "—"}</TableCell>
 
                       {/* Type chip */}
-                      <TableCell>
+                      {/* <TableCell>
                         <Chip
                           size="small"
                           label={zType}
@@ -204,7 +204,7 @@ export default function GeofenceList() {
                             backgroundColor: chipColor,
                           }}
                         />
-                      </TableCell>
+                      </TableCell> */}
 
                       {/* Metadata summary */}
                       <TableCell>

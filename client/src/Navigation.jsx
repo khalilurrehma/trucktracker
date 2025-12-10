@@ -136,14 +136,9 @@ import RemoveSnapshotsDevices from "./settings/RemoveSnapshotsDevices";
 import RimacFinalReportView from "./operations/RimacFinalReportView";
 import DispatchGeofence from "./operations/DispatchGeofence";
 import DispatchGeofenceList from "./operations/DispatchGeofenceList";
-import DispatchGeofenceCreate from "./operations/DispatchGeofenceCreate";
-import DispatchGeofenceEdit from "./operations/DispatchGeofenceEdit";
-import DispatchGeofenceZoneCreate from "./operations/DispatchGeofenceZoneCreate";
-import DispatchGeofenceZoneEdit from "./operations/DispatchGeofenceZoneEdit";
 import DispatchGeofenceDashboard from "./operations/dashboard/DispatchGeofenceDashboard";
 import DispatchDeviceDashboard from "./operations/dashboard/DispatchDeviceDashboard";
 import DispatchGeofenceSettings from "./operations/setting/DispatchGeofenceSettings";
-import DispatchGeofenceAssignDevice from "./operations/DispatchGeofenceAssignDevice";
 import DeviceTrackPage from "./other/DeviceTrackPage";
 import DeviceTelemetry from "./settings/DeviceTelemetry";
 import Dashboard from "./dashboard/Dashboard";
@@ -428,15 +423,10 @@ const Navigation = () => {
           />
           <Route path="dispatch" element={<DispatchResult />} />
           <Route path="geofence/list" element={<DispatchGeofenceList />} />
-          <Route path="geofence/create" element={<DispatchGeofenceCreate />} />
-          <Route path="geofence/edit/:id" element={<DispatchGeofenceEdit />} />
-          <Route path="geofence/create-zone" element={<DispatchGeofenceZoneCreate />} />
-          <Route path="geofence/edit-zone/:id" element={<DispatchGeofenceZoneEdit />} />
           <Route path="geofence/map" element={<DispatchGeofence />} />
           <Route path="geofence/dashboard/:id" element={<DispatchGeofenceDashboard />} />
           <Route path="geofence/device/:id" element={<DispatchDeviceDashboard />} />
           <Route path="geofence/settings/:id" element={<DispatchGeofenceSettings />} />
-          <Route path="geofence/assign-device" element={<DispatchGeofenceAssignDevice />} />
           <Route
             path="dispatch/search-history"
             element={<DispatchSearchHistory />}

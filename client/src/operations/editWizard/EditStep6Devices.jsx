@@ -19,7 +19,7 @@ import useSettingsStyles from "@/settings/common/useSettingsStyles";
 import { getAllDeviceAssignments } from "@/apis/deviceAssignmentApi";
 import { useEditWizard } from "./EditWizardContext";
 import { useSearchParams } from "react-router-dom";
-
+import { getFlespiDevices } from "@/apis/api";
 export default function EditStep6Devices({ goNext, goPrev }) {
   const classes = useSettingsStyles();
   const { operation, assignedDevices, setAssignedDevices } = useEditWizard();
@@ -32,16 +32,16 @@ export default function EditStep6Devices({ goNext, goPrev }) {
   useEffect(() => {
     const load = async () => {
       try {
-        const allAssignments = await getAllDeviceAssignments();
+        const allAssignments = await getFlespiDevices();
 
         const uniqueDevices = [
           ...new Map(
-            allAssignments.map((item) => [
-              item.device_id,
+            allAssignments.data.map((item) => [
+              item.id,
               {
-                id: item.device_id,
-                name: item.device_name,
-                flespi: item.flespi_device_id,
+                id: item.id,
+                name: item.name,
+                flespi: item.flespiId,
               },
             ])
           ).values(),
@@ -62,7 +62,7 @@ export default function EditStep6Devices({ goNext, goPrev }) {
 
   /* ----------------- FILTER DEVICES ----------------- */
   const filtered = devices.filter((d) =>
-    d.name.toLowerCase().includes(search.toLowerCase())
+    d.name?.toLowerCase().includes(search.toLowerCase())
   );
 
   /* ----------------- TOGGLE ASSIGNMENT ----------------- */

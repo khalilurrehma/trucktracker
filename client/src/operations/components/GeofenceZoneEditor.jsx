@@ -5,7 +5,7 @@ import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 import "leaflet-geometryutil";
 import Swal from "sweetalert2";
-
+import LocationSearchBox from "@/operations/components/LocationSearchBox";
 /* ---------------- Satellite Tiles ---------------- */
 const GOOGLE_SAT = "https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}";
 const GOOGLE_HYBRID = "https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}";
@@ -18,7 +18,12 @@ const DARK =
     "https://tiles.stadiamaps.com/tiles/alidade_dark/{z}/{x}/{y}{r}.png";
 const LIGHT =
     "https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png";
-
+const ZONE_COLORS = {
+    QUEUE_AREA: "#2196F3",
+    LOAD_PAD: "#4CAF50",
+    DUMP_AREA: "#F44336",
+    ZONE_AREA: "#9C27B0",
+};
 /* ========================================================================== */
 /*              PURE JS — POINT IN POLYGON (never breaks in React)            */
 /* ========================================================================== */
@@ -45,7 +50,7 @@ function isPointInsidePolygon(point, polygonLatLngs) {
 /* ========================================================================== */
 /*                      FULLY STABLE GEOFENCE ZONE EDITOR                     */
 /* ========================================================================== */
-const GeofenceZoneEditor = ({ value, parentBoundary, onChange }) => {
+const GeofenceZoneEditor = ({ value, parentBoundary, otherGeofences = [], onChange, zoneType, circle }) => {
     const mapRef = useRef(null);
     const drawnItems = useRef(null);
 
@@ -57,7 +62,39 @@ const GeofenceZoneEditor = ({ value, parentBoundary, onChange }) => {
         return geo;
     };
 
-    /* Circle → Polygon */
+    useEffect(() => {
+        if (!mapRef.current) return;
+        if (!circle) return;
+
+        const { lat, lng, radius } = circle;
+        if (!lat || !lng || !radius) return;
+
+        // Remove old shapes
+        drawnItems.current.clearLayers();
+
+        // Draw circle on map
+        const layer = L.circle([lat, lng], {
+            radius,
+            color: "#2196F3",
+            fillOpacity: 0.15,
+            weight: 2
+        });
+
+        drawnItems.current.addLayer(layer);
+
+        mapRef.current.setView([lat, lng], 16);
+
+        // Convert circle to polygon (GeoJSON-friendly)
+        const geometry = circleToPolygon(layer);
+
+        onChange({
+            geometry,
+            area_sqm: Math.PI * radius * radius,
+            area_ha: (Math.PI * radius * radius) / 10000
+        });
+
+    }, [circle]);
+    /* -------------- Circle → Polygon conversion ---------------- */
     const circleToPolygon = (circle, points = 60) => {
         const center = circle.getLatLng();
         const radius = circle.getRadius();
@@ -68,7 +105,8 @@ const GeofenceZoneEditor = ({ value, parentBoundary, onChange }) => {
             const dest = L.GeometryUtil.destination(center, angle, radius);
             coords.push([dest.lng, dest.lat]);
         }
-        coords.push(coords[0]);
+        coords.push(coords[0]); // close ring
+
         return { type: "Polygon", coordinates: [coords] };
     };
 
@@ -115,35 +153,117 @@ const GeofenceZoneEditor = ({ value, parentBoundary, onChange }) => {
 
             /* ------------------ LOAD PARENT BOUNDARY ------------------ */
             const parentGeo = parseGeo(parentBoundary);
+            /* ------------------ LOAD PARENT BOUNDARY ------------------ */
             let parentPoly = null;
 
-            if (parentGeo?.type === "Polygon") {
-                const ll = parentGeo.coordinates[0].map(
-                    ([lng, lat]) => L.latLng(Number(lat), Number(lng))
-                );
+            if (parentGeo) {
+                const zoneColor = "#FF9800";
 
-                parentPoly = L.polygon(ll, {
-                    color: "#FF9800",
-                    weight: 2,
-                    fillOpacity: 0.1,
-                }).addTo(mapRef.current);
+                /* CASE 1: Polygon (standard) */
+                if (parentGeo.type === "Polygon") {
+                    const ll = parentGeo.coordinates[0].map(([lng, lat]) =>
+                        L.latLng(Number(lat), Number(lng))
+                    );
 
-                mapRef.current.fitBounds(parentPoly.getBounds());
+                    parentPoly = L.polygon(ll, {
+                        color: zoneColor,
+                        weight: 2,
+                        fillOpacity: 0.1,
+                    }).addTo(mapRef.current);
+
+                    mapRef.current.fitBounds(parentPoly.getBounds());
+                }
+
+                /* CASE 2: Circle boundary */
+                if (parentGeo.type === "Circle") {
+                    const [lng, lat] = parentGeo.coordinates;
+
+                    parentPoly = L.circle([lat, lng], {
+                        radius: parentGeo.radius,
+                        color: zoneColor,
+                        weight: 2,
+                        fillOpacity: 0.1,
+                    }).addTo(mapRef.current);
+
+                    mapRef.current.fitBounds(parentPoly.getBounds());
+                }
+
+                /* CASE 3: Point boundary (convert to small circle) */
+                if (parentGeo.type === "Point") {
+                    const [lng, lat] = parentGeo.coordinates;
+
+                    // ASSUMED minimum boundary radius (you can adjust)
+                    const fallbackRadius = 40; // meters
+
+                    parentPoly = L.circle([lat, lng], {
+                        radius: fallbackRadius,
+                        color: zoneColor,
+                        weight: 2,
+                        fillOpacity: 0.1,
+                    }).addTo(mapRef.current);
+
+                    mapRef.current.fitBounds(parentPoly.getBounds());
+                }
             }
 
+            otherGeofences.forEach((gf) => {
+                if (!gf) return;
+
+                // Allow both formats:
+                // 1) { geometry, zoneType }
+                // 2) geometry-only objects 
+                const geometry = gf.geometry || gf;
+                const geo = parseGeo(geometry);
+
+                if (!geo || geo.type !== "Polygon") return;
+
+                // Try to get zoneType
+                const zoneType = gf.zoneType || gf.zone_type || null;
+                const zoneColor = ZONE_COLORS[zoneType] || "#999";
+
+                const ll = geo.coordinates[0].map(([lng, lat]) =>
+                    L.latLng(Number(lat), Number(lng))
+                );
+
+                L.polygon(ll, {
+                    color: zoneColor,
+                    weight: 2,
+                    fillOpacity: 0.05,
+                    dashArray: "4,4",
+                }).addTo(mapRef.current);
+            });
+
+            /* ------------------ PARENT CHECK ------------------ */
             /* ------------------ PARENT CHECK ------------------ */
             const isInsideParent = (geo) => {
                 if (!parentPoly || !geo?.coordinates) return true;
 
-                const pts = geo.coordinates[0].map(
-                    ([lng, lat]) => L.latLng(lat, lng)
-                );
+                // A) Parent is a POLYGON
+                if (parentPoly instanceof L.Polygon && !(parentPoly instanceof L.Circle)) {
+                    const parentPts = parentPoly.getLatLngs()[0];
 
-                const parentPts = parentPoly.getLatLngs()[0];
+                    const childPts = geo.coordinates[0].map(([lng, lat]) =>
+                        L.latLng(lat, lng)
+                    );
 
-                return pts.every((pt) =>
-                    isPointInsidePolygon(pt, parentPts)
-                );
+                    return childPts.every((pt) =>
+                        isPointInsidePolygon(pt, parentPts)
+                    );
+                }
+
+                // B) Parent is a CIRCLE
+                if (parentPoly instanceof L.Circle) {
+                    const center = parentPoly.getLatLng();
+                    const radius = parentPoly.getRadius();
+
+                    const childPts = geo.coordinates[0].map(([lng, lat]) => L.latLng(lat, lng));
+
+                    // every point of child polygon must be inside circle radius
+                    return childPts.every((pt) => center.distanceTo(pt) <= radius);
+                }
+
+                // fallback: no validation
+                return true;
             };
 
             /* ------------------ CREATED ------------------ */
@@ -163,6 +283,14 @@ const GeofenceZoneEditor = ({ value, parentBoundary, onChange }) => {
                     area_sqm = L.GeometryUtil.geodesicArea(latlngs);
                     area_ha = area_sqm / 10000;
                 }
+                const color = ZONE_COLORS[zoneType] || "#000";
+
+                layer.setStyle({
+                    color,
+                    weight: 2,
+                    fillColor: color,
+                    fillOpacity: 0.25,
+                });
 
                 /* check parent */
                 if (!isInsideParent(geo)) {
@@ -214,14 +342,38 @@ const GeofenceZoneEditor = ({ value, parentBoundary, onChange }) => {
             if (value?.geometry) {
                 const g = parseGeo(value.geometry);
                 const layer = L.geoJSON(g).getLayers()[0];
+
+                const color = ZONE_COLORS[zoneType] || "#000";
+
+                layer.setStyle({
+                    color,
+                    weight: 2,
+                    fillColor: color,
+                    fillOpacity: 0.25,
+                });
+
                 drawnItems.current.addLayer(layer);
+
+                /* add label */
+                const center = layer.getBounds().getCenter();
+                const label = L.marker(center, {
+                    icon: L.divIcon({
+                        className: "zone-label",
+                        html: `<div style="color:${color};font-size:16px;font-weight:bold;text-shadow:1px 1px 2px #000">${value.name}</div>`,
+                    }),
+                    interactive: false,
+                });
+                drawnItems.current.addLayer(label);
+
                 mapRef.current.fitBounds(layer.getBounds());
             }
         }
-    }, [value, parentBoundary, onChange]);
+    }, [value, parentBoundary, onChange, zoneType]);
+    /* ------------------ SHOW OTHER GEOFENCES (VISUAL ONLY) ------------------ */
 
     return (
-        <div style={{ marginTop: 20 }}>
+        <div style={{ marginTop: 20, position: "relative" }}>
+            <LocationSearchBox mapRef={mapRef} />
             <div
                 id="editor-map"
                 style={{

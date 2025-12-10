@@ -13,13 +13,41 @@ import {
 // Utility: convert GeoJSON geometry to Flespi format
 function toFlespiGeometry(geometry) {
   if (!geometry) return null;
-  if (geometry.type && geometry.coordinates) {
+
+  const geo = typeof geometry === "string" ? JSON.parse(geometry) : geometry;
+
+  if (
+    geo.type &&
+    geo.type.toLowerCase() === "circle" &&
+    Array.isArray(geo.coordinates) &&
+    geo.coordinates.length >= 2 &&
+    geo.radius !== undefined
+  ) {
+    const [lon, lat] = geo.coordinates;
     return {
-      type: "polygon",
-      path: geometry.coordinates[0].map(([lon, lat]) => ({ lat, lon })),
+      type: "circle",
+      center: { lat: parseFloat(lat), lon: parseFloat(lon) },
+      radius: parseFloat(geo.radius),
     };
   }
-  return geometry;
+
+  // Already a Flespi polygon shape
+  if (geo.path) return geo;
+
+  if (
+    geo.type &&
+    geo.coordinates &&
+    Array.isArray(geo.coordinates) &&
+    Array.isArray(geo.coordinates[0])
+  ) {
+    return {
+      type: "polygon",
+      path: geo.coordinates[0].map(([lon, lat]) => ({ lat, lon })),
+    };
+  }
+
+  // Unknown geometry format; return as-is to avoid crashing
+  return geo;
 }
 
 // ======================================================

@@ -26,12 +26,30 @@ const RemoveDialog = ({
   const t = useTranslation();
 
   const handleRemove = useCatch(async () => {
-    const response = await fetch(`/api/${endpoint}/${itemId}`, { method: 'DELETE' });
-    if (response.ok) {
-      onResult(true);
-    } else {
-      throw Error(await response.text());
+    const url = import.meta.env.DEV
+      ? import.meta.env.VITE_DEV_BACKEND_URL
+      : import.meta.env.VITE_PROD_BACKEND_URL;
+
+    // ✅ 1. Delete from your main devices endpoint
+    const deviceResponse = await axios.delete(`${url}/new-devices/${id}`);
+
+    if (deviceResponse.status !== 200) {
+      throw new Error("Failed to delete from main device service");
     }
+
+    // ✅ 2. Delete from the secondary system
+    const secondaryResponse = await fetch(
+      `/api/${endpoint}/${itemId}`,
+      { method: "DELETE" }
+    );
+
+    if (!secondaryResponse.ok) {
+      const errorText = await secondaryResponse.text();
+      throw new Error(errorText);
+    }
+
+    // ✅ 3. If BOTH succeeded
+    onResult(true);
   });
 
   return (

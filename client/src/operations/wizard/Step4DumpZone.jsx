@@ -20,7 +20,7 @@ import OperationsMenu from "@/settings/components/OperationsMenu";
 import useSettingsStyles from "@/settings/common/useSettingsStyles";
 import GeofenceZoneEditor from "@/operations/components/GeofenceZoneEditor";
 import { useWizard } from "./WizardContext";
-
+import CircleInputs from "@/operations/components/CircleInputs";
 const META_FIELDS = {
   QUEUE: [
     { key: "ideal_queue_duration_m", label: "Ideal Queue Duration (min)" },
@@ -42,21 +42,52 @@ const zoneTypeMap = {
   ZONE_AREA: "ZONE_AREA",
 };
 
+const DEFAULT_METADATA = {
+  zone_type: "DUMP",
+  dump_area_max_duration_min: "",
+};
+
+const DEFAULT_ZONE = {
+  name: "",
+  enabled: true,
+  zoneType: "DUMP",
+  capacity: "",
+  geofence: null,
+  metadata: DEFAULT_METADATA,
+};
+
 export default function Step4DumpZone({ goNext, goPrev }) {
   const classes = useSettingsStyles();
-  const { operation, setDumpZone } = useWizard();
-
-  const [zone, setZone] = useState({
-    name: "",
-    enabled: true,
-    zoneType: "DUMP",
-    capacity: "",
-    geofence: null,
-    metadata: {
-      zone_type: "DUMP",
-      dump_area_max_duration_min: "",
-    },
+  const {
+    operation,
+    zoneArea,
+    loadPadZone,
+    dumpZone,
+    setDumpZone
+  } = useWizard();
+  const [zone, setZone] = useState(() => ({
+    ...DEFAULT_ZONE,
+    metadata: { ...DEFAULT_METADATA },
+  }));
+  const [circle, setCircle] = useState({
+    lat: "",
+    lng: "",
+    radius: 0,
   });
+
+  // Rehydrate when navigating back
+  useEffect(() => {
+    if (dumpZone) {
+      setZone({
+        ...DEFAULT_ZONE,
+        ...dumpZone,
+        // Normalize backend value back to UI enum so META_FIELDS works
+        zoneType: dumpZone.zoneType === "DUMP_AREA" ? "DUMP" : dumpZone.zoneType,
+        metadata: { ...DEFAULT_METADATA, ...(dumpZone.metadata || {}) },
+      });
+      if (dumpZone.circle) setCircle(dumpZone.circle);
+    }
+  }, [dumpZone]);
 
   useEffect(() => {
     if (!operation) {
@@ -69,7 +100,7 @@ export default function Step4DumpZone({ goNext, goPrev }) {
     const newMetadata = { zone_type: type };
 
     fields.forEach((f) => {
-      newMetadata[f.key] = zone.metadata[f.key] || "";
+      newMetadata[f.key] = (zone.metadata || {})[f.key] || "";
     });
 
     setZone((prev) => ({
@@ -80,10 +111,10 @@ export default function Step4DumpZone({ goNext, goPrev }) {
   };
 
   useEffect(() => {
-    // Force DUMP
-    handleTypeChange("DUMP");
+    // Force DUMP only when nothing stored
+    if (!dumpZone) handleTypeChange("DUMP");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [dumpZone]);
 
   const handleNext = () => {
     if (!zone.name) {
@@ -105,6 +136,8 @@ export default function Step4DumpZone({ goNext, goPrev }) {
       area_ha: geo.area_ha || null,
       enabled: zone.enabled,
       capacity: zone.capacity ? Number(zone.capacity) : null,
+      circle,
+      metadata: { ...DEFAULT_METADATA, ...meta, zone_type: backendZoneType },
 
       dump_area_max_duration_min:
         backendZoneType === "DUMP_AREA"
@@ -156,7 +189,7 @@ export default function Step4DumpZone({ goNext, goPrev }) {
             </div>
 
             <TextField
-              label="Zone Name"
+              label="DUMP AREA Name"
               fullWidth
               margin="normal"
               value={zone.name}
@@ -164,8 +197,8 @@ export default function Step4DumpZone({ goNext, goPrev }) {
                 setZone((prev) => ({ ...prev, name: e.target.value }))
               }
             />
-          
 
+            <CircleInputs circle={circle} setCircle={setCircle} />
             <div style={{ marginTop: 40 }}>
               <Typography variant="subtitle1" sx={{ mb: 2 }}>
                 Draw Dump Area (inside Operation geometry)
@@ -173,7 +206,13 @@ export default function Step4DumpZone({ goNext, goPrev }) {
 
               <GeofenceZoneEditor
                 value={zone.geofence}
-                parentBoundary={operation?.geometry || null}
+                circle={circle}
+                zoneType="DUMP_AREA"
+                parentBoundary={operation?.geometry}
+                otherGeofences={[
+                  zoneArea && { geometry: zoneArea.geometry, zoneType: "ZONE_AREA" },
+                  loadPadZone && { geometry: loadPadZone.geometry, zoneType: "LOAD_PAD" },
+                ].filter(Boolean)}
                 onChange={(geo) =>
                   setZone((prev) => ({
                     ...prev,
@@ -183,7 +222,7 @@ export default function Step4DumpZone({ goNext, goPrev }) {
               />
             </div>
 
-          
+
 
             {metaFields.map((field) => (
               <TextField
@@ -192,7 +231,7 @@ export default function Step4DumpZone({ goNext, goPrev }) {
                 fullWidth
                 type="number"
                 margin="normal"
-                value={zone.metadata[field.key] || ""}
+                value={zone.metadata?.[field.key] || ""}
                 onChange={(e) =>
                   setZone((prev) => ({
                     ...prev,

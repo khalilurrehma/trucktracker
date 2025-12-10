@@ -1,5 +1,5 @@
 // src/operations/wizard/Step1CreateOperation.jsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import {
   Accordion,
@@ -18,12 +18,18 @@ import PageLayout from "@/common/components/PageLayout";
 import OperationsMenu from "@/settings/components/OperationsMenu";
 import useSettingsStyles from "@/settings/common/useSettingsStyles";
 import GeofenceEditor from "@/operations/components/GeofenceEditor";
+import CircleInputs from "@/operations/components/CircleInputs";
 import { useWizard } from "./WizardContext";
 
 export default function Step1CreateOperation({ goNext }) {
   const classes = useSettingsStyles();
   const user = useSelector((state) => state.session.user);
-  const { setOperation } = useWizard();
+  const { operation, setOperation } = useWizard();
+  const [circle, setCircle] = useState({
+    lat: "",
+    lng: "",
+    radius: 0,
+  });
 
   const [attributes, setAttributes] = useState({
     op_name: "",
@@ -37,6 +43,34 @@ export default function Step1CreateOperation({ goNext }) {
       op_swell_factor: "",
     },
   });
+
+  // Rehydrate when navigating back
+  useEffect(() => {
+    if (!operation) return;
+
+    if (operation.circle) {
+      setCircle(operation.circle);
+    }
+
+    setAttributes({
+      op_name: operation.name || "",
+      op_priority: operation.op_priority ?? 10,
+      op_enabled: operation.op_enabled ?? true,
+      geofence: operation.geometry
+        ? {
+            geometry: operation.geometry,
+            area_sqm: operation.area_sqm,
+            area_ha: operation.area_ha,
+          }
+        : null,
+      op_metadata: {
+        Day_volume_m3_goal: operation.day_volume_m3_goal ?? "",
+        op_max_speed_kmh: operation.op_max_speed_kmh ?? "",
+        op_total_bank_volume_m3: operation.op_total_bank_volume_m3 ?? "",
+        op_swell_factor: operation.op_swell_factor ?? "",
+      },
+    });
+  }, [operation]);
 
   const handleNext = () => {
     if (!attributes.op_name) {
@@ -54,6 +88,7 @@ export default function Step1CreateOperation({ goNext }) {
       geometry: attributes.geofence?.geometry || null,
       area_sqm: attributes.geofence?.area_sqm || null,
       area_ha: attributes.geofence?.area_ha || null,
+      circle,
       day_volume_m3_goal: meta.Day_volume_m3_goal
         ? parseFloat(meta.Day_volume_m3_goal)
         : null,
@@ -105,7 +140,7 @@ export default function Step1CreateOperation({ goNext }) {
                 setAttributes((prev) => ({ ...prev, op_name: e.target.value }))
               }
             />
-
+            <CircleInputs circle={circle} setCircle={setCircle} />
             <div style={{ marginTop: 40, width: "100%" }}>
               <Typography variant="subtitle1" sx={{ mb: 2 }}>
                 Operation Area
@@ -119,6 +154,7 @@ export default function Step1CreateOperation({ goNext }) {
                     geofence: result,
                   }))
                 }
+                circle={circle}
               />
             </div>
 
@@ -126,7 +162,7 @@ export default function Step1CreateOperation({ goNext }) {
               <TextField
                 label="Day_volume_m3_goal"
                 fullWidth
-                  type="number"
+                type="number"
                 margin="normal"
                 value={attributes.op_metadata?.Day_volume_m3_goal || ""}
                 onChange={(e) =>
@@ -177,7 +213,7 @@ export default function Step1CreateOperation({ goNext }) {
               <TextField
                 label="op_total_bank_volume_m3"
                 fullWidth
-                  type="number"
+                type="number"
                 margin="normal"
                 value={attributes.op_metadata?.op_total_bank_volume_m3 || ""}
                 onChange={(e) =>

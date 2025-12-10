@@ -11,6 +11,46 @@ import {
     assignCalculatorToGeofence
 } from "../../services/flespiApis.js";
 
+function toFlespiGeometry(geometry) {
+  if (!geometry) return null;
+
+  const geo = typeof geometry === "string" ? JSON.parse(geometry) : geometry;
+
+  if (
+    geo.type &&
+    geo.type.toLowerCase() === "circle" &&
+    Array.isArray(geo.coordinates) &&
+    geo.coordinates.length >= 2 &&
+    geo.radius !== undefined
+  ) {
+    const [lon, lat] = geo.coordinates;
+    return {
+      type: "circle",
+      center: { lat: parseFloat(lat), lon: parseFloat(lon) },
+      radius: parseFloat(geo.radius),
+    };
+  }
+
+  // Already a Flespi polygon shape
+  if (geo.path) return geo;
+
+  if (
+    geo.type &&
+    geo.coordinates &&
+    Array.isArray(geo.coordinates) &&
+    Array.isArray(geo.coordinates[0])
+  ) {
+    return {
+      type: "polygon",
+      path: geo.coordinates[0].map(([lon, lat]) => ({ lat, lon })),
+    };
+  }
+
+  // Unknown geometry format; return as-is to avoid crashing
+  return geo;
+}
+
+
 // =====================================================
 // CREATE OPERATION  ➜  also create Flespi geofence
 // =====================================================
@@ -56,15 +96,8 @@ export const createOperation = async (operation) => {
         const operationId = results.insertId;
 
         // 2️⃣ Prepare geometry for Flespi
-        let geometryData = geometry;
-        if (geometry?.type === "Polygon" && geometry.coordinates?.[0]) {
-            const coords = geometry.coordinates[0];
-            geometryData = {
-                type: "polygon",
-                path: coords.map(([lon, lat]) => ({ lat, lon })),
-            };
-        }
-
+        const geometryData = toFlespiGeometry(geometry);
+       
         // 3️⃣ Create Flespi Geofence
         const geofence = await createFlespiGeofence([
             {
@@ -187,13 +220,7 @@ export const createOperation = async (operation) => {
         const geofenceId = op?.flespi_geofence_id;
 
         // Convert GeoJSON → Flespi polygon format
-        let geometryData = geometry;
-        if (geometry?.type === "Polygon" && geometry.coordinates?.[0]) {
-            geometryData = {
-                type: "polygon",
-                path: geometry.coordinates[0].map(([lon, lat]) => ({ lat, lon }))
-            };
-        }
+        let geometryData = toFlespiGeometry(geometry);
 
         // Update Flespi Geofence
         if (geofenceId) {

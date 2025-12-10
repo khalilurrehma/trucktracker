@@ -1,4 +1,4 @@
-// server/model/operation/deviceAssignmentModel.js
+﻿// server/model/operation/deviceAssignmentModel.js
 import pool from "../../config/dbConfig.js";
 import util from "util";
 const dbQuery = util.promisify(pool.query).bind(pool);
@@ -37,25 +37,25 @@ export const createDeviceAssignment = async ({ device_id, operation_id, zone_id 
     const result = await dbQuery(sql, values);
     const newAssignment = { id: result.insertId, device_id, operation_id, zone_id };
 
-    console.log("📦 Device Assignment Created:", newAssignment);
+    console.log("ðŸ“¦ Device Assignment Created:", newAssignment);
 
-    // ✅ Corrected order of arguments
+    // âœ… Corrected order of arguments
     if (flespiId && geofenceId) {
-      console.log(`🌍 Assigning Flespi Geofence ${geofenceId} → Device ${flespiId}`);
+      console.log(`ðŸŒ Assigning Flespi Geofence ${geofenceId} â†’ Device ${flespiId}`);
       await assignGeofenceToDevice(flespiId, geofenceId);
-      console.log(`✅ Assigned geofence ${geofenceId} to device ${device.name} (${flespiId})`);
+      console.log(`âœ… Assigned geofence ${geofenceId} to device ${device.name} (${flespiId})`);
     } else {
-      console.warn(`⚠️ Missing flespiId or geofenceId for device ${device_id} / zone ${zone_id}`);
+      console.warn(`âš ï¸ Missing flespiId or geofenceId for device ${device_id} / zone ${zone_id}`);
     }
 
     return newAssignment;
   } catch (err) {
-    console.error("❌ Error in createDeviceAssignment:", err.message);
+    console.error("âŒ Error in createDeviceAssignment:", err.message);
     throw err;
   }
 };
 
-// ✅ Get all assignments
+// âœ… Get all assignments
 export const getAllAssignments = async () => {
   const sql = `
     SELECT 
@@ -74,7 +74,7 @@ export const getAllAssignments = async () => {
 };
 
 
-// ✅ Get assignment by ID
+// âœ… Get assignment by ID
 export const getAssignmentById = async (id) => {
   const sql = `
     SELECT * FROM device_assignments WHERE id = ?
@@ -84,7 +84,7 @@ export const getAssignmentById = async (id) => {
 };
 
 
-// ✅ Mark assignment completed
+// âœ… Mark assignment completed
 export const markAssignmentCompleted = async (id) => {
   const sql = `
     UPDATE device_assignments
@@ -95,10 +95,10 @@ export const markAssignmentCompleted = async (id) => {
   return result.affectedRows > 0;
 };
 
-// ✅ Delete assignment
+// âœ… Delete assignment
 export const deleteDeviceAssignment = async (device_id, zone_id) => {
   try {
-    // 1️⃣ Get the Flespi identifiers before deleting the record
+    // 1ï¸âƒ£ Get the Flespi identifiers before deleting the record
     const [device] = await dbQuery(
       "SELECT flespiId, name FROM new_settings_devices WHERE id = ?",
       [device_id]
@@ -108,35 +108,39 @@ export const deleteDeviceAssignment = async (device_id, zone_id) => {
       [zone_id]
     );
 
-    // 2️⃣ Delete DB record
+    // 2ï¸âƒ£ Delete DB record
     const sql = `
       DELETE FROM device_assignments
       WHERE device_id = ? AND zone_id = ?
     `;
     const result = await dbQuery(sql, [device_id, zone_id]);
 
-    // 3️⃣ Unassign geofence from Flespi (only if both exist)
+    // 3ï¸âƒ£ Unassign geofence from Flespi (only if both exist)
     if (device?.flespiId && zone?.flespi_geofence_id) {
-      console.log(`🗑 Unassigning geofence ${zone.flespi_geofence_id} ← device ${device.flespiId}`);
+      console.log(`ðŸ—‘ Unassigning geofence ${zone.flespi_geofence_id} â† device ${device.flespiId}`);
       await unassignGeofenceFromDevice(device.flespiId, zone.flespi_geofence_id);
-      console.log(`✅ Unassigned geofence ${zone.flespi_geofence_id} from device ${device.name}`);
+      console.log(`âœ… Unassigned geofence ${zone.flespi_geofence_id} from device ${device.name}`);
     } else {
-      console.warn("⚠️ Missing Flespi ID or geofence ID, skipping Flespi unassignment.");
+      console.warn("âš ï¸ Missing Flespi ID or geofence ID, skipping Flespi unassignment.");
     }
 
     return result.affectedRows > 0;
   } catch (err) {
-    console.error("❌ DB error deleting assignment:", err.message);
+    console.error("âŒ DB error deleting assignment:", err.message);
     throw err;
   }
 };
 
 export const getOperationCalculatorData = async (calcId, deviceId) => {
   try {
+    if (!calcId || !deviceId) {
+      console.warn(`Skipping calc fetch: missing calcId/deviceId (calcId=${calcId}, deviceId=${deviceId})`);
+      return null;
+    }
     const data = await fetchCalcData(calcId, deviceId);
     return data;
   } catch (err) {
-    console.error("❌ Model error in getOperationCalculatorData:", err.message);
+    console.error("Model error in getOperationCalculatorData:", err.message);
     throw err;
   }
 };
@@ -147,7 +151,7 @@ export const getPositions = async (deviceIds) => {
     const data = await fetchDevicePositions(deviceIds);
     return data;
   } catch (err) {
-    console.error("❌ Model error in getPositions:", err.message);
+    console.error("âŒ Model error in getPositions:", err.message);
     throw err;
   }
 };
@@ -156,7 +160,7 @@ export const getDevicesByGeofence = async (geofenceId) => {
     const data = await fetchGeofenceDevices(geofenceId);
     return data;
   } catch (err) {
-    console.error("❌ Model error in getDevicesByGeofence:", err.message);
+    console.error("âŒ Model error in getDevicesByGeofence:", err.message);
     throw err;
   }
 };
@@ -204,15 +208,21 @@ export const getDevicesByOperation = async (operationId) => {
     console.log("Positions:", positions);
 
     // 4. Merge positions into device objects
+    const positionsById = new Map(
+      positions
+        .filter((p) => p && p.flespiDeviceId != null)
+        .map((p) => [String(p.flespiDeviceId), p])
+    );
+
     const devicesWithPositions = devices.map((d) => {
       const flespiId = d.flespiId || d.flespi_device_id;
-
-      const pos = positions.find((p) => p.flespiDeviceId === flespiId);
+      const key = flespiId != null ? String(flespiId) : null;
+      const pos = key ? positionsById.get(key) : null;
 
       return {
         ...d,
-        lat: pos.latitude,
-        lon: pos.longitude
+        lat: pos?.latitude ?? null,
+        lon: pos?.longitude ?? null,
       };
     });
 
@@ -220,7 +230,11 @@ export const getDevicesByOperation = async (operationId) => {
     return devicesWithPositions;
 
   } catch (err) {
-    console.error("❌ Model error in getDevicesByOperation:", err.message);
+    console.error("âŒ Model error in getDevicesByOperation:", err.message);
     throw err;
   }
 };
+
+
+
+

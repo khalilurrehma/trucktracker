@@ -59,7 +59,7 @@ const flespiToken = process.env.FlespiToken;
 const flespiApiUrl = `https://flespi.io/gw`;
 
 export const addNewDevice = async (req, res) => {
-  let masterTokenCalcsId = [1742074, 1742075, 1742077];
+  let masterTokenCalcsId = [];
   let defaultCalcId;
   let mergedCalculatorIds;
 
@@ -216,6 +216,8 @@ export const addNewDevice = async (req, res) => {
             "processing.copyAttributes",
             "decoder.timezone",
             "category",
+             "vehicle_fill_factor_ideal",
+            "vehicle_capacity_m3",
             "groupId",
             "model",
             "contact",
@@ -317,16 +319,19 @@ export const addNewDevice = async (req, res) => {
 
       mergedCalculatorIds = [...masterTokenCalcsId, ...defaultCalcId];
 
-      await axios.post(
-        `https://flespi.io/gw/calcs/${mergedCalculatorIds}/devices/${deviceId}`,
-        null,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: flespiToken,
-          },
-        }
-      );
+      if (mergedCalculatorIds.length > 0) {
+
+        await axios.post(
+          `https://flespi.io/gw/calcs/${mergedCalculatorIds}/devices/${deviceId}`,
+          null,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: flespiToken,
+            },
+          }
+        );
+      }
 
       const traccarResponse = await axios.post(
         `${traccarApiUrl}/devices`,
@@ -524,15 +529,15 @@ export const allNewDevices = async (req, res) => {
           initialBase: initialBase ? initialBase.geofence_name : null,
           ...(query?.deviceLocation
             ? {
-                location: {
-                  lat: latitude,
-                  lng: longitude,
-                },
-                lastConnection: deviceFixTimePeru,
-                speed: deviceSpeed,
-                driver: deviceDriver,
-                driverAvailability: status_availability,
-              }
+              location: {
+                lat: latitude,
+                lng: longitude,
+              },
+              lastConnection: deviceFixTimePeru,
+              speed: deviceSpeed,
+              driver: deviceDriver,
+              driverAvailability: status_availability,
+            }
             : {}),
         };
       })
@@ -736,6 +741,8 @@ export const updateNewDevice = async (req, res) => {
             "processing.copyAttributes",
             "decoder.timezone",
             "category",
+            "vehicle_fill_factor_ideal",
+            "vehicle_capacity_m3",
             "groupId",
             "model",
             "contact",

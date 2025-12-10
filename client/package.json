@@ -38,6 +38,7 @@
     "leaflet": "^1.9.4",
     "leaflet-draw": "^1.0.4",
     "leaflet-geometryutil": "^0.10.0",
+    "leaflet-geosearch": "^4.2.2",
     "leaflet-pip": "^1.1.0",
     "leaflet-rotatedmarker": "^0.2.0",
     "lodash": "^4.17.21",

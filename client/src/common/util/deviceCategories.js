@@ -1,7 +1,8 @@
 export default [
   'default',
   'truck',
-  'dumper',
+  'truckloader',
+  'dumptruck',
   'bicycle',
   'car',
   'animal',

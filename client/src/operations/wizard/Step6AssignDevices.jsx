@@ -17,6 +17,7 @@ import OperationsMenu from "@/settings/components/OperationsMenu";
 import useSettingsStyles from "@/settings/common/useSettingsStyles";
 
 import { getAllDeviceAssignments } from "@/apis/deviceAssignmentApi";
+import { getFlespiDevices } from "@/apis/api";
 import { useWizard } from "./WizardContext";
 
 export default function Step6AssignDevices({ goNext, goPrev }) {
@@ -27,35 +28,34 @@ export default function Step6AssignDevices({ goNext, goPrev }) {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const assignmentList = await getAllDeviceAssignments();
-
-        // Use assignment list just to discover devices
-        const uniqueDevices = [
-          ...new Map(
-            assignmentList.map((item) => [
-              item.device_id,
-              {
-                id: item.device_id,
-                name: item.device_name,
-                flespi: item.flespi_device_id,
-              },
-            ])
-          ).values(),
-        ];
-
-        setDevices(uniqueDevices);
-      } catch (err) {
-        console.error(err);
-        Swal.fire("Error", "Failed to load devices", "error");
-      }
-      setLoading(false);
-    };
-
-    load();
-  }, []);
+   useEffect(() => {
+     const load = async () => {
+       try {
+         const allAssignments = await getFlespiDevices();
+ 
+         const uniqueDevices = [
+           ...new Map(
+             allAssignments.data.map((item) => [
+               item.id,
+               {
+                 id: item.id,
+                 name: item.name,
+                 flespi: item.flespiId,
+               },
+             ])
+           ).values(),
+         ];
+ 
+         setDevices(uniqueDevices);
+         setLoading(false);
+       } catch (err) {
+         console.error(err);
+         Swal.fire("Error", "Failed to load devices", "error");
+       }
+     };
+ 
+     load();
+   }, []);
 
   const toggleDevice = (deviceId) => {
     setAssignedDevices((prev) =>

@@ -20,7 +20,7 @@ import OperationsMenu from "@/settings/components/OperationsMenu";
 import useSettingsStyles from "@/settings/common/useSettingsStyles";
 import GeofenceZoneEditor from "@/operations/components/GeofenceZoneEditor";
 import { useWizard } from "./WizardContext";
-
+import CircleInputs from "@/operations/components/CircleInputs";
 const META_FIELDS = {
   QUEUE: [
     { key: "ideal_queue_duration_m", label: "Ideal Queue Duration (min)" },
@@ -42,23 +42,54 @@ const zoneTypeMap = {
   ZONE_AREA: "ZONE_AREA",
 };
 
+const DEFAULT_METADATA = {
+  zone_type: "ZONE_AREA",
+  zone_bank_swell_factor: "",
+  zone_bank_volume_m3: "",
+  zone_max_speed_kmh: "",
+};
+
+const DEFAULT_ZONE = {
+  name: "",
+  enabled: true,
+  zoneType: "ZONE_AREA",
+  capacity: "",
+  geofence: null,
+  metadata: DEFAULT_METADATA,
+};
+
 export default function Step5ZoneArea({ goNext, goPrev }) {
   const classes = useSettingsStyles();
-  const { operation, setZoneArea } = useWizard();
+  const {
+    operation,
+    queueZone,
+    loadPadZone,
+    dumpZone,
+    zoneArea,
+    setZoneArea
+  } = useWizard();
 
-  const [zone, setZone] = useState({
-    name: "",
-    enabled: true,
-    zoneType: "ZONE_AREA",
-    capacity: "",
-    geofence: null,
-    metadata: {
-      zone_type: "ZONE_AREA",
-      zone_bank_swell_factor: "",
-      zone_bank_volume_m3: "",
-      zone_max_speed_kmh: "",
-    },
+  const [zone, setZone] = useState(() => ({
+    ...DEFAULT_ZONE,
+    metadata: { ...DEFAULT_METADATA },
+  }));
+  const [circle, setCircle] = useState({
+    lat: "",
+    lng: "",
+    radius: 0,
   });
+
+  // Rehydrate when navigating back
+  useEffect(() => {
+    if (zoneArea) {
+      setZone({
+        ...DEFAULT_ZONE,
+        ...zoneArea,
+        metadata: { ...DEFAULT_METADATA, ...(zoneArea.metadata || {}) },
+      });
+      if (zoneArea.circle) setCircle(zoneArea.circle);
+    }
+  }, [zoneArea]);
 
   useEffect(() => {
     if (!operation) {
@@ -71,7 +102,7 @@ export default function Step5ZoneArea({ goNext, goPrev }) {
     const newMetadata = { zone_type: type };
 
     fields.forEach((f) => {
-      newMetadata[f.key] = zone.metadata[f.key] || "";
+      newMetadata[f.key] = (zone.metadata || {})[f.key] || "";
     });
 
     setZone((prev) => ({
@@ -82,10 +113,10 @@ export default function Step5ZoneArea({ goNext, goPrev }) {
   };
 
   useEffect(() => {
-    // Force ZONE_AREA
-    handleTypeChange("ZONE_AREA");
+    // Force ZONE_AREA only when nothing stored
+    if (!zoneArea) handleTypeChange("ZONE_AREA");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [zoneArea]);
 
   const handleNext = () => {
     if (!zone.name) {
@@ -107,6 +138,8 @@ export default function Step5ZoneArea({ goNext, goPrev }) {
       area_ha: geo.area_ha || null,
       enabled: zone.enabled,
       capacity: zone.capacity ? Number(zone.capacity) : null,
+      circle,
+      metadata: { ...DEFAULT_METADATA, ...meta, zone_type: backendZoneType },
 
       zone_max_speed_kmh:
         backendZoneType === "ZONE_AREA"
@@ -166,7 +199,7 @@ export default function Step5ZoneArea({ goNext, goPrev }) {
             </div>
 
             <TextField
-              label="Zone Name"
+              label="Zone Area Name"
               fullWidth
               margin="normal"
               value={zone.name}
@@ -175,8 +208,8 @@ export default function Step5ZoneArea({ goNext, goPrev }) {
               }
             />
 
-          
 
+            <CircleInputs circle={circle} setCircle={setCircle} />
             <div style={{ marginTop: 40 }}>
               <Typography variant="subtitle1" sx={{ mb: 2 }}>
                 Draw Zone Area (inside Operation geometry)
@@ -184,7 +217,9 @@ export default function Step5ZoneArea({ goNext, goPrev }) {
 
               <GeofenceZoneEditor
                 value={zone.geofence}
-                parentBoundary={operation?.geometry || null}
+                circle={circle}
+                zoneType="ZONE_AREA"
+                parentBoundary={operation?.geometry}
                 onChange={(geo) =>
                   setZone((prev) => ({
                     ...prev,
@@ -202,7 +237,7 @@ export default function Step5ZoneArea({ goNext, goPrev }) {
                 fullWidth
                 type="number"
                 margin="normal"
-                value={zone.metadata[field.key] || ""}
+                value={zone.metadata?.[field.key] || ""}
                 onChange={(e) =>
                   setZone((prev) => ({
                     ...prev,

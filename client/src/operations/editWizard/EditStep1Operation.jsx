@@ -19,14 +19,17 @@ import OperationsMenu from "@/settings/components/OperationsMenu";
 import useSettingsStyles from "@/settings/common/useSettingsStyles";
 import GeofenceEditor from "@/operations/components/GeofenceEditor";
 import { useEditWizard } from "./EditWizardContext";
-
+import CircleInputs from "@/operations/components/CircleInputs";
 export default function EditStep1Operation({ goNext }) {
   const classes = useSettingsStyles();
   const user = useSelector((state) => state.session.user);
   const { operation, setOperation } = useEditWizard();
-
   const [local, setLocal] = useState(null);
-
+  const [circle, setCircle] = useState({
+    lat: "",
+    lng: "",
+    radius: 0,
+  });
   useEffect(() => {
     if (operation) {
       setLocal({
@@ -99,7 +102,7 @@ export default function EditStep1Operation({ goNext }) {
                 setLocal((prev) => ({ ...prev, op_name: e.target.value }))
               }
             />
-
+            <CircleInputs circle={circle} setCircle={setCircle} />
 
             <div style={{ marginTop: 40 }}>
               <Typography variant="subtitle1" sx={{ mb: 2 }}>
@@ -118,6 +121,7 @@ export default function EditStep1Operation({ goNext }) {
                     },
                   }))
                 }
+                circle={circle}
               />
             </div>
 

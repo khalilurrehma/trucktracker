@@ -1,38 +1,96 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet-draw";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
-
 import "leaflet-geometryutil";
-
-// satellite tiles
+import "leaflet-geosearch/dist/geosearch.css";
+import LocationSearchBox from "@/operations/components/LocationSearchBox";
+/* ---------------- Base Layers ---------------- */
 const GOOGLE_SAT = "https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}";
 const GOOGLE_HYBRID = "https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}";
 const GOOGLE_TERRAIN = "https://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}";
-
 const ESRI_SAT =
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 const ESRI_TOPO =
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}";
-
 const DARK =
   "https://tiles.stadiamaps.com/tiles/alidade_dark/{z}/{x}/{y}{r}.png";
 const LIGHT =
   "https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png";
+import { GeoSearchControl, OpenStreetMapProvider } from "leaflet-geosearch";
 
-const AdvancedGeofenceEditor = ({ value, onChange }) => {
+const AdvancedGeofenceEditor = ({ value, onChange, circle }) => {
   const mapRef = useRef(null);
   const drawnItems = useRef(null);
+
+  const parseGeo = (geo) => {
+    if (!geo) return null;
+    if (typeof geo === "string") {
+      try {
+        return JSON.parse(geo);
+      } catch (e) {
+        return null;
+      }
+    }
+    return geo;
+  };
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (!circle) return;
+
+    const { lat, lng, radius } = circle;
+    if (!lat || !lng || !radius) return;
+
+    // Remove old shapes
+    drawnItems.current.clearLayers();
+
+    // Draw circle on map
+    const layer = L.circle([lat, lng], {
+      radius,
+      color: "#2196F3",
+      fillOpacity: 0.15,
+      weight: 2
+    });
+
+    drawnItems.current.addLayer(layer);
+
+    mapRef.current.setView([lat, lng], 16);
+
+    // Convert circle to polygon (GeoJSON-friendly)
+    const geometry = circleToPolygon(layer);
+
+    onChange({
+      geometry,
+      area_sqm: Math.PI * radius * radius,
+      area_ha: (Math.PI * radius * radius) / 10000
+    });
+
+  }, [circle]);
+  /* -------------- Circle → Polygon conversion ---------------- */
+  const circleToPolygon = (circle, points = 60) => {
+    const center = circle.getLatLng();
+    const radius = circle.getRadius();
+    const coords = [];
+
+    for (let i = 0; i < points; i++) {
+      const angle = (i * 360) / points;
+      const dest = L.GeometryUtil.destination(center, angle, radius);
+      coords.push([dest.lng, dest.lat]);
+    }
+    coords.push(coords[0]); // close ring
+
+    return { type: "Polygon", coordinates: [coords] };
+  };
 
   useEffect(() => {
     if (!mapRef.current) {
       mapRef.current = L.map("editor-map", {
-        center: [-12.190, -77.015],
+        center: [-12.19, -77.015],
         zoom: 16,
       });
 
-      /** BASEMAPS */
+      /* ---- Basemap Layers ---- */
       const layers = {
         OpenStreetMap: L.tileLayer(
           "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -48,15 +106,14 @@ const AdvancedGeofenceEditor = ({ value, onChange }) => {
         }),
         "ESRI Satellite": L.tileLayer(ESRI_SAT),
         "ESRI Topographic": L.tileLayer(ESRI_TOPO),
-        "Dark Map": L.tileLayer(DARK),
-        "Light Map": L.tileLayer(LIGHT),
+        Dark: L.tileLayer(DARK),
+        Light: L.tileLayer(LIGHT),
       };
 
       layers.OpenStreetMap.addTo(mapRef.current);
-
       L.control.layers(layers, {}, { collapsed: true }).addTo(mapRef.current);
 
-      /** DRAW TOOLS */
+      /* ---- Draw Controls ---- */
       drawnItems.current = new L.FeatureGroup();
       mapRef.current.addLayer(drawnItems.current);
 
@@ -64,55 +121,36 @@ const AdvancedGeofenceEditor = ({ value, onChange }) => {
         draw: {
           polygon: true,
           circle: true,
-          polyline: false, // corridor
           rectangle: false,
-          circlemarker: false,
           marker: false,
+          polyline: false,
+          circlemarker: false,
         },
-        edit: {
-          featureGroup: drawnItems.current,
-        },
+        edit: { featureGroup: drawnItems.current },
       });
 
       mapRef.current.addControl(drawControl);
 
-      /** ON CREATE */
+      /* ---- CREATE ---- */
       mapRef.current.on(L.Draw.Event.CREATED, (evt) => {
-        drawnItems.current.clearLayers();
-        drawnItems.current.addLayer(evt.layer);
+        const layer = evt.layer;
 
-        const geo = evt.layer.toGeoJSON().geometry;
+        let geo, area_sqm, area_ha;
 
-        let area_sqm = null;
-        let area_ha = null;
-
-        // Only polygons have area
-        if (geo.type === "Polygon") {
-          const latlngs = evt.layer.getLatLngs()[0]; // outer ring
-          area_sqm = L.GeometryUtil.geodesicArea(latlngs);
-          area_ha = area_sqm / 10000;
-        }
-
-        onChange({
-          geometry: geo,
-          area_sqm,
-          area_ha,
-        });
-      });
-
-      /** ON EDIT */
-      mapRef.current.on(L.Draw.Event.EDITED, (e) => {
-        const layer = Object.values(e.layers._layers)[0];
-        const geo = layer.toGeoJSON().geometry;
-
-        let area_sqm = null;
-        let area_ha = null;
-
-        if (geo.type === "Polygon") {
+        if (layer instanceof L.Circle) {
+          geo = circleToPolygon(layer);
+          const radius = layer.getRadius();
+          area_sqm = Math.PI * radius * radius;
+        } else {
+          geo = layer.toGeoJSON().geometry;
           const latlngs = layer.getLatLngs()[0];
           area_sqm = L.GeometryUtil.geodesicArea(latlngs);
-          area_ha = area_sqm / 10000;
         }
+
+        area_ha = area_sqm / 10000;
+
+        drawnItems.current.clearLayers();
+        drawnItems.current.addLayer(layer);
 
         onChange({
           geometry: geo,
@@ -121,27 +159,65 @@ const AdvancedGeofenceEditor = ({ value, onChange }) => {
         });
       });
 
-      /** LOAD EXISTING SHAPE */
+      /* ---- EDIT ---- */
+      mapRef.current.on(L.Draw.Event.EDITED, (evt) => {
+        const layer = Object.values(evt.layers._layers)[0];
+        let geo = layer.toGeoJSON().geometry;
+
+        let area_sqm = null;
+
+        if (layer instanceof L.Circle) {
+          geo = circleToPolygon(layer);
+          const radius = layer.getRadius();
+          area_sqm = Math.PI * radius * radius;
+        } else {
+          const latlngs = layer.getLatLngs()[0];
+          area_sqm = L.GeometryUtil.geodesicArea(latlngs);
+        }
+
+        const area_ha = area_sqm / 10000;
+
+        onChange({
+          geometry: geo,
+          area_sqm,
+          area_ha,
+        });
+      });
+
+      /* ---- Load Existing Shape ---- */
       if (value?.geometry) {
-        const layer = L.geoJSON(value.geometry).getLayers()[0];
-        drawnItems.current.addLayer(layer);
-        mapRef.current.fitBounds(layer.getBounds());
+        const g = parseGeo(value.geometry);
+        let layer = null;
+
+        if (g.type === "Polygon" || g.type === "MultiPolygon") {
+          layer = L.geoJSON(g).getLayers()[0];
+        }
+
+        if (layer) {
+          drawnItems.current.addLayer(layer);
+          mapRef.current.fitBounds(layer.getBounds());
+        }
       }
     }
   }, [value, onChange]);
 
   return (
-    <div style={{ marginTop: 20 }}>
+    <div style={{ marginTop: 20, position: "relative" }}>
+
+      <LocationSearchBox mapRef={mapRef} />
+
       <div
         id="editor-map"
         style={{
-          height: "500px",
+          height: 500,
           borderRadius: 8,
           border: "1px solid #ccc",
         }}
       />
     </div>
   );
+
 };
 
 export default AdvancedGeofenceEditor;
+

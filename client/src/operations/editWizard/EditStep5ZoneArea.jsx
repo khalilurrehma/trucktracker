@@ -17,7 +17,7 @@ import OperationsMenu from "@/settings/components/OperationsMenu";
 import GeofenceZoneEditor from "@/operations/components/GeofenceZoneEditor";
 import useSettingsStyles from "@/settings/common/useSettingsStyles";
 import { useEditWizard } from "./EditWizardContext";
-
+import CircleInputs from "@/operations/components/CircleInputs";
 const META_FIELDS = {
   ZONE_AREA: [
     { key: "zone_bank_swell_factor", label: "Bank Swell Factor" },
@@ -31,7 +31,11 @@ export default function EditStep5ZoneArea({ goNext, goPrev }) {
   const { zoneArea, setZoneArea, operation } = useEditWizard();
 
   const [local, setLocal] = useState(null);
-
+  const [circle, setCircle] = useState({
+    lat: "",
+    lng: "",
+    radius: 0,
+  });
   useEffect(() => {
     if (zoneArea) {
       setLocal({
@@ -76,7 +80,7 @@ export default function EditStep5ZoneArea({ goNext, goPrev }) {
               }
             />
 
-        
+            <CircleInputs circle={circle} setCircle={setCircle} />
 
             <div style={{ marginTop: 40 }}>
               <Typography variant="subtitle1" sx={{ mb: 2 }}>
@@ -84,7 +88,9 @@ export default function EditStep5ZoneArea({ goNext, goPrev }) {
               </Typography>
 
               <GeofenceZoneEditor
-                value={local.geofence}
+                zoneType="ZONE_AREA"
+                circle={circle}
+                value={{ ...local.geofence, name: local.name }}
                 parentBoundary={operation.geometry}
                 onChange={(geo) =>
                   setLocal((prev) => ({ ...prev, geofence: geo }))
