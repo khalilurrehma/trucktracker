@@ -160,7 +160,7 @@ export default function Step1CreateOperation({ goNext }) {
 
             <div style={{ width: "100%", marginTop: 30 }}>
               <TextField
-                label="Day_volume_m3_goal"
+                label="Daily volume goal to move m3"
                 fullWidth
                 type="number"
                 margin="normal"
@@ -177,7 +177,7 @@ export default function Step1CreateOperation({ goNext }) {
               />
 
               <TextField
-                label="op_max_speed_kmh"
+                label="Operation Max Speed (km/h)"
                 fullWidth
                 type="number"
                 margin="normal"
@@ -194,7 +194,7 @@ export default function Step1CreateOperation({ goNext }) {
               />
 
               <TextField
-                label="op_swell_factor"
+                label="Operation material swell factor %"
                 fullWidth
                 type="number"
                 margin="normal"
@@ -211,7 +211,7 @@ export default function Step1CreateOperation({ goNext }) {
               />
 
               <TextField
-                label="op_total_bank_volume_m3"
+                label="Operation total material to move in bank m3"
                 fullWidth
                 type="number"
                 margin="normal"

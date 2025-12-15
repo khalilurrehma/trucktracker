@@ -62,6 +62,41 @@ const GeofenceZoneEditor = ({ value, parentBoundary, otherGeofences = [], onChan
         return geo;
     };
 
+    // Redraw when incoming value changes after mount
+    useEffect(() => {
+        if (!mapRef.current || !drawnItems.current) return;
+
+        drawnItems.current.clearLayers();
+
+        const g = parseGeo(value?.geometry);
+        if (!g) return;
+
+        const layer = L.geoJSON(g).getLayers()[0];
+        if (!layer) return;
+
+        const color = ZONE_COLORS[zoneType] || "#000";
+        layer.setStyle({
+            color,
+            weight: 2,
+            fillColor: color,
+            fillOpacity: 0.25,
+        });
+
+        drawnItems.current.addLayer(layer);
+
+        const center = layer.getBounds().getCenter();
+        const label = L.marker(center, {
+            icon: L.divIcon({
+                className: "zone-label",
+                html: `<div style="color:${color};font-size:16px;font-weight:bold;text-shadow:1px 1px 2px #000">${value?.name || ""}</div>`,
+            }),
+            interactive: false,
+        });
+        drawnItems.current.addLayer(label);
+
+        mapRef.current.fitBounds(layer.getBounds());
+    }, [value, zoneType]);
+
     useEffect(() => {
         if (!mapRef.current) return;
         if (!circle) return;

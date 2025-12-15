@@ -2,6 +2,7 @@ import React from 'react';
 import Button from '@mui/material/Button';
 import { Snackbar } from '@mui/material';
 import makeStyles from '@mui/styles/makeStyles';
+import axios from 'axios';
 import { useTranslation } from './LocalizationProvider';
 import { useCatch } from '../../reactHelper';
 import { snackBarDurationLongMs } from '../util/duration';
@@ -26,29 +27,22 @@ const RemoveDialog = ({
   const t = useTranslation();
 
   const handleRemove = useCatch(async () => {
-    const url = import.meta.env.DEV
+    const baseUrl = import.meta.env.DEV
       ? import.meta.env.VITE_DEV_BACKEND_URL
       : import.meta.env.VITE_PROD_BACKEND_URL;
 
-    // ✅ 1. Delete from your main devices endpoint
-    const deviceResponse = await axios.delete(`${url}/new-devices/${id}`);
-
+    // Delete from main device service
+    const deviceResponse = await axios.delete(`${baseUrl}/new-devices/by_flespi/${itemId}`);
     if (deviceResponse.status !== 200) {
-      throw new Error("Failed to delete from main device service");
+      throw new Error('Failed to delete from main device service');
     }
 
-    // ✅ 2. Delete from the secondary system
-    const secondaryResponse = await fetch(
-      `/api/${endpoint}/${itemId}`,
-      { method: "DELETE" }
-    );
-
+    // Delete from secondary system
+    const secondaryResponse = await fetch(`/api/${endpoint}/${itemId}`, { method: 'DELETE' });
     if (!secondaryResponse.ok) {
-      const errorText = await secondaryResponse.text();
-      throw new Error(errorText);
+      throw new Error(await secondaryResponse.text());
     }
 
-    // ✅ 3. If BOTH succeeded
     onResult(true);
   });
 

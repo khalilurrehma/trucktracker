@@ -19,6 +19,7 @@ import {
   CircularProgress,
   Box,
 } from "@mui/material";
+import Swal from "sweetalert2";
 import BlockIcon from "@mui/icons-material/Block";
 import PageLayout from "../common/components/PageLayout";
 import useReportStyles from "../reports/common/useReportStyles";
@@ -246,8 +247,8 @@ const NewDevicesPage = () => {
     userId === 1
       ? navigate(`/settings/assign/custom-calc/${deviceId}?auth=superAdmin`)
       : navigate(
-          `/settings/assign/custom-calc/${deviceId}?auth=admin&id=${id}`
-        );
+        `/settings/assign/custom-calc/${deviceId}?auth=admin&id=${id}`
+      );
   };
 
   useEffect(() => {
@@ -282,7 +283,7 @@ const NewDevicesPage = () => {
                       className={column === "actions" ? "text-end" : ""}
                     >
                       {column === "phone" &&
-                      (item[column] === 0 || item[column] === null) ? (
+                        (item[column] === 0 || item[column] === null) ? (
                         ""
                       ) : column === "model" &&
                         (item[column] === 0 || item[column] === null) ? (
@@ -294,11 +295,11 @@ const NewDevicesPage = () => {
                         <>
                           {(traccarUser?.superAdmin &&
                             item.created_role === "superAdmin") ||
-                          (traccarUser?.superAdmin &&
-                            item.created_role === "admin") ||
-                          (!traccarUser?.superAdmin &&
-                            admin &&
-                            item.created_role === "admin") ? (
+                            (traccarUser?.superAdmin &&
+                              item.created_role === "admin") ||
+                            (!traccarUser?.superAdmin &&
+                              admin &&
+                              item.created_role === "admin") ? (
                             <>
                               <Tooltip title={"view telemetry"}>
                                 <IconButton
@@ -345,12 +346,33 @@ const NewDevicesPage = () => {
                                   <IconButton
                                     size="small"
                                     onClick={() => {
-                                      handleDelete(item.id);
+                                      Swal.fire({
+                                        title: "¿Eliminar?",
+                                        text: "Esta acción no se puede deshacer.",
+                                        icon: "warning",
+                                        showCancelButton: true,
+                                        confirmButtonColor: "#d33",
+                                        cancelButtonColor: "#3085d6",
+                                        confirmButtonText: "Sí, eliminar",
+                                        cancelButtonText: "Cancelar",
+                                      }).then((result) => {
+                                        if (result.isConfirmed) {
+                                          handleDelete(item.id);
+                                          Swal.fire({
+                                            icon: "success",
+                                            title: "Eliminado",
+                                            text: "Se eliminó correctamente.",
+                                            timer: 1200,
+                                            showConfirmButton: false,
+                                          });
+                                        }
+                                      });
                                     }}
                                   >
                                     <DeleteIcon fontSize="small" />
                                   </IconButton>
                                 </Tooltip>
+
                               )}
                             </>
                           ) : (

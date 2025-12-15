@@ -128,7 +128,7 @@ export default function EditStep1Operation({ goNext }) {
             <div style={{ marginTop: 30 }}>
 
               <TextField
-                label="Day Volume Goal"
+                label="Daily volume goal to move m3"
                 fullWidth
                 margin="normal"
                 type="number"
@@ -145,7 +145,7 @@ export default function EditStep1Operation({ goNext }) {
               />
 
               <TextField
-                label="Max Speed (km/h)"
+                label="Operation Max Speed (km/h)"
                 fullWidth
                 margin="normal"
                 type="number"
@@ -162,7 +162,7 @@ export default function EditStep1Operation({ goNext }) {
               />
 
               <TextField
-                label="Swell Factor"
+                label="Operation material swell factor %"
                 fullWidth
                 margin="normal"
                 type="number"
@@ -179,7 +179,7 @@ export default function EditStep1Operation({ goNext }) {
               />
 
               <TextField
-                label="Total Bank Volume (m3)"
+                label="Operation total material to move in bank m3"
                 fullWidth
                 margin="normal"
                 type="number"

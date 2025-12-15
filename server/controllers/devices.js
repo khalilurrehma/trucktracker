@@ -17,6 +17,8 @@ import {
   fetchDeviceSnapshots,
   getAllDevices,
   getAssignedServicesByDeviceId,
+  getDeviceByFlespiId,
+  getByFlespiId,
   getDeviceById,
   getDeviceFlespiIdById,
   getDeviceInitialGeofence,
@@ -894,6 +896,73 @@ export const deleteNewDevice = async (req, res) => {
     const deviceId = req.params.id;
 
     const device = await getDeviceById(deviceId);
+    if (!device) {
+      return res.status(404).json({
+        status: false,
+        error: "Device not found",
+      });
+    }
+
+    const [traccarResponse, flespiResponse] = await Promise.allSettled([
+      axios.delete(`${traccarApiUrl}/devices/${device.traccarId}`, {
+        headers: {
+          Authorization: `Bearer ${traccarBearerToken}`,
+        },
+      }),
+      axios.delete(`${flespiApiUrl}/devices/${device.flespiId}`, {
+        headers: {
+          Authorization: flespiToken,
+        },
+      }),
+    ]);
+
+    const failedRequests = [traccarResponse, flespiResponse].filter(
+      (result) => result.status === "rejected"
+    );
+
+    if (failedRequests.length > 0) {
+      const errorDetails = failedRequests.map(
+        (result) => result.reason.message
+      );
+      console.error("Failed Requests:", errorDetails);
+      return res.status(500).json({
+        status: false,
+        error: "Failed to delete from external services",
+        details: errorDetails,
+      });
+    }
+
+    const update = await softDeleteDeviceById(deviceId);
+
+    res.status(200).json({
+      status: true,
+      message: "Device Deleted successfully.",
+      // device
+    });
+  } catch (error) {
+    console.error("Error:", error);
+
+    if (error.response && error.response.data && error.response.data.errors) {
+      const serverErrors = error.response.data.errors;
+      console.error("Server Errors:", serverErrors);
+      res.status(400).json({
+        status: false,
+        error: "Bad Request",
+        details: serverErrors,
+      });
+    } else {
+      res.status(500).json({
+        status: false,
+        error: "Internal Server Error",
+      });
+    }
+  }
+};
+export const deleteNewDeviceBYFlespi = async (req, res) => {
+  try {
+    const deviceId = req.params.id;
+
+    const device = await getByFlespiId(deviceId);
     if (!device) {
       return res.status(404).json({
         status: false,

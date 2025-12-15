@@ -23,15 +23,15 @@ import { useWizard } from "./WizardContext";
 import CircleInputs from "@/operations/components/CircleInputs";
 const META_FIELDS = {
   QUEUE: [
-    { key: "ideal_queue_duration_m", label: "Ideal Queue Duration (min)" },
-    { key: "queue_max_vehicles_count", label: "Max Vehicles Count" },
+    { key: "ideal_queue_duration_m", label: "Maximun vehicles count inside QUEUE_AREA, set alert if number is higher" },
+    { key: "queue_max_vehicles_count", label: "Vehicle ideal time inside QUEUE_AREA, number should be lower, if number is over set alert" },
   ],
-  LOADING: [{ key: "load_pad_max_duration_min", label: "Load Pad Max Duration (min)" }],
-  DUMP: [{ key: "dump_area_max_duration_min", label: "Dump Area Max Duration (min)" }],
+  LOADING: [{ key: "load_pad_max_duration_min", label: "Vehicle maximun time inside LOAD_PAD / to activate an alert" }],
+  DUMP: [{ key: "dump_area_max_duration_min", label: "Vehicle maximun time inside DUMP_AREA / to activate an alert" }],
   ZONE_AREA: [
-    { key: "zone_bank_swell_factor", label: "Bank Swell Factor" },
-    { key: "zone_bank_volume_m3", label: "Bank Volume (m³)" },
-    { key: "zone_max_speed_kmh", label: "Max Speed (km/h)" },
+    { key: "zone_bank_swell_factor", label: "Zone material swell factor %" },
+    { key: "zone_bank_volume_m3", label: "Zone total material to move in bank m3" },
+    { key: "zone_max_speed_kmh", label: "Vehices max speed in km/h in case this value exist, it replace op_max_speed_km/h" },
   ],
 };
 
@@ -78,6 +78,22 @@ export default function Step2QueueZone({ goNext, goPrev }) {
     radius: 0,
   });
 
+  const normalizeGeofence = (g) => {
+    if (!g) return null;
+    if (g.geometry) return g;
+    if (typeof g === "string") {
+      try {
+        const parsed = JSON.parse(g);
+        return { geometry: parsed };
+      } catch (e) {
+        return null;
+      }
+    }
+    // If we only have geometry/area fields
+    if (g.coordinates || g.type) return { geometry: g };
+    return null;
+  };
+
   useEffect(() => {
     if (!operation) {
       Swal.fire("Missing operation", "Please complete Step 1 first.", "warning");
@@ -93,6 +109,14 @@ export default function Step2QueueZone({ goNext, goPrev }) {
         // Normalize backend value back to UI enum so META_FIELDS works
         zoneType: queueZone.zoneType === "QUEUE_AREA" ? "QUEUE" : queueZone.zoneType,
         metadata: { ...DEFAULT_METADATA, ...(queueZone.metadata || {}) },
+        geofence: normalizeGeofence(queueZone.geofence) ||
+          (queueZone.geometry
+            ? {
+                geometry: queueZone.geometry,
+                area_sqm: queueZone.area_sqm,
+                area_ha: queueZone.area_ha,
+              }
+            : null),
       });
       if (queueZone.circle) setCircle(queueZone.circle);
     }
@@ -134,6 +158,7 @@ export default function Step2QueueZone({ goNext, goPrev }) {
     const zonePayload = {
       name: zone.name,
       zoneType: backendZoneType,
+      geofence: geo,
       geometry: geo.geometry || null,
       area_sqm: geo.area_sqm || null,
       area_ha: geo.area_ha || null,

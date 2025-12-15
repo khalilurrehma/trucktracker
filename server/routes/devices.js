@@ -45,6 +45,7 @@ import {
   updateNewDevice,
   updateServiceTypeById,
   updateSubService,
+  deleteNewDeviceBYFlespi,
 } from "../controllers/devices.js";
 import { checkDeviceLimit } from "../middlewares/limit.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -95,6 +96,7 @@ router.get("/new-devices/user/:userId", newDeviceByUserId);
 router.get("/new-devices/device/messages/:id", getDevicesMessages);
 router.put("/new-devices/:id", updateNewDevice);
 router.delete("/new-devices/:id", deleteNewDevice);
+router.delete("/new-devices/by_flespi/:id", deleteNewDeviceBYFlespi); // ----------------- DELETE NEW DEVICE BY FLESPI ID
 
 router.post("/extract-imeis", extractDeviceIMEIS);
 router.post("/devices-by-imeis");

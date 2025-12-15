@@ -35,6 +35,23 @@ const AdvancedGeofenceEditor = ({ value, onChange, circle }) => {
     }
     return geo;
   };
+  // When a saved geometry comes in after mount, redraw it
+  useEffect(() => {
+    if (!mapRef.current || !drawnItems.current) return;
+    drawnItems.current.clearLayers();
+
+    const g = parseGeo(value?.geometry);
+    let layer = null;
+
+    if (g?.type === "Polygon" || g?.type === "MultiPolygon") {
+      layer = L.geoJSON(g).getLayers()[0];
+    }
+
+    if (layer) {
+      drawnItems.current.addLayer(layer);
+      mapRef.current.fitBounds(layer.getBounds());
+    }
+  }, [value]);
   useEffect(() => {
     if (!mapRef.current) return;
     if (!circle) return;
@@ -220,4 +237,3 @@ const AdvancedGeofenceEditor = ({ value, onChange, circle }) => {
 };
 
 export default AdvancedGeofenceEditor;
-

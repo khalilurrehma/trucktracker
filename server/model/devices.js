@@ -174,6 +174,37 @@ export async function getDeviceById(deviceId) {
     throw error;
   }
 }
+export async function getByFlespiId(deviceId) {
+  const sql = `
+  SELECT d.id, d.name, d.traccarId, d.flespiId, d.device_type_id, d.uniqueId, d.groupId,
+         d.phone, d.model, d.contact, d.category, d.expirationTime, d.disabled,
+         d.attributes, d.userId, d.traccar_status, d.traccar_lastUpdate,
+         d.flespi_protocol_name, d.flespi_protocol_id, d.flespi_device_type_name,
+         d.media_ttl, d.messages_ttl, d.created_by,
+         d.service_type, d.cost_by_km,
+         st.name AS service_type_name
+  FROM new_settings_devices d
+  LEFT JOIN device_service_type st ON d.service_type = st.id
+  WHERE d.traccarId = ?
+`;
+
+  const values = [deviceId];
+
+  try {
+    const result = await dbQuery(sql, values);
+
+    if (result.length > 0) {
+      const device = result[0];
+      device.attributes = JSON.parse(device.attributes);
+
+      return device;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    throw error;
+  }
+}
 export const getDeviceFlespiIdById = async (deviceId) => {
   const sql = `SELECT flespiId from new_settings_devices WHERE id = ?`;
 

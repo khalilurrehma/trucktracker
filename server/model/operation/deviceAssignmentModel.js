@@ -65,7 +65,7 @@ export const getAllAssignments = async () => {
       z.name AS zone_name, 
       o.name AS operation_name
     FROM device_assignments da
-    LEFT JOIN new_settings_devices d ON da.device_id = d.traccarId
+    LEFT JOIN new_settings_devices d ON da.device_id = d.id
     LEFT JOIN zones z ON da.zone_id = z.id
     LEFT JOIN operations o ON da.operation_id = o.id
     ORDER BY da.created_at DESC
@@ -175,15 +175,15 @@ export const getDevicesByOperation = async (operationId) => {
         d.name AS device_name,
         d.category AS category,
         d.flespiId AS flespi_device_id,
-        z.name AS zone_name, 
-        o.name AS operation_name
-      FROM device_assignments da
-      LEFT JOIN new_settings_devices d ON da.device_id = d.traccarId
-      LEFT JOIN zones z ON da.zone_id = z.id
-      LEFT JOIN operations o ON da.operation_id = o.id
-      WHERE da.operation_id = ?
-      ORDER BY da.created_at DESC
-    `;
+      z.name AS zone_name, 
+      o.name AS operation_name
+    FROM device_assignments da
+    LEFT JOIN new_settings_devices d ON da.device_id = d.id
+    LEFT JOIN zones z ON da.zone_id = z.id
+    LEFT JOIN operations o ON da.operation_id = o.id
+    WHERE da.operation_id = ?
+    ORDER BY da.created_at DESC
+  `;
 
     const devices = await dbQuery(sql, [operationId]);
 
@@ -234,7 +234,6 @@ export const getDevicesByOperation = async (operationId) => {
     throw err;
   }
 };
-
 
 
 
