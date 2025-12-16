@@ -66,7 +66,7 @@ export default function OperationWithZonesMap() {
   const [devices, setDevices] = useState([]);
   const [positions, setPositions] = useState([]);
   const [deviceKPI, setDeviceKPI] = useState({});
-  const [hoveredDevice, setHoveredDevice] = useState(null);
+  const [hoveredDeviceId, setHoveredDeviceId] = useState(null);
   const [activeZone, setActiveZone] = useState(null);
 
   const { mqttDeviceLiveLocation, mqttMessages } = useAppContext();
@@ -162,6 +162,13 @@ export default function OperationWithZonesMap() {
       direction: live?.direction || d.direction || 0,
     };
   });
+
+  // Clear hover state if the device no longer exists in the list
+  useEffect(() => {
+    if (!hoveredDeviceId) return;
+    const exists = devicesWithPos.some((d) => d.id === hoveredDeviceId);
+    if (!exists) setHoveredDeviceId(null);
+  }, [devicesWithPos, hoveredDeviceId]);
 
   /* ---------------- INIT MAP ---------------- */
   useEffect(() => {
@@ -279,9 +286,10 @@ export default function OperationWithZonesMap() {
 
       const elId = `dev-${dev.id}`;
       const icon = L.divIcon({
-        html: `<div id="${elId}" style="transform: translate(-50%, -50%)"></div>`,
+        html: `<div id="${elId}" style="position: relative;"></div>`,
         className: "",
-        iconSize: [50, 50],
+        iconSize: [60, 80],
+        iconAnchor: [30, 40], // keep anchor centered regardless of hover content
       });
 
       let marker = layersRef.current[`dev-${dev.id}`];
@@ -303,19 +311,22 @@ export default function OperationWithZonesMap() {
           <div
             style={{
               position: "relative",
-              transform: "translate(-50%, -100%)",
+              width: 60,
+              height: 80,
               textAlign: "center",
             }}
-            onMouseEnter={() => setHoveredDevice(dev)}
-            onMouseLeave={() => setHoveredDevice(null)}
+            onMouseEnter={() => setHoveredDeviceId(dev.id)}
+            onMouseLeave={() => setHoveredDeviceId(null)}
           >
-            {hoveredDevice?.id === dev.id && (
+            {hoveredDeviceId === dev.id && (
               <div
                 style={{
-                  marginBottom: 8,
+                  position: "absolute",
+                  bottom: "100%",
+                  left: "50%",
+                  transform: "translate(-50%, -12px)",
                   pointerEvents: "none",
                   zIndex: 9999,
-                  transform: "translateY(-10px)",
                 }}
               >
                 <TruckInfoCard
@@ -328,6 +339,7 @@ export default function OperationWithZonesMap() {
             <VehicleMarker
               type={dev.category}
               deviceName={dev.device_name}
+                heading={dev.direction || 0}
               direction={dev.direction}
             />
           </div>

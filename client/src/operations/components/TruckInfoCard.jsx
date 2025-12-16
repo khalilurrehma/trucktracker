@@ -26,7 +26,7 @@ export default function TruckInfoCard({ device, kpi }) {
   const isRecent = lastUpdateMs < 5000;
 
   const formatNumber = (n, d = 2) =>
-    n !== null && n !== undefined && n !== "" ? Number(n).toFixed(d) : "–";
+    n !== null && n !== undefined && n !== "" ? Number(n).toFixed(d) : "--";
 
   const insideRouter = useInRouterContext();
 
@@ -34,9 +34,9 @@ export default function TruckInfoCard({ device, kpi }) {
     <div
       className="truck-info-card"
       style={{
-        border: isRecent ? "2px solid #64ffda" : "1px solid #444",
+        border: "1px solid #444",
         boxShadow: isRecent
-          ? "0 0 10px rgba(100,255,218,0.6)"
+          ? "0 0 10px rgba(100,255,218,0.6), 0 0 0 1px #64ffda"
           : "0 2px 5px rgba(0,0,0,0.3)",
         transition: "all 0.3s ease",
       }}
@@ -58,36 +58,35 @@ export default function TruckInfoCard({ device, kpi }) {
       {/* KPI grid */}
       <div className="truck-info-grid">
         <div>
-          <FaTachometerAlt />  
+          <FaTachometerAlt />
           <strong>Eff:</strong> {formatNumber(data.efficiency)}%
         </div>
 
         <div>
-          <FaMapMarkerAlt /> 
-          <strong>Trips:</strong> {data.trips ?? "–"}
+          <FaMapMarkerAlt />
+          <strong>Trips:</strong> {data.trips ?? "--"}
         </div>
 
         <div>
-          <FaGasPump /> 
-          <strong>Fuel/m³:</strong> {formatNumber(data.fuelPerM3)}
+          <FaGasPump />
+          <strong>Fuel/mA3:</strong> {formatNumber(data.fuelPerM3)}
         </div>
 
         <div>
-          <strong>Vol (m³):</strong> {formatNumber(data.avgVolumeM3)}
+          <strong>Vol (mA3):</strong> {formatNumber(data.avgVolumeM3)}
         </div>
 
         <div>
-          <strong>Cycle:</strong> {data.durationFormatted ?? "–"}
+          <strong>Cycle:</strong> {data.durationFormatted ?? "--"}
         </div>
 
         <div>
-          <strong>Queue:</strong> {data.queueTimeFormatted ?? "–"}
+          <strong>Queue:</strong> {data.queueTimeFormatted ?? "--"}
         </div>
       </div>
 
       {/* Footer Actions */}
       <div className="truck-info-icons">
-
         {/* Locate on map */}
         <FaMapMarkerAlt
           title="Locate on Map"
@@ -111,10 +110,7 @@ export default function TruckInfoCard({ device, kpi }) {
         )}
 
         {/* Info */}
-        <FaInfoCircle
-          title="More Info"
-          className="truck-info-icon info"
-        />
+        <FaInfoCircle title="More Info" className="truck-info-icon info" />
 
         {/* Dashboard */}
         {insideRouter ? (

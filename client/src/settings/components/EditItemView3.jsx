@@ -89,6 +89,24 @@ const EditItemView = ({
             stableData = data;
           }
 
+          if (data?.flespi_metadata) {
+            try {
+              const metadata = JSON.parse(data.flespi_metadata);
+              // Fill optional fields (e.g., vehicle metrics) from flespi metadata when not already present
+              Object.entries(metadata).forEach(([key, value]) => {
+                if (
+                  stableData[key] === undefined ||
+                  stableData[key] === null ||
+                  stableData[key] === ""
+                ) {
+                  stableData[key] = value;
+                }
+              });
+            } catch (error) {
+              console.error("Failed to parse flespi_metadata", error);
+            }
+          }
+
           setItem(stableData);
         } else {
           throw Error(await response.data.message);

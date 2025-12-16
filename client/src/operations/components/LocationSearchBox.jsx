@@ -1,10 +1,35 @@
 import React, { useState, useRef } from "react";
-import { TextField } from "@mui/material";
+import L from "leaflet";
+import { TextField, InputAdornment, IconButton } from "@mui/material";
 
 const LocationSearchBox = ({ mapRef }) => {
   const [search, setSearch] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const timeoutRef = useRef(null);
+
+  const customIconRef = useRef(
+    L.divIcon({
+      className: "",
+      html: `
+        <div style="
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          background: #fff;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+          display: grid;
+          place-items: center;
+          overflow: hidden;
+          border: 2px solid #2196f3;
+        ">
+          <img src="https://img.freepik.com/free-vector/location_53876-25530.jpg?semt=ais_hybrid&w=740&q=80" alt="marker" style="width: 60%; height: 60%; object-fit: contain;" />
+        </div>
+      `,
+      iconSize: [44, 44],
+      iconAnchor: [22, 42],
+      popupAnchor: [0, -38],
+    })
+  );
 
   const handleSearch = (text) => {
     setSearch(text);
@@ -42,7 +67,7 @@ const LocationSearchBox = ({ mapRef }) => {
     if (!map) return;
 
     map.setView([lat, lon], 18);
-    L.marker([lat, lon]).addTo(map);
+    L.marker([lat, lon], { icon: customIconRef.current }).addTo(map);
   };
 
   return (

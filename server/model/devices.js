@@ -150,7 +150,7 @@ export async function getDeviceById(deviceId) {
          d.attributes, d.userId, d.traccar_status, d.traccar_lastUpdate,
          d.flespi_protocol_name, d.flespi_protocol_id, d.flespi_device_type_name,
          d.media_ttl, d.messages_ttl, d.created_by,
-         d.service_type, d.cost_by_km,
+         d.service_type, d.cost_by_km,d.flespi_metadata,
          st.name AS service_type_name
   FROM new_settings_devices d
   LEFT JOIN device_service_type st ON d.service_type = st.id

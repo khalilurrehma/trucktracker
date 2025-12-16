@@ -218,7 +218,7 @@ export const addNewDevice = async (req, res) => {
             "processing.copyAttributes",
             "decoder.timezone",
             "category",
-             "vehicle_fill_factor_ideal",
+            "vehicle_fill_factor_ideal",
             "vehicle_capacity_m3",
             "groupId",
             "model",

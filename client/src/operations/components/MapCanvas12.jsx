@@ -1,5 +1,5 @@
 // src/operations/components/MapCanvas.jsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   GoogleMap,
   Polygon,
@@ -89,8 +89,11 @@ export default function MapCanvas({ ops, allDevices, mqttDeviceLiveLocation, mqt
 
   // Live MQTT locations
   useEffect(() => {
+    console.log(123);
     if (!mqttDeviceLiveLocation?.length) return;
+    console.log(mqttDeviceLiveLocation);
     setPositions((prev) => {
+      
       const updated = [...prev];
       mqttDeviceLiveLocation.forEach(({ deviceId, value }) => {
         if (!value?.latitude || !value?.longitude) return;
@@ -451,28 +454,53 @@ export default function MapCanvas({ ops, allDevices, mqttDeviceLiveLocation, mqt
           if (!device) return null;
           const kpi = deviceKPI[device.flespiId || device.device_id];
           const eff = kpi?.efficiency || 0;
+          const markerSize = 34;
+          const cardOffset = markerSize / 2 + 18;
+          const markerOffset = useCallback(() => ({
+            x: -(markerSize + 18) / 2,
+            y: -(markerSize + 24) / 2,
+          }), []);
 
           return (
             <OverlayView
               key={device.flespiId || device.device_id}
               position={{ lat: pos.latitude, lng: pos.longitude }}
               mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+              getPixelPositionOffset={markerOffset}
             >
               <div
                 onMouseEnter={() => setHoveredDevice(device)}
                 onMouseLeave={() => setHoveredDevice(null)}
-                style={{ transform: "translate(-50%, -50%)" }}
+                style={{
+                  position: "relative",
+                  width: markerSize + 18,
+                  height: markerSize + 24,
+                  overflow: "visible",
+                  pointerEvents: "auto",
+                }}
               >
-                <VehicleMarker
-                  type={device.category}
-                  fill={getColor(eff)}
-                  heading={ 0}
-                  // heading={pos.direction || 0}
-                  label={eff ? `${eff}%` : "0"}
-                />
+                {console.log(pos.direction)}
+                
+                <div style={{ display: "grid", placeItems: "center", width: "100%", height: "100%" }}>
+                  <VehicleMarker
+                    type={device.category}
+                    size={markerSize}
+                    fill={getColor(eff)}
+                    heading={pos.direction || 0}
+                    label={eff ? `${eff}%` : "0"}
+                  />
+                </div>
+
                 {hoveredDevice?.flespiId === device.flespiId && (
-                  <div style={{ marginTop: 6 }}>
-                    {/* keep your existing card */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: "50%",
+                      top: `${cardOffset}px`,
+                      transform: "translate(-50%, 0)",
+                      pointerEvents: "auto",
+                    }}
+                  >
                     <TruckInfoCard device={device} kpi={kpi} />
                   </div>
                 )}
