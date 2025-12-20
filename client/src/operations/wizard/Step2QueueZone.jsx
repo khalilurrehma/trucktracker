@@ -242,10 +242,23 @@ export default function Step2QueueZone({ goNext, goPrev }) {
                 parentBoundary={operation?.geometry}
                 zoneType="QUEUE_AREA"
                 otherGeofences={[
-                  zoneArea && { geometry: zoneArea.geometry, zoneType: "ZONE_AREA" },
-                  loadPadZone && { geometry: loadPadZone.geometry, zoneType: "LOAD_PAD" },
-                  dumpZone && { geometry: dumpZone.geometry, zoneType: "DUMP_AREA" },
-                ].filter(Boolean)}
+                  queueZone && {
+                    geometry: queueZone.geometry || queueZone.geofence?.geometry,
+                    zoneType: queueZone.zoneType || "QUEUE_AREA",
+                  },
+                  loadPadZone && {
+                    geometry: loadPadZone.geometry || loadPadZone.geofence?.geometry,
+                    zoneType: loadPadZone.zoneType || "LOAD_PAD",
+                  },
+                  dumpZone && {
+                    geometry: dumpZone.geometry || dumpZone.geofence?.geometry,
+                    zoneType: dumpZone.zoneType || "DUMP_AREA",
+                  },
+                  zoneArea && {
+                    geometry: zoneArea.geometry || zoneArea.geofence?.geometry,
+                    zoneType: zoneArea.zoneType || "ZONE_AREA",
+                  },
+                ].filter((item) => item?.geometry && item.zoneType !== "QUEUE_AREA")}
                 onChange={(geo) =>
                   setZone((prev) => ({
                     ...prev,

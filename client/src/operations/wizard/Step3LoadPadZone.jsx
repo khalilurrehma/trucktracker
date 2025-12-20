@@ -60,6 +60,7 @@ export default function Step3LoadPadZone({ goNext, goPrev }) {
   const classes = useSettingsStyles();
   const {
     operation,
+    queueZone,
     zoneArea,
     loadPadZone,
     dumpZone,
@@ -211,8 +212,23 @@ export default function Step3LoadPadZone({ goNext, goPrev }) {
                 zoneType="LOAD_PAD"
                 parentBoundary={operation?.geometry || null}
                 otherGeofences={[
-                  zoneArea && { geometry: zoneArea.geometry, zoneType: "ZONE_AREA" },
-                ].filter(Boolean)}
+                  queueZone && {
+                    geometry: queueZone.geometry || queueZone.geofence?.geometry,
+                    zoneType: queueZone.zoneType || "QUEUE_AREA",
+                  },
+                  loadPadZone && {
+                    geometry: loadPadZone.geometry || loadPadZone.geofence?.geometry,
+                    zoneType: loadPadZone.zoneType || "LOAD_PAD",
+                  },
+                  dumpZone && {
+                    geometry: dumpZone.geometry || dumpZone.geofence?.geometry,
+                    zoneType: dumpZone.zoneType || "DUMP_AREA",
+                  },
+                  zoneArea && {
+                    geometry: zoneArea.geometry || zoneArea.geofence?.geometry,
+                    zoneType: zoneArea.zoneType || "ZONE_AREA",
+                  },
+                ].filter((item) => item?.geometry && item.zoneType !== "LOAD_PAD")}
                 onChange={(geo) =>
                   setZone((prev) => ({
                     ...prev,

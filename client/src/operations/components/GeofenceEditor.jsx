@@ -1,28 +1,42 @@
-import React, { useEffect, useRef } from "react";
-import L from "leaflet";
-import "leaflet-draw";
-import "leaflet/dist/leaflet.css";
-import "leaflet-draw/dist/leaflet.draw.css";
-import "leaflet-geometryutil";
-import "leaflet-geosearch/dist/geosearch.css";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import mapboxgl from "mapbox-gl";
+import MapboxDraw from "@mapbox/mapbox-gl-draw";
+import "mapbox-gl/dist/mapbox-gl.css";
+import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
+import {
+  area as turfArea,
+  bbox as turfBbox,
+  circle as turfCircle,
+  distance as turfDistance,
+  point as turfPoint,
+} from "@turf/turf";
 import LocationSearchBox from "@/operations/components/LocationSearchBox";
-/* ---------------- Base Layers ---------------- */
-const GOOGLE_SAT = "https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}";
-const GOOGLE_HYBRID = "https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}";
-const GOOGLE_TERRAIN = "https://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}";
-const ESRI_SAT =
-  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
-const ESRI_TOPO =
-  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}";
-const DARK =
-  "https://tiles.stadiamaps.com/tiles/alidade_dark/{z}/{x}/{y}{r}.png";
-const LIGHT =
-  "https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png";
-import { GeoSearchControl, OpenStreetMapProvider } from "leaflet-geosearch";
+import drawTheme from "@/map/draw/theme";
+
+const MAPBOX_TOKEN =
+  "pk.eyJ1IjoibmV4dG9wbGRhIiwiYSI6ImNtamJndjZ5ajBka3MzZHJ6c2hycmR3MGgifQ.zFdt6Si2E-Yc92j93x2phA";
+const DEFAULT_CENTER = [-77.0428, -12.0464];
+const STYLE_PRESETS = [
+  { id: "streets", label: "Streets", style: "mapbox://styles/mapbox/streets-v12" },
+  { id: "light", label: "Light", style: "mapbox://styles/mapbox/light-v11" },
+  { id: "dark", label: "Dark", style: "mapbox://styles/mapbox/dark-v11" },
+  { id: "outdoors", label: "Outdoors", style: "mapbox://styles/mapbox/outdoors-v12" },
+  { id: "satellite", label: "Satellite", style: "mapbox://styles/mapbox/satellite-streets-v12" },
+];
 
 const AdvancedGeofenceEditor = ({ value, onChange, circle }) => {
   const mapRef = useRef(null);
-  const drawnItems = useRef(null);
+  const mapContainerRef = useRef(null);
+  const drawRef = useRef(null);
+  const circleModeRef = useRef({ active: false, center: null });
+  const [activeStyleId, setActiveStyleId] = useState("satellite");
+  const [showBuildings, setShowBuildings] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
+
+  const activeStyle = useMemo(
+    () => STYLE_PRESETS.find((item) => item.id === activeStyleId)?.style,
+    [activeStyleId]
+  );
 
   const parseGeo = (geo) => {
     if (!geo) return null;
@@ -35,205 +49,471 @@ const AdvancedGeofenceEditor = ({ value, onChange, circle }) => {
     }
     return geo;
   };
-  // When a saved geometry comes in after mount, redraw it
-  useEffect(() => {
-    if (!mapRef.current || !drawnItems.current) return;
-    drawnItems.current.clearLayers();
 
+  const fitToGeometry = (geometry) => {
+    if (!mapRef.current || !geometry) return;
+    const [minLng, minLat, maxLng, maxLat] = turfBbox(geometry);
+    mapRef.current.fitBounds(
+      [
+        [minLng, minLat],
+        [maxLng, maxLat],
+      ],
+      { padding: 60, duration: 700 }
+    );
+  };
+
+  const setDrawnGeometry = useCallback((geometry) => {
+    if (!drawRef.current || !geometry) return;
+    drawRef.current.deleteAll();
+    drawRef.current.add({
+      type: "Feature",
+      properties: {},
+      geometry,
+    });
+    fitToGeometry(geometry);
+  }, []);
+
+  const emitGeometryChange = useCallback((geometry) => {
+    if (!geometry) {
+      onChange({ geometry: null, area_sqm: null, area_ha: null });
+      return;
+    }
+    const area_sqm = turfArea(geometry);
+    onChange({
+      geometry,
+      area_sqm,
+      area_ha: area_sqm / 10000,
+    });
+  }, [onChange]);
+
+  const handleCircleMove = useCallback((event) => {
+    const map = mapRef.current;
+    if (!map || !circleModeRef.current.active || !circleModeRef.current.center) return;
+    const { lng, lat } = event.lngLat;
+    const [centerLng, centerLat] = circleModeRef.current.center;
+    const radius = turfDistance(
+      turfPoint([centerLng, centerLat]),
+      turfPoint([lng, lat]),
+      { units: "meters" }
+    );
+    const geometry = turfCircle([centerLng, centerLat], radius, {
+      units: "meters",
+      steps: 80,
+    });
+    if (!map.getSource("circle-preview")) {
+      map.addSource("circle-preview", {
+        type: "geojson",
+        data: geometry,
+      });
+      map.addLayer({
+        id: "circle-preview",
+        type: "fill",
+        source: "circle-preview",
+        paint: {
+          "fill-color": "#38bdf8",
+          "fill-opacity": 0.2,
+        },
+      });
+    } else {
+      map.getSource("circle-preview").setData(geometry);
+    }
+  }, []);
+
+  const handleCircleClick = useCallback((event) => {
+    const map = mapRef.current;
+    if (!map || !circleModeRef.current.active) return;
+    const { lng, lat } = event.lngLat;
+    if (!circleModeRef.current.center) {
+      circleModeRef.current.center = [lng, lat];
+      return;
+    }
+
+    const [centerLng, centerLat] = circleModeRef.current.center;
+    const radius = turfDistance(
+      turfPoint([centerLng, centerLat]),
+      turfPoint([lng, lat]),
+      { units: "meters" }
+    );
+    const geometry = turfCircle([centerLng, centerLat], radius, {
+      units: "meters",
+      steps: 80,
+    }).geometry;
+
+    setDrawnGeometry(geometry);
+    emitGeometryChange(geometry);
+    circleModeRef.current = { active: false, center: null };
+    map.getCanvas().style.cursor = "";
+    map.off("mousemove", handleCircleMove);
+    map.off("click", handleCircleClick);
+    if (map.getLayer("circle-preview")) map.removeLayer("circle-preview");
+    if (map.getSource("circle-preview")) map.removeSource("circle-preview");
+  }, [emitGeometryChange, handleCircleMove, setDrawnGeometry]);
+
+  useEffect(() => {
+    setPanelOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!drawRef.current) return;
     const g = parseGeo(value?.geometry);
-    let layer = null;
-
     if (g?.type === "Polygon" || g?.type === "MultiPolygon") {
-      layer = L.geoJSON(g).getLayers()[0];
+      setDrawnGeometry(g);
     }
+  }, [value, setDrawnGeometry]);
 
-    if (layer) {
-      drawnItems.current.addLayer(layer);
-      mapRef.current.fitBounds(layer.getBounds());
-    }
-  }, [value]);
   useEffect(() => {
-    if (!mapRef.current) return;
     if (!circle) return;
 
     const { lat, lng, radius } = circle;
     if (!lat || !lng || !radius) return;
 
-    // Remove old shapes
-    drawnItems.current.clearLayers();
-
-    // Draw circle on map
-    const layer = L.circle([lat, lng], {
-      radius,
-      color: "#2196F3",
-      fillOpacity: 0.15,
-      weight: 2
-    });
-
-    drawnItems.current.addLayer(layer);
-
-    mapRef.current.setView([lat, lng], 16);
-
-    // Convert circle to polygon (GeoJSON-friendly)
-    const geometry = circleToPolygon(layer);
-
-    onChange({
-      geometry,
-      area_sqm: Math.PI * radius * radius,
-      area_ha: (Math.PI * radius * radius) / 10000
-    });
-
-  }, [circle]);
-  /* -------------- Circle → Polygon conversion ---------------- */
-  const circleToPolygon = (circle, points = 60) => {
-    const center = circle.getLatLng();
-    const radius = circle.getRadius();
-    const coords = [];
-
-    for (let i = 0; i < points; i++) {
-      const angle = (i * 360) / points;
-      const dest = L.GeometryUtil.destination(center, angle, radius);
-      coords.push([dest.lng, dest.lat]);
-    }
-    coords.push(coords[0]); // close ring
-
-    return { type: "Polygon", coordinates: [coords] };
-  };
+    const geometry = turfCircle([lng, lat], radius, { units: "meters", steps: 80 })
+      .geometry;
+    setDrawnGeometry(geometry);
+    mapRef.current?.flyTo({ center: [lng, lat], zoom: 16, speed: 0.9 });
+    emitGeometryChange(geometry);
+  }, [circle, emitGeometryChange, setDrawnGeometry]);
 
   useEffect(() => {
-    if (!mapRef.current) {
-      mapRef.current = L.map("editor-map", {
-        center: [-12.19, -77.015],
-        zoom: 16,
-      });
+    if (mapRef.current || !mapContainerRef.current) return;
 
-      /* ---- Basemap Layers ---- */
-      const layers = {
-        OpenStreetMap: L.tileLayer(
-          "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        ),
-        "Google Satellite": L.tileLayer(GOOGLE_SAT, {
-          subdomains: ["mt0", "mt1", "mt2", "mt3"],
-        }),
-        "Google Hybrid": L.tileLayer(GOOGLE_HYBRID, {
-          subdomains: ["mt0", "mt1", "mt2", "mt3"],
-        }),
-        "Google Terrain": L.tileLayer(GOOGLE_TERRAIN, {
-          subdomains: ["mt0", "mt1", "mt2", "mt3"],
-        }),
-        "ESRI Satellite": L.tileLayer(ESRI_SAT),
-        "ESRI Topographic": L.tileLayer(ESRI_TOPO),
-        Dark: L.tileLayer(DARK),
-        Light: L.tileLayer(LIGHT),
+    mapboxgl.accessToken = MAPBOX_TOKEN;
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: activeStyle || "mapbox://styles/mapbox/satellite-streets-v12",
+      center: DEFAULT_CENTER,
+      zoom: 15.5,
+      pitch: 58,
+      bearing: -18,
+      antialias: true,
+    });
+
+    mapRef.current = map;
+    map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), "top-left");
+
+    const draw = new MapboxDraw({
+      displayControlsDefault: false,
+      controls: { polygon: true, trash: true },
+      styles: drawTheme,
+    });
+
+    map.addControl(draw, "top-left");
+    drawRef.current = draw;
+
+    const attachCircleButton = () => {
+      const container = map.getContainer();
+      if (!container) return;
+      const groups = container.querySelectorAll(
+        ".mapboxgl-ctrl-top-left .mapboxgl-ctrl-group"
+      );
+      const drawGroup = groups[groups.length - 1];
+      if (!drawGroup || drawGroup.querySelector(".circle-draw-button")) return;
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.title = "Draw circle";
+      button.className = "circle-draw-button";
+      button.style.display = "grid";
+      button.style.placeItems = "center";
+      button.innerHTML =
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="1.5"><circle cx="12" cy="12" r="6.5" /><path d="M6 17l6-10 6 10z" fill="none" /></svg>';
+      button.onclick = () => {
+        if (circleModeRef.current.active) {
+          cancelCircleMode();
+        } else {
+          startCircleMode();
+        }
       };
 
-      layers.OpenStreetMap.addTo(mapRef.current);
-      L.control.layers(layers, {}, { collapsed: true }).addTo(mapRef.current);
+      drawGroup.appendChild(button);
+    };
 
-      /* ---- Draw Controls ---- */
-      drawnItems.current = new L.FeatureGroup();
-      mapRef.current.addLayer(drawnItems.current);
-
-      const drawControl = new L.Control.Draw({
-        draw: {
-          polygon: true,
-          circle: true,
-          rectangle: false,
-          marker: false,
-          polyline: false,
-          circlemarker: false,
-        },
-        edit: { featureGroup: drawnItems.current },
-      });
-
-      mapRef.current.addControl(drawControl);
-
-      /* ---- CREATE ---- */
-      mapRef.current.on(L.Draw.Event.CREATED, (evt) => {
-        const layer = evt.layer;
-
-        let geo, area_sqm, area_ha;
-
-        if (layer instanceof L.Circle) {
-          geo = circleToPolygon(layer);
-          const radius = layer.getRadius();
-          area_sqm = Math.PI * radius * radius;
-        } else {
-          geo = layer.toGeoJSON().geometry;
-          const latlngs = layer.getLatLngs()[0];
-          area_sqm = L.GeometryUtil.geodesicArea(latlngs);
-        }
-
-        area_ha = area_sqm / 10000;
-
-        drawnItems.current.clearLayers();
-        drawnItems.current.addLayer(layer);
-
-        onChange({
-          geometry: geo,
-          area_sqm,
-          area_ha,
-        });
-      });
-
-      /* ---- EDIT ---- */
-      mapRef.current.on(L.Draw.Event.EDITED, (evt) => {
-        const layer = Object.values(evt.layers._layers)[0];
-        let geo = layer.toGeoJSON().geometry;
-
-        let area_sqm = null;
-
-        if (layer instanceof L.Circle) {
-          geo = circleToPolygon(layer);
-          const radius = layer.getRadius();
-          area_sqm = Math.PI * radius * radius;
-        } else {
-          const latlngs = layer.getLatLngs()[0];
-          area_sqm = L.GeometryUtil.geodesicArea(latlngs);
-        }
-
-        const area_ha = area_sqm / 10000;
-
-        onChange({
-          geometry: geo,
-          area_sqm,
-          area_ha,
-        });
-      });
-
-      /* ---- Load Existing Shape ---- */
-      if (value?.geometry) {
-        const g = parseGeo(value.geometry);
-        let layer = null;
-
-        if (g.type === "Polygon" || g.type === "MultiPolygon") {
-          layer = L.geoJSON(g).getLayers()[0];
-        }
-
-        if (layer) {
-          drawnItems.current.addLayer(layer);
-          mapRef.current.fitBounds(layer.getBounds());
+    const removeControlGroup = (group) => {
+      const parent = group.parentElement;
+      group.remove();
+      if (parent && parent.classList.contains("mapboxgl-ctrl")) {
+        if (parent.childElementCount === 0) {
+          parent.remove();
         }
       }
-    }
-  }, [value, onChange]);
+    };
+
+    const mergeControlGroups = () => {
+      const container = map.getContainer();
+      if (!container) return;
+      const groups = container.querySelectorAll(
+        ".mapboxgl-ctrl-top-left .mapboxgl-ctrl-group"
+      );
+      if (groups.length < 2) return;
+      const firstGroup = groups[0];
+      for (let i = 1; i < groups.length; i += 1) {
+        const group = groups[i];
+        while (group.firstChild) {
+          firstGroup.appendChild(group.firstChild);
+        }
+        removeControlGroup(group);
+      }
+    };
+    const mergeControlGroupsWithRetry = () => {
+      mergeControlGroups();
+      setTimeout(mergeControlGroups, 0);
+      setTimeout(mergeControlGroups, 50);
+    };
+
+    const startControlObserver = () => {
+      const container = map.getContainer();
+      if (!container) return null;
+      const target = container.querySelector(".mapboxgl-ctrl-top-left");
+      if (!target) return null;
+      const observer = new MutationObserver(() => {
+        mergeControlGroups();
+        attachCircleButton();
+      });
+      observer.observe(target, { childList: true, subtree: true });
+      return observer;
+    };
+
+    const addBuildingLayer = () => {
+      if (map.getLayer("3d-buildings")) return;
+      map.addLayer(
+        {
+          id: "3d-buildings",
+          source: "composite",
+          "source-layer": "building",
+          filter: ["==", "extrude", "true"],
+          type: "fill-extrusion",
+          minzoom: 15,
+          layout: {
+            visibility: showBuildings ? "visible" : "none",
+          },
+          paint: {
+            "fill-extrusion-color": "#cdd6e0",
+            "fill-extrusion-height": ["get", "height"],
+            "fill-extrusion-base": ["get", "min_height"],
+            "fill-extrusion-opacity": 0.72,
+          },
+        },
+        "waterway-label"
+      );
+    };
+
+    let controlObserver = null;
+
+    map.on("load", () => {
+      addBuildingLayer();
+      attachCircleButton();
+      mergeControlGroupsWithRetry();
+      controlObserver = startControlObserver();
+      const g = parseGeo(value?.geometry);
+      if (g?.type === "Polygon" || g?.type === "MultiPolygon") {
+        setDrawnGeometry(g);
+      }
+    });
+
+    const syncDraw = () => {
+      const data = draw.getAll();
+      const feature = data.features[0];
+      emitGeometryChange(feature?.geometry || null);
+    };
+
+    const handleDrawCreate = (event) => {
+      const created = event.features?.[0];
+      const all = draw.getAll();
+      if (created && all.features.length > 1) {
+        all.features
+          .filter((feature) => feature.id !== created.id)
+          .forEach((feature) => draw.delete(feature.id));
+      }
+      syncDraw();
+    };
+
+    map.on("draw.create", handleDrawCreate);
+    map.on("draw.update", syncDraw);
+    map.on("draw.delete", syncDraw);
+
+    map.on("style.load", () => {
+      addBuildingLayer();
+      attachCircleButton();
+      mergeControlGroupsWithRetry();
+      if (map.getLayer("3d-buildings")) {
+        map.setLayoutProperty(
+          "3d-buildings",
+          "visibility",
+          showBuildings ? "visible" : "none"
+        );
+      }
+    });
+
+    return () => {
+      controlObserver?.disconnect();
+      map.off("draw.create", handleDrawCreate);
+      map.off("draw.update", syncDraw);
+      map.off("draw.delete", syncDraw);
+      map.remove();
+      mapRef.current = null;
+      drawRef.current = null;
+    };
+  }, [onChange, value]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !activeStyle) return;
+    map.setStyle(activeStyle);
+  }, [activeStyle]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.getLayer("3d-buildings")) return;
+    map.setLayoutProperty(
+      "3d-buildings",
+      "visibility",
+      showBuildings ? "visible" : "none"
+    );
+  }, [showBuildings]);
+
+  const startCircleMode = () => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (circleModeRef.current.active) return;
+    drawRef.current?.changeMode("simple_select");
+    circleModeRef.current = { active: true, center: null };
+    map.getCanvas().style.cursor = "crosshair";
+    map.on("click", handleCircleClick);
+    map.on("mousemove", handleCircleMove);
+  };
+
+  const cancelCircleMode = () => {
+    const map = mapRef.current;
+    if (!map) return;
+    circleModeRef.current = { active: false, center: null };
+    map.getCanvas().style.cursor = "";
+    map.off("click", handleCircleClick);
+    map.off("mousemove", handleCircleMove);
+    if (map.getLayer("circle-preview")) map.removeLayer("circle-preview");
+    if (map.getSource("circle-preview")) map.removeSource("circle-preview");
+  };
 
   return (
-    <div style={{ marginTop: 20, position: "relative" }}>
-
+    <div
+      style={{
+        marginTop: 20,
+        position: "relative",
+        borderRadius: 16,
+        padding: 10,
+        background:
+          "linear-gradient(145deg, rgba(16,24,40,0.8), rgba(15,23,42,0.9))",
+        boxShadow: "0 14px 30px rgba(15,23,42,0.35)",
+      }}
+    >
+      <style>
+        {`
+          .mapboxgl-ctrl-top-left {
+            margin: 8px !important;
+          }
+          .mapboxgl-ctrl-group {
+            border-radius: 10px !important;
+            box-shadow: 0 10px 22px rgba(15,23,42,0.3);
+          }
+          .mapboxgl-ctrl-group .circle-draw-button {
+            border-top: 1px solid rgba(148,163,184,0.35);
+          }
+        `}
+      </style>
       <LocationSearchBox mapRef={mapRef} />
 
       <div
-        id="editor-map"
         style={{
-          height: 500,
-          borderRadius: 8,
-          border: "1px solid #ccc",
+          position: "absolute",
+          top: 20,
+          right: 20,
+          zIndex: 99999,
+          width: panelOpen ? 220 : 44,
+          padding: panelOpen ? 12 : 6,
+          borderRadius: 14,
+          background: "rgba(15,23,42,0.65)",
+          border: "1px solid rgba(148,163,184,0.2)",
+          backdropFilter: "blur(10px)",
+          color: "#e2e8f0",
+          fontSize: 13,
+          transition: "width 0.2s ease",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setPanelOpen((prev) => !prev)}
+          style={{
+            width: "100%",
+            height: 32,
+            borderRadius: 10,
+            border: "1px solid rgba(148,163,184,0.35)",
+            background: "rgba(15,23,42,0.8)",
+            color: "#e2e8f0",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          {panelOpen ? "Hide" : "Layers"}
+        </button>
+
+        {panelOpen && (
+          <>
+            <div style={{ fontWeight: 600, margin: "10px 0 8px" }}>Map Styles</div>
+            <div style={{ display: "grid", gap: 6 }}>
+              {STYLE_PRESETS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveStyleId(item.id)}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(148,163,184,0.3)",
+                    background:
+                      activeStyleId === item.id
+                        ? "linear-gradient(120deg, #38bdf8, #0ea5e9)"
+                        : "rgba(15,23,42,0.8)",
+                    color: activeStyleId === item.id ? "#0f172a" : "#e2e8f0",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 12, fontWeight: 600 }}>Layers</div>
+            <label
+              style={{
+                display: "flex",
+                gap: 8,
+                marginTop: 8,
+                alignItems: "center",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={showBuildings}
+                onChange={(event) => setShowBuildings(event.target.checked)}
+              />
+              3D Buildings
+            </label>
+
+          </>
+        )}
+      </div>
+
+      <div
+        ref={mapContainerRef}
+        style={{
+          height: 560,
+          borderRadius: 16,
+          border: "1px solid rgba(148,163,184,0.25)",
+          overflow: "hidden",
         }}
       />
     </div>
   );
-
 };
 
 export default AdvancedGeofenceEditor;

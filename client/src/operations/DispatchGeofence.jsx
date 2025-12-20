@@ -1,15 +1,15 @@
-import React, { useEffect, useRef, useState } from "react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 import { createRoot } from "react-dom/client";
+import { bbox as turfBbox, featureCollection } from "@turf/turf";
 
 import TruckInfoCard from "@/operations/components/TruckInfoCard";
 import VehicleMarker from "@/operations/components/VehicleMarker";
 import AlertsPanel from "@/operations/components/AlertsPanel";
-import { createBaseLayers } from "@/operations/components/MapBaseLayers";
 
 import { getOperationById } from "@/apis/operationApi";
-import { getZonesByOperationId, deleteZone } from "@/apis/zoneApi";
+import { getZonesByOperationId } from "@/apis/zoneApi";
 import {
   getDevicesByPositionOperation,
   fetchOperationKPI,
@@ -17,10 +17,16 @@ import {
 
 import { useAppContext } from "@/AppContext";
 
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
-import IconButton from "@mui/material/IconButton";
-import Swal from "sweetalert2";
+const MAPBOX_TOKEN =
+  "pk.eyJ1IjoibmV4dG9wbGRhIiwiYSI6ImNtamJndjZ5ajBka3MzZHJ6c2hycmR3MGgifQ.zFdt6Si2E-Yc92j93x2phA";
+
+const STYLE_PRESETS = [
+  { id: "streets", label: "Streets", style: "mapbox://styles/mapbox/streets-v12" },
+  { id: "light", label: "Light", style: "mapbox://styles/mapbox/light-v11" },
+  { id: "dark", label: "Dark", style: "mapbox://styles/mapbox/dark-v11" },
+  { id: "outdoors", label: "Outdoors", style: "mapbox://styles/mapbox/outdoors-v12" },
+  { id: "satellite", label: "Satellite", style: "mapbox://styles/mapbox/satellite-streets-v12" },
+];
 
 const colors = {
   QUEUE_AREA: "#e67e22",
@@ -29,37 +35,27 @@ const colors = {
   ZONE_AREA: "#3498db",
 };
 
-/* ---------------- GET CENTER OF POLYGON ---------------- */
-const getPolygonCenter = (geometry) => {
-  try {
-    const coords =
-      geometry.type === "Polygon"
-        ? geometry.coordinates[0]
-        : geometry.type === "MultiPolygon"
-          ? geometry.coordinates[0][0]
-          : null;
-
-    if (!coords) return null;
-
-    let x = 0,
-      y = 0;
-
-    coords.forEach(([lng, lat]) => {
-      x += lng;
-      y += lat;
-    });
-
-    return [y / coords.length, x / coords.length]; // Leaflet uses [lat, lng]
-  } catch (e) {
-    console.error("Centroid error:", e);
-    return null;
+const toGeometry = (value) => {
+  if (!value) return null;
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
   }
+  if (value.type === "Feature") return value.geometry || null;
+  if (value.type === "FeatureCollection") return value.features?.[0]?.geometry || null;
+  return value;
 };
 
 export default function OperationWithZonesMap() {
   const mapRef = useRef(null);
-  const layersRef = useRef({});
+  const mapContainerRef = useRef(null);
+  const markersRef = useRef(new Map());
   const hasFitBounds = useRef(false);
+  const [activeStyleId, setActiveStyleId] = useState("satellite");
+  const [showBuildings, setShowBuildings] = useState(true);
 
   const [operation, setOperation] = useState(null);
   const [zones, setZones] = useState([]);
@@ -68,9 +64,19 @@ export default function OperationWithZonesMap() {
   const [deviceKPI, setDeviceKPI] = useState({});
   const [hoveredDeviceId, setHoveredDeviceId] = useState(null);
   const [activeZone, setActiveZone] = useState(null);
+  const [deviceRenderTick, setDeviceRenderTick] = useState(0);
 
   const { mqttDeviceLiveLocation, mqttMessages } = useAppContext();
   const operationId = new URLSearchParams(window.location.search).get("id");
+
+  const activeStyle = useMemo(
+    () => STYLE_PRESETS.find((item) => item.id === activeStyleId)?.style,
+    [activeStyleId]
+  );
+
+  useEffect(() => {
+    hasFitBounds.current = false;
+  }, [operationId]);
 
   /* ---------------- LOAD DATA ---------------- */
   useEffect(() => {
@@ -84,7 +90,6 @@ export default function OperationWithZonesMap() {
       const devicesArray = deviceList?.devices || [];
       setDevices(devicesArray);
 
-      // KPI loading
       const kpiPromises = devicesArray.map((device) =>
         fetchOperationKPI(device.flespi_device_id)
       );
@@ -100,23 +105,15 @@ export default function OperationWithZonesMap() {
 
       setDeviceKPI(kpiMap);
 
-      // Operation
       setOperation({
         ...op,
-        geometry:
-          typeof op.geometry === "string"
-            ? JSON.parse(op.geometry)
-            : op.geometry,
+        geometry: toGeometry(op.geometry),
       });
 
-      // Zones
       setZones(
         zoneList.map((z) => ({
           ...z,
-          geometry:
-            typeof z.geometry === "string"
-              ? JSON.parse(z.geometry)
-              : z.geometry,
+          geometry: toGeometry(z.geometry),
         }))
       );
     };
@@ -163,192 +160,331 @@ export default function OperationWithZonesMap() {
     };
   });
 
-  // Clear hover state if the device no longer exists in the list
-  useEffect(() => {
-    if (!hoveredDeviceId) return;
-    const exists = devicesWithPos.some((d) => d.id === hoveredDeviceId);
-    if (!exists) setHoveredDeviceId(null);
-  }, [devicesWithPos, hoveredDeviceId]);
-
   /* ---------------- INIT MAP ---------------- */
   useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return;
+
+    mapboxgl.accessToken = MAPBOX_TOKEN;
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: activeStyle || "mapbox://styles/mapbox/satellite-streets-v12",
+      center: [-77.0428, -12.0464],
+      zoom: 12,
+      pitch: 52,
+      bearing: -18,
+      antialias: true,
+    });
+
+    mapRef.current = map;
+    map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), "top-left");
+
+    const addBuildingLayer = () => {
+      if (map.getLayer("3d-buildings")) return;
+      map.addLayer(
+        {
+          id: "3d-buildings",
+          source: "composite",
+          "source-layer": "building",
+          filter: ["==", "extrude", "true"],
+          type: "fill-extrusion",
+          minzoom: 15,
+          layout: { visibility: showBuildings ? "visible" : "none" },
+          paint: {
+            "fill-extrusion-color": "#cdd6e0",
+            "fill-extrusion-height": ["get", "height"],
+            "fill-extrusion-base": ["get", "min_height"],
+            "fill-extrusion-opacity": 0.72,
+          },
+        },
+        "waterway-label"
+      );
+    };
+
+    map.on("load", () => {
+      addBuildingLayer();
+    });
+
+    map.on("style.load", () => {
+      addBuildingLayer();
+    });
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+  }, [activeStyle, showBuildings]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !activeStyle) return;
+    map.setStyle(activeStyle);
+  }, [activeStyle]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.getLayer("3d-buildings")) return;
+    map.setLayoutProperty(
+      "3d-buildings",
+      "visibility",
+      showBuildings ? "visible" : "none"
+    );
+  }, [showBuildings]);
+
+  /* ---------------- DRAW OPERATION + ZONES ---------------- */
+  useEffect(() => {
+    const map = mapRef.current;
     if (!operation?.geometry) return;
 
-    if (!mapRef.current) {
-      const map = L.map("operation-map", { zoom: 14 });
+    if (!map) return;
 
-      const baseLayers = createBaseLayers();
-      baseLayers["OpenStreetMap"].addTo(map);
-      L.control.layers(baseLayers, {}, { collapsed: true }).addTo(map);
+    const renderLayers = () => {
+      if (!map.isStyleLoaded()) return;
+      const operationFeature = {
+        type: "Feature",
+        properties: { name: operation.name || "Operation" },
+        geometry: operation.geometry,
+      };
 
-      mapRef.current = map;
+      const zoneFeatures = zones
+        .filter((zone) => zone.geometry)
+        .map((zone) => ({
+          type: "Feature",
+          properties: { zoneId: zone.id, zoneType: zone.zoneType, name: zone.name },
+          geometry: zone.geometry,
+        }));
+
+      const opData = featureCollection([operationFeature]);
+      const zoneData = featureCollection(zoneFeatures);
+
+      if (!map.getSource("operation-boundary")) {
+        map.addSource("operation-boundary", { type: "geojson", data: opData });
+        map.addLayer({
+          id: "operation-boundary-fill",
+          type: "fill",
+          source: "operation-boundary",
+          paint: { "fill-color": "#8e44ad", "fill-opacity": 0.12 },
+        });
+        map.addLayer({
+          id: "operation-boundary-line",
+          type: "line",
+          source: "operation-boundary",
+          paint: { "line-color": "#8e44ad", "line-width": 3, "line-opacity": 0.9 },
+        });
+      } else {
+        map.getSource("operation-boundary").setData(opData);
+      }
+      if (!map.getLayer("operation-boundary-label")) {
+        map.addLayer({
+          id: "operation-boundary-label",
+          type: "symbol",
+          source: "operation-boundary",
+          layout: {
+            "text-field": ["get", "name"],
+            "text-size": 14,
+            "text-font": ["DIN Pro Medium", "Arial Unicode MS Bold"],
+            "text-allow-overlap": true,
+            "text-ignore-placement": true,
+          },
+          paint: {
+            "text-color": "#f8fafc",
+            "text-halo-color": "#0f172a",
+            "text-halo-width": 1.5,
+          },
+        });
+      }
+
+      if (!map.getSource("operation-zones")) {
+        map.addSource("operation-zones", { type: "geojson", data: zoneData });
+        map.addLayer({
+          id: "operation-zones-fill",
+          type: "fill",
+          source: "operation-zones",
+          paint: {
+            "fill-color": [
+              "match",
+              ["get", "zoneType"],
+              "QUEUE_AREA",
+              colors.QUEUE_AREA,
+              "LOAD_PAD",
+              colors.LOAD_PAD,
+              "DUMP_AREA",
+              colors.DUMP_AREA,
+              "ZONE_AREA",
+              colors.ZONE_AREA,
+              "#999999",
+            ],
+            "fill-opacity": [
+              "case",
+              ["==", ["get", "zoneId"], activeZone],
+              0.35,
+              0.22,
+            ],
+          },
+        });
+        map.addLayer({
+          id: "operation-zones-line",
+          type: "line",
+          source: "operation-zones",
+          paint: {
+            "line-color": [
+              "match",
+              ["get", "zoneType"],
+              "QUEUE_AREA",
+              colors.QUEUE_AREA,
+              "LOAD_PAD",
+              colors.LOAD_PAD,
+              "DUMP_AREA",
+              colors.DUMP_AREA,
+              "ZONE_AREA",
+              colors.ZONE_AREA,
+              "#999999",
+            ],
+            "line-width": [
+              "case",
+              ["==", ["get", "zoneId"], activeZone],
+              4,
+              2,
+            ],
+          },
+        });
+      } else {
+        map.getSource("operation-zones").setData(zoneData);
+      }
+      if (!map.getLayer("operation-zones-label")) {
+        map.addLayer({
+          id: "operation-zones-label",
+          type: "symbol",
+          source: "operation-zones",
+          layout: {
+            "text-field": ["get", "name"],
+            "text-size": 12,
+            "text-font": ["DIN Pro Medium", "Arial Unicode MS Bold"],
+            "text-allow-overlap": true,
+            "text-ignore-placement": true,
+          },
+          paint: {
+            "text-color": "#f8fafc",
+            "text-halo-color": "#0f172a",
+            "text-halo-width": 1.25,
+          },
+        });
+      }
+
+      if (!hasFitBounds.current) {
+        const bounds = turfBbox(opData);
+        map.fitBounds(
+          [
+            [bounds[0], bounds[1]],
+            [bounds[2], bounds[3]],
+          ],
+          { padding: 80, duration: 700 }
+        );
+        hasFitBounds.current = true;
+      }
+    };
+
+    if (map.isStyleLoaded()) {
+      renderLayers();
+    }
+    map.on("load", renderLayers);
+    map.on("style.load", renderLayers);
+
+    return () => {
+      map.off("load", renderLayers);
+      map.off("style.load", renderLayers);
+    };
+  }, [operation, zones, activeZone]);
+
+  /* ---------------- DEVICE MARKERS ---------------- */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (!map.isStyleLoaded()) {
+      const onLoad = () => setDeviceRenderTick((prev) => prev + 1);
+      map.once("load", onLoad);
+      map.once("style.load", onLoad);
+      return () => {
+        map.off("load", onLoad);
+        map.off("style.load", onLoad);
+      };
     }
 
-    drawAll();
-  }, [operation, zones, devicesWithPos, activeZone]);
+    devicesWithPos.forEach((dev) => {
+      if (!dev.lat || !dev.lon) return;
+      const id = `dev-${dev.id}`;
+      let marker = markersRef.current.get(id);
+
+      if (!marker) {
+        const el = document.createElement("div");
+        marker = new mapboxgl.Marker({ element: el, anchor: "center" })
+          .setLngLat([dev.lon, dev.lat])
+          .addTo(map);
+        markersRef.current.set(id, marker);
+
+        const root = createRoot(el);
+        el._reactRoot = root;
+      } else {
+        marker.setLngLat([dev.lon, dev.lat]);
+      }
+
+      const el = marker.getElement();
+      const root = el._reactRoot;
+      if (!root) return;
+
+      root.render(
+        <div
+          style={{
+            position: "relative",
+            width: 60,
+            height: 80,
+            textAlign: "center",
+          }}
+          onMouseEnter={() => setHoveredDeviceId(dev.id)}
+          onMouseLeave={() => setHoveredDeviceId(null)}
+        >
+          {hoveredDeviceId === dev.id && (
+            <div
+              style={{
+                position: "absolute",
+                bottom: "100%",
+                left: "50%",
+                transform: "translate(-50%, -12px)",
+                pointerEvents: "none",
+                zIndex: 9999,
+              }}
+            >
+              <TruckInfoCard
+                device={dev}
+                kpi={deviceKPI[dev.flespi_device_id]}
+              />
+            </div>
+          )}
+
+          <VehicleMarker
+            type={dev.category}
+            deviceName={dev.device_name}
+            heading={dev.direction || 0}
+            direction={dev.direction}
+          />
+        </div>
+      );
+    });
+  }, [devicesWithPos, hoveredDeviceId, deviceKPI, deviceRenderTick]);
 
   /* ---------------- FOCUS ZONE ---------------- */
   const focusZone = (zone) => {
     const map = mapRef.current;
-    if (!map) return;
-
-    const layer = layersRef.current[`zone-${zone.id}`];
-    if (layer) {
-      map.fitBounds(layer.getBounds(), { padding: [40, 40] });
-      setActiveZone(zone.id);
-    }
+    if (!map || !zone?.geometry) return;
+    const bounds = turfBbox(zone.geometry);
+    map.fitBounds(
+      [
+        [bounds[0], bounds[1]],
+        [bounds[2], bounds[3]],
+      ],
+      { padding: 60, duration: 600 }
+    );
+    setActiveZone(zone.id);
   };
-
-  /* ---------------- DRAW EVERYTHING ---------------- */
-  const drawAll = () => {
-    const map = mapRef.current;
-
-    Object.values(layersRef.current).forEach((l) => map.removeLayer(l));
-    layersRef.current = {};
-
-    /* ---------------- OPERATION LAYER ---------------- */
-    const opLayer = L.geoJSON(operation.geometry, {
-      style: { color: "#8e44ad", weight: 3, fillOpacity: 0.05 },
-    }).addTo(map);
-
-    if (!hasFitBounds.current) {
-      map.fitBounds(opLayer.getBounds());
-      hasFitBounds.current = true;
-    }
-
-    layersRef.current.operation = opLayer;
-
-    /* ---------------- OPERATION NAME LABEL ---------------- */
-    const center = getPolygonCenter(operation.geometry);
-    if (center) {
-      const nameLabel = L.divIcon({
-        html: `<div style="
-          background: rgba(0,0,0,0.55);
-          color: white;
-          padding: 6px 14px;
-          border-radius: 6px;
-          font-size: 15px;
-          font-weight: bold;
-          pointer-events: none;
-          white-space: nowrap;
-        ">
-          ${operation.name || `Operation`}
-        </div>`,
-        className: "",
-      });
-
-      const marker = L.marker(center, { icon: nameLabel }).addTo(map);
-      layersRef.current.operationName = marker;
-    }
-
-    /* ---------------- ZONE LAYERS ---------------- */
-    zones.forEach((zone) => {
-      const layer = L.geoJSON(zone.geometry, {
-        style: {
-          color: activeZone === zone.id ? "#000" : colors[zone.zoneType],
-          weight: activeZone === zone.id ? 4 : 2,
-          fillOpacity: 0.25,
-        },
-      }).addTo(map);
-
-      layersRef.current[`zone-${zone.id}`] = layer;
-
-      /* ⭐ ZONE LABEL INSIDE POLYGON ⭐ */
-      const center = getPolygonCenter(zone.geometry);
-      if (center) {
-        const zoneLabel = L.divIcon({
-          html: `
-        <div style="
-          background: rgba(0,0,0,0.55);
-          color: white;
-          padding: 4px 8px;
-          border-radius: 5px;
-          font-size: 13px;
-          text-align:center;
-          pointer-events: none;
-          white-space: nowrap;
-        ">
-          ${zone.name}
-        </div>
-      `,
-          className: "",
-        });
-
-        const marker = L.marker(center, { icon: zoneLabel }).addTo(map);
-        layersRef.current[`zone-label-${zone.id}`] = marker;
-      }
-    });
-
-
-    /* ---------------- DEVICE MARKERS ---------------- */
-    devicesWithPos.forEach((dev) => {
-      if (!dev.lat || !dev.lon) return;
-
-      const elId = `dev-${dev.id}`;
-      const icon = L.divIcon({
-        html: `<div id="${elId}" style="position: relative;"></div>`,
-        className: "",
-        iconSize: [60, 80],
-        iconAnchor: [30, 40], // keep anchor centered regardless of hover content
-      });
-
-      let marker = layersRef.current[`dev-${dev.id}`];
-
-      if (!marker) {
-        marker = L.marker([dev.lat, dev.lon], { icon }).addTo(map);
-        layersRef.current[`dev-${dev.id}`] = marker;
-      } else {
-        marker.setLatLng([dev.lat, dev.lon]);
-      }
-
-      setTimeout(() => {
-        const el = document.getElementById(elId);
-        if (!el) return;
-
-        if (!el._reactRoot) el._reactRoot = createRoot(el);
-
-        el._reactRoot.render(
-          <div
-            style={{
-              position: "relative",
-              width: 60,
-              height: 80,
-              textAlign: "center",
-            }}
-            onMouseEnter={() => setHoveredDeviceId(dev.id)}
-            onMouseLeave={() => setHoveredDeviceId(null)}
-          >
-            {hoveredDeviceId === dev.id && (
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: "100%",
-                  left: "50%",
-                  transform: "translate(-50%, -12px)",
-                  pointerEvents: "none",
-                  zIndex: 9999,
-                }}
-              >
-                <TruckInfoCard
-                  device={dev}
-                  kpi={deviceKPI[dev.flespi_device_id]}
-                />
-              </div>
-            )}
-
-            <VehicleMarker
-              type={dev.category}
-              deviceName={dev.device_name}
-                heading={dev.direction || 0}
-              direction={dev.direction}
-            />
-          </div>
-        );
-      }, 0);
-    });
-  };
-
-
 
   return (
     <>
@@ -371,7 +507,7 @@ export default function OperationWithZonesMap() {
               border: "1px solid #ccc",
             }}
           >
-            ← Back
+            Back
           </button>
 
           <h3>Zones in Operation #{operationId}</h3>
@@ -406,8 +542,70 @@ export default function OperationWithZonesMap() {
         </div>
 
         {/* Map */}
-        <div style={{ flex: 1 }}>
-          <div id="operation-map" style={{ height: "100%", width: "100%" }} />
+        <div style={{ flex: 1, position: "relative" }}>
+          <div
+            ref={mapContainerRef}
+            style={{ height: "100%", width: "100%" }}
+          />
+
+          <div
+            style={{
+              position: "absolute",
+              top: 20,
+              right: 20,
+              zIndex: 9999,
+              width: 220,
+              padding: 12,
+              borderRadius: 14,
+              background: "rgba(15,23,42,0.65)",
+              border: "1px solid rgba(148,163,184,0.2)",
+              backdropFilter: "blur(10px)",
+              color: "#e2e8f0",
+              fontSize: 13,
+            }}
+          >
+            <div style={{ fontWeight: 600, marginBottom: 8 }}>Map Styles</div>
+            <div style={{ display: "grid", gap: 6 }}>
+              {STYLE_PRESETS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveStyleId(item.id)}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(148,163,184,0.3)",
+                    background:
+                      activeStyleId === item.id
+                        ? "linear-gradient(120deg, #38bdf8, #0ea5e9)"
+                        : "rgba(15,23,42,0.8)",
+                    color: activeStyleId === item.id ? "#0f172a" : "#e2e8f0",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 12, fontWeight: 600 }}>Layers</div>
+            <label
+              style={{
+                display: "flex",
+                gap: 8,
+                marginTop: 8,
+                alignItems: "center",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={showBuildings}
+                onChange={(event) => setShowBuildings(event.target.checked)}
+              />
+              3D Buildings
+            </label>
+          </div>
         </div>
       </div>
 

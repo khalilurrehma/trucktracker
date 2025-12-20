@@ -1,35 +1,15 @@
 import React, { useState, useRef } from "react";
-import L from "leaflet";
-import { TextField, InputAdornment, IconButton } from "@mui/material";
+import mapboxgl from "mapbox-gl";
+import { TextField } from "@mui/material";
+
+const MAPBOX_TOKEN =
+  "pk.eyJ1IjoibmV4dG9wbGRhIiwiYSI6ImNtamJndjZ5ajBka3MzZHJ6c2hycmR3MGgifQ.zFdt6Si2E-Yc92j93x2phA";
 
 const LocationSearchBox = ({ mapRef }) => {
   const [search, setSearch] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const timeoutRef = useRef(null);
-
-  const customIconRef = useRef(
-    L.divIcon({
-      className: "",
-      html: `
-        <div style="
-          width: 44px;
-          height: 44px;
-          border-radius: 50%;
-          background: #fff;
-          box-shadow: 0 4px 10px rgba(0,0,0,0.25);
-          display: grid;
-          place-items: center;
-          overflow: hidden;
-          border: 2px solid #2196f3;
-        ">
-          <img src="https://img.freepik.com/free-vector/location_53876-25530.jpg?semt=ais_hybrid&w=740&q=80" alt="marker" style="width: 60%; height: 60%; object-fit: contain;" />
-        </div>
-      `,
-      iconSize: [44, 44],
-      iconAnchor: [22, 42],
-      popupAnchor: [0, -38],
-    })
-  );
+  const markerRef = useRef(null);
 
   const handleSearch = (text) => {
     setSearch(text);
@@ -42,14 +22,14 @@ const LocationSearchBox = ({ mapRef }) => {
         return;
       }
 
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
         text
-      )}`;
+      )}.json?access_token=${MAPBOX_TOKEN}&autocomplete=true&limit=6`;
 
       try {
         const res = await fetch(url);
         const data = await res.json();
-        setSuggestions(data);
+        setSuggestions(data?.features || []);
       } catch (err) {
         console.error("Search error:", err);
       }
@@ -58,16 +38,38 @@ const LocationSearchBox = ({ mapRef }) => {
 
   const handleSelect = (place) => {
     setSuggestions([]);
-    setSearch(place.display_name);
-
-    const lat = parseFloat(place.lat);
-    const lon = parseFloat(place.lon);
+    setSearch(place.place_name);
 
     const map = mapRef.current;
     if (!map) return;
 
-    map.setView([lat, lon], 18);
-    L.marker([lat, lon], { icon: customIconRef.current }).addTo(map);
+    const [lng, lat] = place.center;
+    map.flyTo({
+      center: [lng, lat],
+      zoom: 17,
+      speed: 0.9,
+      curve: 1.2,
+      pitch: 60,
+      bearing: -18,
+    });
+
+    if (markerRef.current) markerRef.current.remove();
+
+    const markerEl = document.createElement("div");
+    markerEl.style.width = "46px";
+    markerEl.style.height = "46px";
+    markerEl.style.borderRadius = "50%";
+    markerEl.style.background = "radial-gradient(circle, #ffffff 60%, #c7e2ff 100%)";
+    markerEl.style.border = "2px solid #2b7de9";
+    markerEl.style.boxShadow = "0 10px 22px rgba(15,23,42,0.35)";
+    markerEl.style.display = "grid";
+    markerEl.style.placeItems = "center";
+    markerEl.innerHTML =
+      '<span style="width:14px;height:14px;border-radius:50%;background:#0f172a;display:block;"></span>';
+
+    markerRef.current = new mapboxgl.Marker({ element: markerEl })
+      .setLngLat([lng, lat])
+      .addTo(map);
   };
 
   return (
@@ -80,18 +82,26 @@ const LocationSearchBox = ({ mapRef }) => {
         zIndex: 99999,
         width: 400,
         maxWidth: "90%",
+        padding: 10,
+        borderRadius: 14,
+        background: "rgba(15,23,42,0.25)",
+        backdropFilter: "blur(8px)",
+        border: "1px solid rgba(148,163,184,0.25)",
       }}
     >
       <TextField
         fullWidth
-        label="Buscar ubicación"
+        label="Buscar ubicacion"
         variant="outlined"
         size="small"
         value={search}
         onChange={(e) => handleSearch(e.target.value)}
         sx={{
-          background: "transparent",
-          borderRadius: 1,
+          background: "rgba(255,255,255,0.92)",
+          borderRadius: 2,
+          "& .MuiOutlinedInput-notchedOutline": {
+            borderColor: "rgba(148,163,184,0.45)",
+          },
         }}
       />
 
@@ -104,7 +114,7 @@ const LocationSearchBox = ({ mapRef }) => {
             marginTop: 2,
             maxHeight: 250,
             overflowY: "auto",
-            boxShadow: "0px 2px 6px rgba(0,0,0,0.2)",
+            boxShadow: "0px 10px 24px rgba(15,23,42,0.25)",
           }}
         >
           {suggestions.map((item, i) => (
@@ -119,7 +129,7 @@ const LocationSearchBox = ({ mapRef }) => {
                 borderBottom: "1px solid #eee",
               }}
             >
-              {item.display_name}
+              {item.place_name}
             </div>
           ))}
         </div>

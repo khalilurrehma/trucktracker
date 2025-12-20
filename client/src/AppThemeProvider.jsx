@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { ThemeProvider, useMediaQuery } from '@mui/material';
 import { CacheProvider } from '@emotion/react';
@@ -27,7 +27,10 @@ const AppThemeProvider = ({ children }) => {
   const preferDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
   const darkMode = serverDarkMode !== undefined ? serverDarkMode : preferDarkMode;
 
-  const themeInstance = theme(server, darkMode, direction);
+  const themeInstance = useMemo(
+    () => theme(server, darkMode, direction),
+    [server, darkMode, direction]
+  );
 
   return (
     <CacheProvider value={cache[direction]}>

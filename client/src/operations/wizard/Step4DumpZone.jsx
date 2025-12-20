@@ -60,6 +60,7 @@ export default function Step4DumpZone({ goNext, goPrev }) {
   const classes = useSettingsStyles();
   const {
     operation,
+    queueZone,
     zoneArea,
     loadPadZone,
     dumpZone,
@@ -211,9 +212,23 @@ export default function Step4DumpZone({ goNext, goPrev }) {
                 zoneType="DUMP_AREA"
                 parentBoundary={operation?.geometry}
                 otherGeofences={[
-                  zoneArea && { geometry: zoneArea.geometry, zoneType: "ZONE_AREA" },
-                  loadPadZone && { geometry: loadPadZone.geometry, zoneType: "LOAD_PAD" },
-                ].filter(Boolean)}
+                  queueZone && {
+                    geometry: queueZone.geometry || queueZone.geofence?.geometry,
+                    zoneType: queueZone.zoneType || "QUEUE_AREA",
+                  },
+                  zoneArea && {
+                    geometry: zoneArea.geometry || zoneArea.geofence?.geometry,
+                    zoneType: zoneArea.zoneType || "ZONE_AREA",
+                  },
+                  loadPadZone && {
+                    geometry: loadPadZone.geometry || loadPadZone.geofence?.geometry,
+                    zoneType: loadPadZone.zoneType || "LOAD_PAD",
+                  },
+                  dumpZone && {
+                    geometry: dumpZone.geometry || dumpZone.geofence?.geometry,
+                    zoneType: dumpZone.zoneType || "DUMP_AREA",
+                  },
+                ].filter((item) => item?.geometry && item.zoneType !== "DUMP_AREA")}
                 onChange={(geo) =>
                   setZone((prev) => ({
                     ...prev,
