@@ -2,9 +2,7 @@ import React, { useState, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import { TextField } from "@mui/material";
 
-const MAPBOX_TOKEN =
-  "pk.eyJ1IjoibmV4dG9wbGRhIiwiYSI6ImNtamJndjZ5ajBka3MzZHJ6c2hycmR3MGgifQ.zFdt6Si2E-Yc92j93x2phA";
-
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || "";
 const LocationSearchBox = ({ mapRef }) => {
   const [search, setSearch] = useState("");
   const [suggestions, setSuggestions] = useState([]);

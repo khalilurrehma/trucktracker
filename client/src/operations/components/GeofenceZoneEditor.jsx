@@ -16,10 +16,8 @@ import {
 } from "@turf/turf";
 import LocationSearchBox from "@/operations/components/LocationSearchBox";
 import drawTheme from "@/map/draw/theme";
-
-const MAPBOX_TOKEN =
-  "pk.eyJ1IjoibmV4dG9wbGRhIiwiYSI6ImNtamJndjZ5ajBka3MzZHJ6c2hycmR3MGgifQ.zFdt6Si2E-Yc92j93x2phA";
-const DEFAULT_CENTER = [-77.0428, -12.0464];
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || "";
+const DEFAULT_CENTER = [-77.0429985, -12.021129];
 const STYLE_PRESETS = [
   { id: "streets", label: "Streets", style: "mapbox://styles/mapbox/streets-v12" },
   { id: "light", label: "Light", style: "mapbox://styles/mapbox/light-v11" },
@@ -42,8 +40,6 @@ const GeofenceZoneEditor = ({
   zoneType,
   circle,
 }) => {
-  console.log(otherGeofences);
-  
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
   const drawRef = useRef(null);
@@ -681,13 +677,7 @@ const GeofenceZoneEditor = ({
         }
       };
 
-      const buttons = group.querySelectorAll("button");
-      const trashButton = buttons[buttons.length - 1];
-      if (trashButton) {
-        group.insertBefore(button, trashButton);
-      } else {
-        group.appendChild(button);
-      }
+      group.appendChild(button);
     };
 
     const startControlObserver = () => {
@@ -881,6 +871,16 @@ const GeofenceZoneEditor = ({
     if (map.getSource("circle-preview")) map.removeSource("circle-preview");
   };
 
+  const toggleFullscreen = () => {
+    const container = mapRef.current?.getContainer();
+    if (!container) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.();
+      return;
+    }
+    container.requestFullscreen?.();
+  };
+
   return (
     <div
       style={{
@@ -902,6 +902,22 @@ const GeofenceZoneEditor = ({
             border-radius: 10px !important;
             box-shadow: 0 10px 22px rgba(15,23,42,0.3);
           }
+          .mapboxgl-ctrl-top-left .mapboxgl-ctrl-group {
+            margin: 0 !important;
+          }
+          .mapboxgl-ctrl-top-left .mapboxgl-ctrl-group + .mapboxgl-ctrl-group {
+            border-top-left-radius: 0 !important;
+            border-top-right-radius: 0 !important;
+            box-shadow: none;
+            border-top: 1px solid rgba(148,163,184,0.35);
+          }
+          .mapboxgl-ctrl-top-left .mapboxgl-ctrl-group:not(:last-child) {
+            border-bottom-left-radius: 0 !important;
+            border-bottom-right-radius: 0 !important;
+          }
+          .mapboxgl-ctrl-group .circle-draw-button {
+            border-top: 1px solid rgba(148,163,184,0.35);
+          }
         `}
       </style>
       <LocationSearchBox mapRef={mapRef} />
@@ -912,7 +928,7 @@ const GeofenceZoneEditor = ({
           top: 20,
           right: 20,
           zIndex: 99999,
-          width: panelOpen ? 220 : 44,
+          width: panelOpen ? 220 : 96,
           padding: panelOpen ? 12 : 6,
           borderRadius: 14,
           background: "rgba(15,23,42,0.65)",
@@ -923,22 +939,74 @@ const GeofenceZoneEditor = ({
           transition: "width 0.2s ease",
         }}
       >
-        <button
-          type="button"
-          onClick={() => setPanelOpen((prev) => !prev)}
-          style={{
-            width: "100%",
-            height: 32,
-            borderRadius: 10,
-            border: "1px solid rgba(148,163,184,0.35)",
-            background: "rgba(15,23,42,0.8)",
-            color: "#e2e8f0",
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
-          {panelOpen ? "Hide" : "Layers"}
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            title="Fullscreen"
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 10,
+              border: "1px solid rgba(148,163,184,0.35)",
+              background: "rgba(15,23,42,0.8)",
+              color: "#e2e8f0",
+              display: "grid",
+              placeItems: "center",
+              cursor: "pointer",
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M4 9V4h5" />
+              <path d="M20 9V4h-5" />
+              <path d="M4 15v5h5" />
+              <path d="M20 15v5h-5" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPanelOpen((prev) => !prev)}
+            title="Layers"
+            style={{
+              flex: 1,
+              height: 32,
+              borderRadius: 10,
+              border: "1px solid rgba(148,163,184,0.35)",
+              background: "rgba(15,23,42,0.8)",
+              color: "#e2e8f0",
+              fontWeight: 600,
+              display: "grid",
+              placeItems: "center",
+              cursor: "pointer",
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 3 3 8l9 5 9-5-9-5z" />
+              <path d="M3 12l9 5 9-5" />
+              <path d="M3 16l9 5 9-5" />
+            </svg>
+          </button>
+        </div>
 
         {panelOpen && (
           <>

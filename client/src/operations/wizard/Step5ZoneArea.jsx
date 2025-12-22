@@ -1,5 +1,5 @@
 // src/operations/wizard/Step5ZoneArea.jsx
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Accordion,
   AccordionSummary,
@@ -170,6 +170,34 @@ export default function Step5ZoneArea({ goNext, goPrev }) {
   };
 
   const metaFields = META_FIELDS[zone.zoneType] || [];
+  const otherGeofences = useMemo(
+    () =>
+      [
+        queueZone && {
+          geometry: queueZone.geometry || queueZone.geofence?.geometry,
+          zoneType: queueZone.zoneType || "QUEUE_AREA",
+        },
+        loadPadZone && {
+          geometry: loadPadZone.geometry || loadPadZone.geofence?.geometry,
+          zoneType: loadPadZone.zoneType || "LOAD_PAD",
+        },
+        dumpZone && {
+          geometry: dumpZone.geometry || dumpZone.geofence?.geometry,
+          zoneType: dumpZone.zoneType || "DUMP_AREA",
+        },
+        zoneArea && {
+          geometry: zoneArea.geometry || zoneArea.geofence?.geometry,
+          zoneType: zoneArea.zoneType || "ZONE_AREA",
+        },
+      ].filter((item) => item?.geometry && item.zoneType !== "ZONE_AREA"),
+    [queueZone, loadPadZone, dumpZone, zoneArea]
+  );
+  const handleGeofenceChange = useCallback((geo) => {
+    setZone((prev) => ({
+      ...prev,
+      geofence: geo,
+    }));
+  }, [setZone]);
 
   return (
     <PageLayout
@@ -221,30 +249,8 @@ export default function Step5ZoneArea({ goNext, goPrev }) {
                 circle={circle}
                 zoneType="ZONE_AREA"
                 parentBoundary={operation?.geometry}
-                otherGeofences={[
-                  queueZone && {
-                    geometry: queueZone.geometry || queueZone.geofence?.geometry,
-                    zoneType: queueZone.zoneType || "QUEUE_AREA",
-                  },
-                  loadPadZone && {
-                    geometry: loadPadZone.geometry || loadPadZone.geofence?.geometry,
-                    zoneType: loadPadZone.zoneType || "LOAD_PAD",
-                  },
-                  dumpZone && {
-                    geometry: dumpZone.geometry || dumpZone.geofence?.geometry,
-                    zoneType: dumpZone.zoneType || "DUMP_AREA",
-                  },
-                  zoneArea && {
-                    geometry: zoneArea.geometry || zoneArea.geofence?.geometry,
-                    zoneType: zoneArea.zoneType || "ZONE_AREA",
-                  },
-                ].filter((item) => item?.geometry && item.zoneType !== "ZONE_AREA")}
-                onChange={(geo) =>
-                  setZone((prev) => ({
-                    ...prev,
-                    geofence: geo,
-                  }))
-                }
+                otherGeofences={otherGeofences}
+                onChange={handleGeofenceChange}
               />
             </div>
 

@@ -11,6 +11,11 @@ import {
     assignCalculatorToGeofence
 } from "../../services/flespiApis.js";
 
+const toNumberOrDefault = (value, fallback = 0) => {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+};
+
 function toFlespiGeometry(geometry) {
   if (!geometry) return null;
 
@@ -67,10 +72,10 @@ export const createOperation = async (operation) => {
         user_id,
     } = operation;
 
-    const DayVolumeM3Goal = parseFloat(day_volume_m3_goal);
-    const opMaxSpeedKmh = parseFloat(op_max_speed_kmh);
-    const opTotalBankVolumeM3 = parseFloat(op_total_bank_volume_m3);
-    const opSwellFactor = parseFloat(op_swell_factor);
+    const DayVolumeM3Goal = toNumberOrDefault(day_volume_m3_goal);
+    const opMaxSpeedKmh = toNumberOrDefault(op_max_speed_kmh);
+    const opTotalBankVolumeM3 = toNumberOrDefault(op_total_bank_volume_m3);
+    const opSwellFactor = toNumberOrDefault(op_swell_factor);
     const geometryStr = JSON.stringify(geometry);
 
     const sql = `
@@ -167,7 +172,7 @@ export const createOperation = async (operation) => {
 // =====================================================
 // UPDATE OPERATION  ➜  also update Flespi geofence
 // =====================================================
- export const updateOperation = async (id, operation) => {
+export const updateOperation = async (id, operation) => {
     const {
         name,
         geometry,
@@ -201,10 +206,10 @@ export const createOperation = async (operation) => {
         JSON.stringify(geometry),
         area_sqm,
         area_ha,
-        parseFloat(op_max_speed_kmh),
-        parseFloat(op_total_bank_volume_m3),
-        parseFloat(day_volume_m3_goal),
-        parseFloat(op_swell_factor),
+        toNumberOrDefault(op_max_speed_kmh),
+        toNumberOrDefault(op_total_bank_volume_m3),
+        toNumberOrDefault(day_volume_m3_goal),
+        toNumberOrDefault(op_swell_factor),
         id,
     ];
 

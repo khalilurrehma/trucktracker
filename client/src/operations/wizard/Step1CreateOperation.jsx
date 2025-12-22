@@ -1,5 +1,5 @@
 // src/operations/wizard/Step1CreateOperation.jsx
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import {
   Accordion,
@@ -119,6 +119,13 @@ export default function Step1CreateOperation({ goNext }) {
     goNext("create-operation");
   };
 
+  const handleGeofenceChange = useCallback((result) => {
+    setAttributes((prev) => ({
+      ...prev,
+      geofence: result,
+    }));
+  }, [setAttributes]);
+
   return (
     <PageLayout
       menu={<OperationsMenu />}
@@ -142,18 +149,13 @@ export default function Step1CreateOperation({ goNext }) {
             />
             <CircleInputs circle={circle} setCircle={setCircle} />
             <div style={{ marginTop: 40, width: "100%" }}>
-              <Typography variant="subtitle1" sx={{ mb: 2 }}>
+              <Typography variant="subtitle1" style={{ marginBottom: 18 }}>
                 Operation Area
               </Typography>
 
               <GeofenceEditor
                 value={attributes.geofence}
-                onChange={(result) =>
-                  setAttributes((prev) => ({
-                    ...prev,
-                    geofence: result,
-                  }))
-                }
+                onChange={handleGeofenceChange}
                 circle={circle}
               />
             </div>
