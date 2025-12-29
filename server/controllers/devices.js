@@ -45,7 +45,10 @@ import { extractDefaultCalcsId } from "../model/calculator.js";
 import { fetchAllNotificationLogs } from "../model/notifications.js";
 import { newDeviceInUsageControl } from "../model/usageControl.js";
 import { s3 } from "../services/azure.s3.js";
-import { flespiDeviceLiveLocation } from "../services/flespiApis.js";
+import {
+  createFlespiDeviceIfNotExists,
+  flespiDeviceLiveLocation,
+} from "../services/flespiApis.js";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
 import timezone from "dayjs/plugin/timezone.js";
@@ -59,6 +62,19 @@ const traccarBearerToken = process.env.TraccarToken;
 const traccarApiUrl = `http://${process.env.TraccarPort}/api`;
 const flespiToken = process.env.FlespiToken;
 const flespiApiUrl = `https://flespi.io/gw`;
+const FLESPI_CALCULATOR_IDS = [
+  2181549,
+  2181582,
+  2193941,
+  2193946,
+  2194117,
+  2194137,
+  2194144,
+  2194146,
+  2194152,
+  2194154,
+  2214462,
+];
 
 export const addNewDevice = async (req, res) => {
   let masterTokenCalcsId = [];
@@ -304,20 +320,14 @@ export const addNewDevice = async (req, res) => {
         data: responses,
       });
     } else {
-      const flespiResponse = await axios.post(
-        `${flespiApiUrl}/devices?fields=id%2Cname%2Cconfiguration%2Cmetadata%2Cdevice_type_id%2Cdevice_type_name%2Cprotocol_id%2Cprotocol_name`,
-        [flespiRequestData],
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: isSuperAdmin
-              ? flespiToken
-              : requestData.flespiUserToken,
-          },
-        }
-      );
+      const flespiResponse = await createFlespiDeviceIfNotExists({
+        name: flespiRequestData.name,
+        uniqueId: flespiRequestData.configuration?.ident,
+        configuration: flespiRequestData.configuration,
+        deviceTypeId: flespiRequestData.device_type_id,
+      });
 
-      let deviceId = flespiResponse.data.result[0].id;
+      let deviceId = flespiResponse.result.id;
 
       mergedCalculatorIds = [...masterTokenCalcsId, ...defaultCalcId];
 
@@ -330,6 +340,19 @@ export const addNewDevice = async (req, res) => {
             headers: {
               "Content-Type": "application/json",
               Authorization: flespiToken,
+            },
+          }
+        );
+      }
+
+      if (deviceId && FLESPI_CALCULATOR_IDS.length > 0) {
+        await axios.post(
+          `https://flespi.io/gw/calcs/${FLESPI_CALCULATOR_IDS}/devices/${deviceId}`,
+          null,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `FlespiToken ${flespiToken}`,
             },
           }
         );
@@ -364,7 +387,7 @@ export const addNewDevice = async (req, res) => {
         password: req.body.password,
         traccar: traccarResponse.data,
         flespi: {
-          ...flespiResponse.data.result[0],
+          ...flespiResponse.result,
           media_ttl: req.body.media_ttl !== undefined ? req.body.media_ttl : 3,
           messages_ttl:
             req.body.messages_ttl !== undefined ? req.body.messages_ttl : 3,
@@ -803,6 +826,19 @@ export const updateNewDevice = async (req, res) => {
         }
       ),
     ]);
+
+    if (device.flespiId && FLESPI_CALCULATOR_IDS.length > 0) {
+      await axios.post(
+        `https://flespi.io/gw/calcs/${FLESPI_CALCULATOR_IDS}/devices/${device.flespiId}`,
+        null,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `FlespiToken ${flespiToken}`,
+          },
+        }
+      );
+    }
 
     const responses = {
       traccar: traccarResponse.data,

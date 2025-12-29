@@ -194,6 +194,7 @@ const CustomReport = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [showMap, setShowMap] = useState(false);
+console.log(reportId);
 
   const handleShowRoute = (route) => {
     setSelectedRoute(route);
@@ -225,6 +226,7 @@ const CustomReport = () => {
 
   const formatValue = (key, value, language = "en") => {
     if (value == null) return "N/A";
+    if (typeof value === "object") return JSON.stringify(value);
 
     if (["date", "timestamp", "begin", "end"].includes(key)) {
       return formatAnyDate(value, language);

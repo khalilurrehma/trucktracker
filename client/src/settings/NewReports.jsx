@@ -47,7 +47,7 @@ const useStyles = makeStyles((theme) => ({
 
 const CreateReportPage = () => {
   const params = useParams();
-  const { reports, traccarUser, allCalcs } = useAppContext();
+  const { reports } = useAppContext();
   const classes = useStyles();
   const t = useTranslation();
   const navigate = useNavigate();
@@ -60,6 +60,7 @@ const CreateReportPage = () => {
   const [selectAll, setSelectAll] = useState(false);
 
   const [selectedFlespiCalcs, setSelectedFlespiCalcs] = useState(null);
+  const [flespiCalcsOptions, setFlespiCalcsOptions] = useState([]);
   const [selectedIcon, setSelectedIcon] = useState("");
   const [selectedDevices, setSelectedDevices] = useState([]);
   const [flespiDevices, setFlespiDevices] = useState([]);
@@ -67,8 +68,6 @@ const CreateReportPage = () => {
   // useEffect(() => {
   //   console.log("selected Devices : ", selectedDevices);
   // }, [selectedDevices]);
-
-  console.log(allCalcs);
 
   let url;
   if (import.meta.env.DEV) {
@@ -92,10 +91,25 @@ const CreateReportPage = () => {
     if (params.reportId) {
       fetchReport(params.reportId);
     }
-    // fetchCalcs();
+    fetchCalcs();
     // fetchDevices();
   }, []);
-
+  const fetchCalcs = async () => {
+    setLoading(true);
+    console.log(123);
+    
+    try {
+      const { data } = await axios.get(`${url}/calcs`);
+      // console.log("flespi calcs data: ", data);
+      if (data.status) {
+        setFlespiCalcsOptions(data.message || []);
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => {
     // console.log(report);
     setReportName(report?.name);
@@ -272,8 +286,8 @@ const CreateReportPage = () => {
 
               <Autocomplete
                 id="flespiCalcs"
-                options={allCalcs}
-                getOptionLabel={(option) => `${option.name} - ${option.type}`}
+                options={flespiCalcsOptions}
+                getOptionLabel={(option) => option?.name || ""}
                 value={selectedFlespiCalcs}
                 onChange={(e, values) => setSelectedFlespiCalcs(values)}
                 renderInput={(params) => (

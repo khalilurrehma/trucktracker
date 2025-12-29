@@ -149,7 +149,6 @@ const CustomCalcReports = () => {
           //   value={searchQuery}
           //   onChange={(e) => setSearchQuery(e.target.value)}
         />
-
         <Button
           variant="outlined"
           //   onClick={handleExportExcel}

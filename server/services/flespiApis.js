@@ -246,6 +246,49 @@ export const getDevicesByType = async (deviceTypeId) => {
   }
 };
 
+export const createFlespiDeviceIfNotExists = async ({
+  name,
+  uniqueId,
+  configuration = {},
+  deviceTypeId = 0,
+}) => {
+  if (!uniqueId) {
+    throw new Error("uniqueId is required to create a Flespi device");
+  }
+
+  const headers = {
+    Authorization: `FlespiToken ${FlespiToken}`,
+    "Content-Type": "application/json",
+  };
+
+  const searchUrl = `${flespiUrl}/devices/configuration.ident=${encodeURIComponent(
+    uniqueId
+  )}?fields=id%2Cname%2Cconfiguration%2Cdevice_type_id%2Cdevice_type_name%2Cprotocol_id%2Cprotocol_name`;
+
+  const searchResponse = await axios.get(searchUrl, { headers });
+  const existingDevice = searchResponse.data?.result?.[0];
+
+  if (existingDevice) {
+    return { existed: true, result: existingDevice };
+  }
+
+  const createBody = [
+    {
+      name,
+      configuration: { ...configuration, ident: uniqueId },
+      device_type_id: deviceTypeId,
+    },
+  ];
+
+  const createResponse = await axios.post(
+    `${flespiUrl}/devices?fields=id%2Cname%2Cconfiguration%2Cdevice_type_id%2Cdevice_type_name%2Cprotocol_id%2Cprotocol_name`,
+    createBody,
+    { headers }
+  );
+
+  return { existed: false, result: createResponse.data.result[0] };
+};
+
 export const createRealm = async (cid, body) => {
   try {
     const headers = {
