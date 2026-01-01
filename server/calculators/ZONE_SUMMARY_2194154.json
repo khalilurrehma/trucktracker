@@ -1,0 +1,78 @@
+{
+  "intervals_ttl": 31536000,
+  "update_delay": 30,
+  "update_period": 864000,
+  "update_onchange": true,
+  "messages_source": {
+    "source": "calc",
+    "calc_id": 2194144
+  },
+  "id": 2194154,
+  "validate_message": "",
+  "validate_interval": "",
+  "name": "ZONE_SUMMARY",
+  "selectors": [
+    {
+      "split": "day",
+      "type": "datetime"
+    }
+  ],
+  "cid": 2208001,
+  "intervals_rotate": 0,
+  "counters": [
+    {
+      "calc_id": 2194144,
+      "fields": [
+        {
+          "aggregate": "summary",
+          "name": "zone_total_volume_m3"
+        }
+      ],
+      "method": "aggregate",
+      "name": "daily_zone_volume_data",
+      "type": "calc"
+    },
+    {
+      "expression": "daily_zone_volume_data['zone_total_volume_m3']",
+      "name": "zone_material_moved_today",
+      "type": "interval"
+    },
+    {
+      "counter": "zone_material_moved_today",
+      "name": "zone_total_material_moved_m3",
+      "type": "accumulator"
+    },
+    {
+      "name": "day_increment",
+      "type": "specified",
+      "value": 1
+    },
+    {
+      "counter": "day_increment",
+      "name": "total_days",
+      "type": "accumulator"
+    },
+    {
+      "expression": "geofence('metadata.zone_bank_volume_m3') * (1 + (geofence('metadata.zone_bank_swell_factor') / 100))",
+      "name": "zone_operation_total_m3",
+      "type": "interval"
+    },
+    {
+      "expression": "zone_operation_total_m3 - zone_total_material_moved_m3",
+      "name": "zone_remaining_material_m3",
+      "type": "interval"
+    },
+    {
+      "expression": "zone_total_material_moved_m3 / total_days",
+      "name": "zone_avg_daily_volume_m3",
+      "type": "interval"
+    },
+    {
+      "expression": "if(zone_avg_daily_volume_m3 > 0, (zone_remaining_material_m3 / zone_avg_daily_volume_m3) * 24, 0)",
+      "name": "zone_ETA_completion_h",
+      "type": "interval"
+    }
+  ],
+  "timezone": "America/Lima",
+  "version": 1
+}

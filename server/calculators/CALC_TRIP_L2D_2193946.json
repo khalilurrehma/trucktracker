@@ -1,0 +1,120 @@
+{
+  "intervals_ttl": 31536000,
+  "update_delay": 30,
+  "update_period": 864000,
+  "update_onchange": true,
+  "messages_source": {
+    "source": "device"
+  },
+  "id": 2193946,
+  "validate_message": "",
+  "validate_interval": "$from_geofence == 'LOAD_PAD' && $to_geofence == 'DUMP_AREA'",
+  "name": "CALC_TRIP_L2D",
+  "selectors": [
+    {
+      "expression": "geofence('priority') == 10",
+      "merge_message_after": true,
+      "merge_message_before": true,
+      "merge_unknown": true,
+      "method": "boolean",
+      "type": "expression"
+    }
+  ],
+  "cid": 2208001,
+  "intervals_rotate": 0,
+  "counters": [
+    {
+      "expression": "geofence()",
+      "method": "first",
+      "name": "from_geofence",
+      "type": "expression"
+    },
+    {
+      "expression": "geofence()",
+      "method": "last",
+      "name": "to_geofence",
+      "type": "expression"
+    },
+    {
+      "expression": "duration/60",
+      "name": "L2D_duration",
+      "type": "interval"
+    },
+    {
+      "expression": "if(duration >= 3600, tostring(floor(duration/3600)) + 'h ' + tostring(floor((duration%3600)/60)) + 'm ' + tostring(floor(duration%60)) + 's', tostring(floor(duration/60)) + 'm ' + tostring(floor(duration%60)) + 's')",
+      "name": "L2D_duration_formated",
+      "type": "interval"
+    },
+    {
+      "expression": "mileage()",
+      "method": "summary",
+      "name": "L2D_distance",
+      "type": "expression"
+    },
+    {
+      "expression": "if(exists('inspector_fill_factor'), $inspector_fill_factor, metadata('vehicle_fill_factor_ideal'))",
+      "method": "first",
+      "name": "fill_factor",
+      "type": "expression"
+    },
+    {
+      "expression": "metadata('vehicle_capacity_m3') * fill_factor",
+      "name": "trip_volume_m3",
+      "type": "interval"
+    },
+    {
+      "name": "trip_increment",
+      "type": "specified",
+      "value": 1
+    },
+    {
+      "counter": "trip_increment",
+      "name": "L2D_trip_count",
+      "reset_interval": "day",
+      "type": "accumulator"
+    },
+    {
+      "expression": "position.speed",
+      "method": "average",
+      "name": "L2D_avg_speed",
+      "type": "expression",
+      "validate_message": "movement.status == TRUE"
+    },
+    {
+      "expression": "engine.inginition.status == true && position.speed < 2",
+      "method": "duration",
+      "name": "L2D_idle_time",
+      "type": "expression"
+    },
+    {
+      "expression": "if($position.speed < 3 && previous('position.speed') >= 3, 1, 0)",
+      "method": "summary",
+      "name": "L2D_stops_during_trip",
+      "type": "expression"
+    },
+    {
+      "expression": "if(geofence() == 'ZONE_AREA', geofence('metadata.zone_max_speed_kmh'), geofence('metadata.op_max_speed_kmh'))",
+      "method": "maximum",
+      "name": "zone_speed_limit",
+      "type": "expression"
+    },
+    {
+      "expression": "if(geofence('priority') == 10, 'ZONE_AREA', 'OP_AREA')",
+      "method": "last",
+      "name": "zone_geofence",
+      "type": "expression"
+    },
+    {
+      "expression": "(L2D_distance / zone_speed_limit) * 3600",
+      "name": "L2D_ideal_trip_duration",
+      "type": "interval"
+    },
+    {
+      "expression": "min((L2D_ideal_trip_duration / L2D_duration) * 100, 100)",
+      "name": "L2D_trip_efficiency",
+      "type": "interval"
+    }
+  ],
+  "timezone": "America/Lima",
+  "version": 30
+}

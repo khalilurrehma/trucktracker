@@ -1,0 +1,80 @@
+{
+  "intervals_ttl": 31536000,
+  "update_delay": 30,
+  "update_period": 864000,
+  "update_onchange": true,
+  "messages_source": {
+    "source": "device"
+  },
+  "id": 2194183,
+  "validate_message": "",
+  "validate_interval": "",
+  "name": "CALC_LOADERS_PAD",
+  "selectors": [
+    {
+      "expression": "geofence() == 'LOAD_PAD' || geofence() == 'ZONE_AREA' || geofence() == 'OP_AREA'",
+      "max_messages_time_diff": 300,
+      "merge_message_after": true,
+      "merge_unknown": true,
+      "method": "boolean",
+      "type": "expression"
+    }
+  ],
+  "cid": 2208001,
+  "intervals_rotate": 0,
+  "counters": [
+    {
+      "expression": "geofence()",
+      "method": "first",
+      "name": "geofence_name",
+      "type": "expression"
+    },
+    {
+      "method": "first",
+      "name": "start_time",
+      "parameter": "timestamp",
+      "type": "parameter"
+    },
+    {
+      "method": "last",
+      "name": "end_time",
+      "parameter": "timestamp",
+      "type": "parameter"
+    },
+    {
+      "expression": "$engine.ignition.status == true && $movement.status == false",
+      "method": "duration",
+      "name": "idle_time",
+      "type": "expression"
+    },
+    {
+      "expression": "if(geofence() == 'LOAD_PAD' && $movement.status == false && previous('movement.status') == true, 1, 0)",
+      "method": "summary",
+      "name": "trip_count",
+      "type": "expression"
+    },
+    {
+      "expression": "idle_time > metadata(idle_max_time_alert)",
+      "name": "idle_alert",
+      "type": "interval"
+    },
+    {
+      "method": "first",
+      "name": "position_latitude",
+      "parameter": "position.latitude",
+      "type": "parameter"
+    },
+    {
+      "method": "first",
+      "name": "position_longitude",
+      "parameter": "position.longitude",
+      "type": "parameter"
+    },
+    {
+      "name": "active",
+      "type": "active"
+    }
+  ],
+  "timezone": "America/Lima",
+  "version": 5
+}

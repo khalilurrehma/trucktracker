@@ -49,6 +49,7 @@ const AppContextProvider = ({ children }) => {
   const [mqttDeviceDin, setDeviceDin] = useState([]);
   const [mqttOperationStats, setMqttOperationStats] = useState([]);
   const [mqttGeofences, setMqttGeofences] = useState([]);
+  const [mqttCalculatorIntervals, setMqttCalculatorIntervals] = useState([]);
 
 
   const [updateCronLogs, setUpdateCronLogs] = useState([]);
@@ -68,14 +69,31 @@ const AppContextProvider = ({ children }) => {
       setMqttDriverBehaivor((prev) => [...prev, newMessage]);
     } else if (stateType === "deviceLiveLocation") {
       setDeviceLiveLocation((prev) => {
-        const index = prev.findIndex((p) => p.deviceId === newMessage.deviceId);
+        const normalizedValue =
+          newMessage?.value ??
+          (newMessage?.latitude !== undefined && newMessage?.longitude !== undefined
+            ? {
+              latitude: newMessage.latitude,
+              longitude: newMessage.longitude,
+              direction: newMessage.direction,
+            }
+            : null);
+
+        if (!normalizedValue) return prev;
+
+        const normalized = {
+          deviceId: newMessage.deviceId,
+          value: normalizedValue,
+        };
+
+        const index = prev.findIndex((p) => p.deviceId === normalized.deviceId);
 
         if (index !== -1) {
           const updated = [...prev];
-          updated[index] = newMessage;
+          updated[index] = normalized;
           return updated;
         }
-        return [...prev, newMessage];
+        return [...prev, normalized];
       });
     } else if (stateType === "deviceDin") {
       setDeviceDin((prev) => {
@@ -148,6 +166,19 @@ const AppContextProvider = ({ children }) => {
         }
 
         // ✅ Add new entry if device not found
+        return [...prev, newMessage];
+      });
+    } else if (stateType === "calculatorIntervals") {
+      setMqttCalculatorIntervals((prev) => {
+        const deviceId = newMessage?.deviceId;
+        if (!deviceId) return prev;
+
+        const index = prev.findIndex((p) => p.deviceId === deviceId);
+        if (index !== -1) {
+          const updated = [...prev];
+          updated[index] = { ...updated[index], ...newMessage };
+          return updated;
+        }
         return [...prev, newMessage];
       });
     };
@@ -497,6 +528,7 @@ const AppContextProvider = ({ children }) => {
         mqttDeviceDin,
         mqttDeviceIgnitionStatus,
         mqttDeviceConnected,
+        mqttCalculatorIntervals,
         updateCronLogs,
         subprocessEvents,
         liveSuggestedServices,

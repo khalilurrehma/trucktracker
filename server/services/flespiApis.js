@@ -580,6 +580,27 @@ export const assignGeofenceToDevice = async (deviceId, geofenceId) => {
     throw err;
   }
 };
+export const deleteFlespiCalculator = async (calcId) => {
+  try {
+    const encodedId = encodeURIComponent(calcId);
+    const { data } = await axios.delete(
+      `${flespiUrl}/calcs/${encodedId}`,
+      {
+        headers: {
+          Authorization: `FlespiToken ${FlespiToken}`,
+        },
+      }
+    );
+    return data.result;
+  } catch (error) {
+    console.error(
+      `Error deleting calculator (${calcId}):`,
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
 
 
 

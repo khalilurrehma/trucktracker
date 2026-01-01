@@ -1,0 +1,110 @@
+{
+  "intervals_ttl": 31536000,
+  "update_delay": 30,
+  "update_period": 864000,
+  "update_onchange": true,
+  "messages_source": {
+    "source": "calc",
+    "calc_id": 2194137
+  },
+  "id": 2194144,
+  "validate_message": "",
+  "validate_interval": "",
+  "name": "ZONE_CALCULATOR",
+  "selectors": [
+    {
+      "split": "day",
+      "type": "datetime"
+    }
+  ],
+  "cid": 2208001,
+  "intervals_rotate": 0,
+  "counters": [
+    {
+      "calc_id": 2194137,
+      "fields": [
+        {
+          "aggregate": "summary",
+          "name": "cycle_duration"
+        },
+        {
+          "aggregate": "summary",
+          "name": "cycle_distance"
+        },
+        {
+          "aggregate": "summary",
+          "name": "cycle_idle"
+        },
+        {
+          "aggregate": "summary",
+          "name": "cycle_efficiency"
+        },
+        {
+          "aggregate": "summary",
+          "name": "cycle_volume_m3"
+        },
+        {
+          "aggregate": "summary",
+          "expression": "1",
+          "name": "cycle_count"
+        }
+      ],
+      "method": "aggregate",
+      "name": "zone_cycles",
+      "type": "calc",
+      "validate_interval": "zone == 'ZONE_AREA'"
+    },
+    {
+      "expression": "zone_cycles['cycle_duration'] / zone_cycles['cycle_count']",
+      "name": "zone_avg_cycle_duration",
+      "type": "interval"
+    },
+    {
+      "expression": "zone_cycles['cycle_distance'] / zone_cycles['cycle_count']",
+      "name": "zone_avg_cycle_distance",
+      "type": "interval"
+    },
+    {
+      "expression": "zone_cycles['cycle_idle'] / zone_cycles['cycle_count']",
+      "name": "zone_avg_cycle_idle",
+      "type": "interval"
+    },
+    {
+      "expression": "zone_cycles['cycle_efficiency'] / zone_cycles['cycle_count']",
+      "name": "zone_avg_cycle_efficiency",
+      "type": "interval"
+    },
+    {
+      "expression": "zone_cycles['cycle_count']",
+      "name": "zone_total_l2d_trips",
+      "type": "interval"
+    },
+    {
+      "expression": "zone_cycles['cycle_volume_m3']",
+      "name": "zone_total_volume_m3",
+      "type": "interval"
+    },
+    {
+      "calc_id": 2194137,
+      "fields": [
+        "device.id",
+        {
+          "aggregate": "summary",
+          "expression": "1",
+          "name": "count"
+        }
+      ],
+      "method": "aggregate_by_field",
+      "name": "vehicle_list",
+      "type": "calc",
+      "validate_interval": "zone == 'ZONE_AREA'"
+    },
+    {
+      "expression": "json_array_count($vehicle_list)",
+      "name": "zone_vehicle_count",
+      "type": "interval"
+    }
+  ],
+  "timezone": "America/Lima",
+  "version": 2
+}

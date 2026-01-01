@@ -15,22 +15,21 @@ const client = mqtt.connect(MQTT_BROKER, {
 
 export const mqttEmitter = new EventEmitter();
 const subscribedTopics = new Set();
-
 // MQTT TOPICS:
 const topics = [
   ...subscribed_notifications_topics,
-  { topic: "flespi/interval/gw/calcs/1740759/devices/+/activated,deactivated" }, // DOUT Status Monitor - not in use rightnow
+  // { topic: "flespi/interval/gw/calcs/1740759/devices/+/activated,deactivated" }, // DOUT Status Monitor - not in use rightnow
+  // {
+  //   topic: "flespi/interval/gw/calcs/1742074/devices/+/created,updated,deleted", // Default - Reports - Events
+  // },
+  // {
+  //   topic: "flespi/interval/gw/calcs/1742077/devices/+/created,updated,deleted", // Default - Reports - Driver Behaivor
+  // },
+  // {
+  //   topic: "flespi/interval/gw/calcs/2194137/devices/+/created,updated,deleted", // Default - Reports - Driver Behaivor
+  // },
   {
-    topic: "flespi/interval/gw/calcs/1742074/devices/+/created,updated,deleted", // Default - Reports - Events
-  },
-  {
-    topic: "flespi/interval/gw/calcs/2194137/devices/+/created,updated,deleted", // Default - Operations - Alarms
-  },
-  {
-    topic: "flespi/interval/gw/calcs/1742077/devices/+/created,updated,deleted", // Default - Reports - Driver Behaivor
-  },
-  {
-    topic: "flespi/interval/gw/calcs/2194137/devices/+/created,updated,deleted", // Default - Reports - Driver Behaivor
+    topic: "flespi/interval/gw/calcs/+/devices/+/created,updated,deleted",
   },
   {
     topic: "flespi/interval/gw/calcs/1766118/devices/+/+", // Default - Geofence

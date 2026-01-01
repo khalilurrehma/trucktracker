@@ -16,9 +16,32 @@ import {
   operationCalculator,
 } from "../services/topic.handlers.js";
 import { mqttEmitter } from "./mqtt.client.js";
+import { getAllCalculatorIds } from "../model/calculatorAssignments.js";
 
 let broadcast;
 let broadcastToDriver;
+let cachedCalcIds = new Set();
+let lastCalcIdsRefresh = 0;
+const CALC_CACHE_TTL_MS = 60 * 1000;
+
+const refreshCalcIdsCache = async () => {
+  const now = Date.now();
+  if (now - lastCalcIdsRefresh < CALC_CACHE_TTL_MS) return;
+
+  const calcIds = await getAllCalculatorIds();
+  cachedCalcIds = new Set(calcIds.map((id) => String(id)));
+  lastCalcIdsRefresh = now;
+};
+
+const extractCalcIdFromTopic = (topic) => {
+  const match = topic.match(/calcs\/(\d+)\//);
+  return match ? match[1] : null;
+};
+
+const extractDeviceIdFromTopic = (topic) => {
+  const match = topic.match(/devices\/(\d+)/);
+  return match ? match[1] : null;
+};
 
 const setBroadcast = (broadcastFn, broadcastToDriverFn) => {
   broadcast = broadcastFn;
@@ -27,36 +50,58 @@ const setBroadcast = (broadcastFn, broadcastToDriverFn) => {
 
 mqttEmitter.on("mqttMessage", async ({ topic, payload }) => {
   try {
+    if (topic.includes("flespi/interval/gw/calcs/")) {
+      await refreshCalcIdsCache();
+      const calcId = extractCalcIdFromTopic(topic);
+      if (!calcId || !cachedCalcIds.has(calcId)) {
+        return;
+      }
+
+      const deviceId = extractDeviceIdFromTopic(topic);
+      if (broadcast) {
+        broadcast(
+          {
+            ...payload,
+            topic,
+            calcId,
+            deviceId,
+            calculatorInterval: true,
+          },
+          { to: "admin" }
+        );
+      }
+    }
+
     switch (true) {
       case topic.includes("gw/geofences"):
         const geofencesData = await handleGeofenceEvent(topic, payload);
         if (geofencesData) broadcast(geofencesData, { to: "admin" });
         break;
-      case topic.includes("calcs/2194137"):
-        const opData = await operationCalculator(topic, payload);
-        if (opData) broadcast(opData, { to: "admin" });
-        break;
-      case topic.includes("calcs/1742074"): // Default - Reports - Events
-        const newEvent = await deviceNewEvent(topic, payload);
-        if (newEvent) broadcast(newEvent, { to: "admin" });
-        break;
-      case topic.includes("calcs/2194137"): // Default - Operations - Alarms
-        const alarmData = await devicesAlarmMQTT(topic, payload);
-        if (alarmData) broadcast(alarmData, { to: "admin" });
-        break;
-      case topic.includes("calcs/1742077"): // Default - Reports - Driver Behaivor
-        const behaivor = await driverBehaivor(topic, payload);
-        if (behaivor) broadcast(behaivor, { to: "admin" });
-        break;
+      // case topic.includes("calcs/2194137"):
+      //   const opData = await operationCalculator(topic, payload);
+      //   if (opData) broadcast(opData, { to: "admin" });
+      //   break;
+      // case topic.includes("calcs/1742074"): // Default - Reports - Events
+      //   const newEvent = await deviceNewEvent(topic, payload);
+      //   if (newEvent) broadcast(newEvent, { to: "admin" });
+      //   break;
+      // case topic.includes("calcs/2194137"): // Default - Operations - Alarms
+      //   const alarmData = await devicesAlarmMQTT(topic, payload);
+      //   if (alarmData) broadcast(alarmData, { to: "admin" });
+      //   break;
+      // case topic.includes("calcs/1742077"): // Default - Reports - Driver Behaivor
+      //   const behaivor = await driverBehaivor(topic, payload);
+      //   if (behaivor) broadcast(behaivor, { to: "admin" });
+      //   break;
       case topic.startsWith("flespi/state/gw/devices/") &&
         topic.endsWith("/connected"):
         const connectionStatus = await handleDeviceConnection(topic, payload);
         if (connectionStatus) broadcast(connectionStatus, { to: "admin" });
         break;
 
-      case topic.includes("calcs/1766118"):
-        const geofenceResults = await geofenceEntryAndExit(topic, payload);
-        break;
+      // case topic.includes("calcs/1766118"):
+      //   const geofenceResults = await geofenceEntryAndExit(topic, payload);
+      //   break;
 
       case topic.startsWith("flespi/state/gw/devices/") &&
         topic.includes("/telemetry/"):

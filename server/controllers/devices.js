@@ -42,18 +42,33 @@ import { getAllGroups } from "../model/groups.js";
 import { getAllUniqueIds } from "../utils/common.js";
 import { subaccountByTraccarId } from "../model/subaccounts.js";
 import { extractDefaultCalcsId } from "../model/calculator.js";
+import { getCalculatorTemplatesByType } from "../model/calculatorTemplates.js";
+import {
+  deleteCalculatorAssignmentsByDeviceFlespiId,
+  deleteCalculatorAssignmentsByDeviceId,
+  getCalculatorIdsByDeviceFlespiId,
+  getCalculatorIdsByDeviceId,
+  saveCalculatorAssignments,
+} from "../model/calculatorAssignments.js";
 import { fetchAllNotificationLogs } from "../model/notifications.js";
 import { newDeviceInUsageControl } from "../model/usageControl.js";
 import { s3 } from "../services/azure.s3.js";
 import {
   createFlespiDeviceIfNotExists,
   flespiDeviceLiveLocation,
+  createFlespiCalculator,
+  assignCalculatorToDevice,
+  deleteFlespiCalculator,
 } from "../services/flespiApis.js";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
 import timezone from "dayjs/plugin/timezone.js";
 import { driverNameByDeviceId, driverStatus } from "../model/driver.js";
 import { saveSearchHistory } from "../model/dispatch.js";
+import {
+  loadCalculatorTemplateConfig,
+  sanitizeCalculatorConfig,
+} from "../utils/calculatorTemplates.js";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -62,19 +77,46 @@ const traccarBearerToken = process.env.TraccarToken;
 const traccarApiUrl = `http://${process.env.TraccarPort}/api`;
 const flespiToken = process.env.FlespiToken;
 const flespiApiUrl = `https://flespi.io/gw`;
-const FLESPI_CALCULATOR_IDS = [
-  2181549,
-  2181582,
-  2193941,
-  2193946,
-  2194117,
-  2194137,
-  2194144,
-  2194146,
-  2194152,
-  2194154,
-  2214462,
-];
+
+const deleteCalculatorsByIds = async (calcIds) => {
+  const uniqueIds = Array.from(new Set(calcIds)).filter((id) => id != null);
+  for (const calcId of uniqueIds) {
+    try {
+      await deleteFlespiCalculator(calcId);
+    } catch (err) {
+      console.error(`Error deleting calculator ${calcId}:`, err.message);
+    }
+  }
+};
+
+const createAndAssignDeviceCalculators = async (deviceDbId, deviceFlespiId) => {
+  const templates = await getCalculatorTemplatesByType("DEVICE");
+  if (!templates || templates.length === 0) {
+    return;
+  }
+
+  const assignments = [];
+
+  for (const template of templates) {
+    try {
+      const config = await loadCalculatorTemplateConfig(template.file_path);
+      const cleanedConfig = sanitizeCalculatorConfig(config);
+      const calc = await createFlespiCalculator(cleanedConfig);
+      await assignCalculatorToDevice(deviceFlespiId, calc.id);
+      assignments.push({
+        calc_id: calc.id,
+        device_id: deviceDbId,
+        device_flespi_id: deviceFlespiId,
+      });
+    } catch (err) {
+      console.error(`Error creating/assigning calculator for DEVICE (${template?.name || "template"}):`, err.message);
+    }
+  }
+
+  if (assignments.length > 0) {
+    await saveCalculatorAssignments(assignments);
+  }
+};
 
 export const addNewDevice = async (req, res) => {
   let masterTokenCalcsId = [];
@@ -311,6 +353,8 @@ export const addNewDevice = async (req, res) => {
       const insertID = await createDevice(responses);
       responses.id = insertID;
 
+      await createAndAssignDeviceCalculators(insertID, flespiDevice.id);
+
       await newDeviceInUsageControl(insertID, req.body.userId);
 
       res.status(200).json({
@@ -328,35 +372,6 @@ export const addNewDevice = async (req, res) => {
       });
 
       let deviceId = flespiResponse.result.id;
-
-      mergedCalculatorIds = [...masterTokenCalcsId, ...defaultCalcId];
-
-      if (mergedCalculatorIds.length > 0) {
-
-        await axios.post(
-          `https://flespi.io/gw/calcs/${mergedCalculatorIds}/devices/${deviceId}`,
-          null,
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: flespiToken,
-            },
-          }
-        );
-      }
-
-      if (deviceId && FLESPI_CALCULATOR_IDS.length > 0) {
-        await axios.post(
-          `https://flespi.io/gw/calcs/${FLESPI_CALCULATOR_IDS}/devices/${deviceId}`,
-          null,
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `FlespiToken ${flespiToken}`,
-            },
-          }
-        );
-      }
 
       const traccarResponse = await axios.post(
         `${traccarApiUrl}/devices`,
@@ -398,6 +413,9 @@ export const addNewDevice = async (req, res) => {
 
       const insertID = await createDevice(responses);
       responses.id = insertID;
+
+      await createAndAssignDeviceCalculators(insertID, deviceId);
+
 
       await newDeviceInUsageControl(insertID, req.body.userId);
       res.status(200).json({
@@ -827,19 +845,6 @@ export const updateNewDevice = async (req, res) => {
       ),
     ]);
 
-    if (device.flespiId && FLESPI_CALCULATOR_IDS.length > 0) {
-      await axios.post(
-        `https://flespi.io/gw/calcs/${FLESPI_CALCULATOR_IDS}/devices/${device.flespiId}`,
-        null,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `FlespiToken ${flespiToken}`,
-          },
-        }
-      );
-    }
-
     const responses = {
       traccar: traccarResponse.data,
       password: req.body.password,
@@ -968,6 +973,17 @@ export const deleteNewDevice = async (req, res) => {
       });
     }
 
+    const calcIdsByDevice = await getCalculatorIdsByDeviceId(deviceId);
+    const calcIdsByFlespi = device.flespiId
+      ? await getCalculatorIdsByDeviceFlespiId(device.flespiId)
+      : [];
+    await deleteCalculatorsByIds([...calcIdsByDevice, ...calcIdsByFlespi]);
+
+    await deleteCalculatorAssignmentsByDeviceId(deviceId);
+    if (device.flespiId) {
+      await deleteCalculatorAssignmentsByDeviceFlespiId(device.flespiId);
+    }
+
     const update = await softDeleteDeviceById(deviceId);
 
     res.status(200).json({
@@ -1033,6 +1049,17 @@ export const deleteNewDeviceBYFlespi = async (req, res) => {
         error: "Failed to delete from external services",
         details: errorDetails,
       });
+    }
+
+    const calcIdsByDevice = await getCalculatorIdsByDeviceId(deviceId);
+    const calcIdsByFlespi = device.flespiId
+      ? await getCalculatorIdsByDeviceFlespiId(device.flespiId)
+      : [];
+    await deleteCalculatorsByIds([...calcIdsByDevice, ...calcIdsByFlespi]);
+
+    await deleteCalculatorAssignmentsByDeviceId(deviceId);
+    if (device.flespiId) {
+      await deleteCalculatorAssignmentsByDeviceFlespiId(device.flespiId);
     }
 
     const update = await softDeleteDeviceById(deviceId);

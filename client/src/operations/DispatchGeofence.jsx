@@ -195,7 +195,8 @@ export default function OperationWithZonesMap() {
   const [activeZone, setActiveZone] = useState(null);
   const [deviceRenderTick, setDeviceRenderTick] = useState(0);
 
-  const { mqttDeviceLiveLocation, mqttMessages } = useAppContext();
+  const { mqttDeviceLiveLocation, mqttMessages, mqttCalculatorIntervals } =
+    useAppContext();
   const operationId = new URLSearchParams(window.location.search).get("id");
 
   const activeStyle = useMemo(
@@ -277,6 +278,19 @@ export default function OperationWithZonesMap() {
       return updated;
     });
   }, [mqttDeviceLiveLocation]);
+
+  useEffect(() => {
+    if (!mqttCalculatorIntervals?.length) return;
+
+    setDeviceKPI((prev) => {
+      const updated = { ...prev };
+      mqttCalculatorIntervals.forEach((interval) => {
+        if (!interval?.deviceId) return;
+        updated[interval.deviceId] = interval;
+      });
+      return updated;
+    });
+  }, [mqttCalculatorIntervals]);
 
   const devicesWithPos = devices.map((d) => {
     const live = positions.find((p) => p.flespiDeviceId === d.flespi_device_id);

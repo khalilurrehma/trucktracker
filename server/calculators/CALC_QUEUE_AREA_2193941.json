@@ -1,0 +1,50 @@
+{
+  "intervals_ttl": 31536000,
+  "update_delay": 30,
+  "update_period": 864000,
+  "update_onchange": true,
+  "messages_source": {
+    "source": "device"
+  },
+  "id": 2193941,
+  "validate_message": "",
+  "validate_interval": "",
+  "name": "CALC_QUEUE_AREA",
+  "selectors": [
+    {
+      "expression": "geofence() == 'QUEUE_AREA'",
+      "method": "boolean",
+      "type": "expression"
+    }
+  ],
+  "cid": 2208001,
+  "intervals_rotate": 0,
+  "counters": [
+    {
+      "expression": "engine.ignition.status == true && movement.status == false",
+      "method": "duration",
+      "name": "queue_area_idle_duration",
+      "type": "expression"
+    },
+    {
+      "expression": "position.altitude",
+      "method": "average",
+      "name": "queue_altitude",
+      "type": "expression"
+    },
+    {
+      "expression": "movement.status == false",
+      "method": "duration",
+      "name": "queue_area_stop_time",
+      "type": "expression"
+    },
+    {
+      "expression": "geofence('metadata.ideal_queue_duration_m') * 60",
+      "method": "first",
+      "name": "ideal_duration",
+      "type": "expression"
+    }
+  ],
+  "timezone": "UTC",
+  "version": 4
+}

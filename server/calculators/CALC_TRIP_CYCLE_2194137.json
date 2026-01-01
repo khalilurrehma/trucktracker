@@ -1,0 +1,160 @@
+{
+  "intervals_ttl": 31536000,
+  "update_delay": 30,
+  "update_period": 864000,
+  "update_onchange": true,
+  "messages_source": {
+    "source": "device"
+  },
+  "id": 2194137,
+  "validate_message": "",
+  "validate_interval": "",
+  "name": "CALC_TRIP_CYCLE",
+  "selectors": [
+    {
+      "split": "day",
+      "type": "datetime"
+    }
+  ],
+  "cid": 2208001,
+  "intervals_rotate": 0,
+  "counters": [
+    {
+      "method": "first",
+      "name": "device.id",
+      "parameter": "device.id",
+      "type": "parameter"
+    },
+    {
+      "calc_id": 2194117,
+      "fields": [
+        {
+          "aggregate": "summary",
+          "name": "D2L_distance"
+        },
+        {
+          "aggregate": "summary",
+          "name": "D2L_duration"
+        },
+        {
+          "aggregate": "summary",
+          "name": "D2L_idle_time"
+        },
+        {
+          "aggregate": "first",
+          "name": "D2L_trip_efficiency"
+        }
+      ],
+      "method": "aggregate",
+      "name": "d2l_trips",
+      "type": "calc"
+    },
+    {
+      "calc_id": 2193946,
+      "fields": [
+        {
+          "aggregate": "summary",
+          "name": "L2D_distance"
+        },
+        {
+          "aggregate": "summary",
+          "name": "L2D_duration"
+        },
+        {
+          "aggregate": "summary",
+          "name": "L2D_idle_time"
+        },
+        {
+          "aggregate": "first",
+          "name": "L2D_trip_efficiency"
+        },
+        {
+          "aggregate": "summary",
+          "name": "trip_volume_m3"
+        },
+        {
+          "aggregate": "summary",
+          "expression": "1",
+          "name": "L2D_trip_count"
+        },
+        {
+          "aggregate": "first",
+          "name": "zone_geofence"
+        }
+      ],
+      "method": "aggregate",
+      "name": "l2d_trips",
+      "type": "calc"
+    },
+    {
+      "expression": "l2d_trips['L2D_distance'] + d2l_trips['D2L_distance']",
+      "name": "cycle_distance",
+      "type": "interval"
+    },
+    {
+      "expression": "l2d_trips['L2D_duration'] + d2l_trips['D2L_duration']",
+      "name": "cycle_duration",
+      "type": "interval"
+    },
+    {
+      "expression": "l2d_trips['L2D_idle_time'] + d2l_trips['D2L_idle_time']",
+      "name": "cycle_idle",
+      "type": "interval"
+    },
+    {
+      "expression": "(cycle_distance / cycle_duration) * 3600",
+      "name": "cycle_avg_speed",
+      "type": "interval"
+    },
+    {
+      "expression": "(l2d_trips['L2D_trip_efficiency'] + d2l_trips['D2L_trip_efficiency']) / 2",
+      "name": "cycle_efficiency",
+      "type": "interval"
+    },
+    {
+      "expression": "l2d_trips['trip_volume_m3']",
+      "name": "cycle_volume_m3",
+      "type": "interval"
+    },
+    {
+      "expression": "l2d_trips['zone_geofence']",
+      "name": "zone",
+      "type": "interval"
+    },
+    {
+      "expression": "can.fuel.consumption",
+      "method": "average",
+      "name": "energy_efficiency_lm3",
+      "type": "expression"
+    },
+    {
+      "expression": "l2d_trips['L2D_trip_count']",
+      "name": "cycle_haul_trips_count",
+      "type": "interval"
+    },
+    {
+      "expression": "if(l2d_trips['L2D_trip_count'] > 0, cycle_volume_m3 / l2d_trips['L2D_trip_count'], 0)",
+      "name": "avg_cycle_volume_m3",
+      "type": "interval"
+    },
+    {
+      "expression": "geofence('metadata.op_total_bank_volume_m3') * (1 + (geofence('metadata.op_swell_factor') / 100))",
+      "method": "first",
+      "name": "operation_total_m3",
+      "type": "expression"
+    },
+    {
+      "expression": "l2d_trips['L2D_distance'] / l2d_trips['L2D_trip_count']",
+      "name": "avg_haul_distance",
+      "type": "interval"
+    },
+    {
+      "expression": "geofence('metadata.Day_volume_m3_goal')",
+      "method": "first",
+      "name": "day_volume_goal_m3",
+      "type": "expression"
+    }
+  ],
+  "timezone": "America/Lima",
+  "version": 18
+}

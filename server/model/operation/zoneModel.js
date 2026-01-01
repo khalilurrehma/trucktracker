@@ -6,9 +6,19 @@ import {
   createFlespiGeofence,
   updateFlespiGeofence,
   deleteFlespiGeofence,
+  deleteFlespiCalculator,
   createFlespiCalculator,
   assignCalculatorToGeofence
 } from "../../services/flespiApis.js";
+import {
+  deleteCalculatorAssignmentsByGeofenceId,
+  deleteCalculatorAssignmentsByZoneId,
+  getCalculatorIdsByGeofenceId,
+  getCalculatorIdsByZoneId,
+  saveCalculatorAssignments,
+} from "../calculatorAssignments.js";
+import { getCalculatorTemplatesByType } from "../calculatorTemplates.js";
+import { loadCalculatorTemplateConfig, sanitizeCalculatorConfig } from "../../utils/calculatorTemplates.js";
 
 // Utility: convert GeoJSON geometry to Flespi format
 function toFlespiGeometry(geometry) {
@@ -53,6 +63,17 @@ function toFlespiGeometry(geometry) {
 // ======================================================
 // CREATE ZONE → also create Flespi geofence
 // ======================================================
+const deleteCalculatorsByIds = async (calcIds) => {
+  const uniqueIds = Array.from(new Set(calcIds)).filter((id) => id != null);
+  for (const calcId of uniqueIds) {
+    try {
+      await deleteFlespiCalculator(calcId);
+    } catch (err) {
+      console.error(`Error deleting calculator ${calcId}:`, err.message);
+    }
+  }
+};
+
 export const createZone = async (zone) => {
   const {
     operationId,
@@ -95,20 +116,13 @@ export const createZone = async (zone) => {
   ];
 
   try {
-    // 1️⃣ Save zone in DB
     const results = await dbQuery(sql, values);
     const zoneId = results.insertId;
 
-    // 2️⃣ Prepare Flespi geometry
     const flespiGeometry = toFlespiGeometry(geometry);
 
-    // 3️⃣ Create Flespi geofence
-    // 1️⃣ Start with common metadata
-    let metadata = {
-      op_id: operationId,
-    };
+    let metadata = { op_id: operationId };
 
-    // 2️⃣ Add QUEUE fields
     if (zoneType === "QUEUE_AREA") {
       metadata = {
         ...metadata,
@@ -117,7 +131,6 @@ export const createZone = async (zone) => {
       };
     }
 
-    // 3️⃣ Add DUMP fields
     if (zoneType === "DUMP_AREA") {
       metadata = {
         ...metadata,
@@ -125,7 +138,6 @@ export const createZone = async (zone) => {
       };
     }
 
-    // 4️⃣ Add LOAD_PAD fields
     if (zoneType === "LOAD_PAD") {
       metadata = {
         ...metadata,
@@ -133,7 +145,6 @@ export const createZone = async (zone) => {
       };
     }
 
-    // 5️⃣ Add ZONE_AREA fields
     if (zoneType === "ZONE_AREA") {
       metadata = {
         ...metadata,
@@ -143,7 +154,6 @@ export const createZone = async (zone) => {
       };
     }
 
-    // 6️⃣ Create Flespi Geofence
     const geofence = await createFlespiGeofence([
       {
         name: `${zoneType}-${name}`,
@@ -154,52 +164,32 @@ export const createZone = async (zone) => {
       },
     ]);
 
-
     const geofenceId = geofence[0]?.id;
-    const calcMap = {
-      ZONE_AREA: [2193946, 2194117, 2194154, 2194183],
-      QUEUE_AREA: [2193941, 2194117],
-      LOAD_PAD: [2181549, 2193946, 2194117, 2194183],
-      DUMP_AREA: [2181582, 2193946, 2194117],
-    };
+    const templates = await getCalculatorTemplatesByType(zoneType);
+    const assignmentsToSave = [];
 
-    const calcIds = calcMap[zoneType];
-    if (!calcIds) {
-      console.warn(`⚠️ No calculator IDs defined for zoneType "${zoneType}"`);
-      return;
-    }
-
-    console.log(`📡 Assigning calculators for ${zoneType} → geofence ${geofenceId}`);
-
-    for (const calcId of calcIds) {
+    for (const template of templates) {
       try {
-        await assignCalculatorToGeofence(calcId, geofenceId);
-        console.log(`✅ Assigned calc ${calcId} → geofence ${geofenceId}`);
+        const config = await loadCalculatorTemplateConfig(template.file_path);
+        const cleanedConfig = sanitizeCalculatorConfig(config);
+        const calc = await createFlespiCalculator(cleanedConfig);
+        await assignCalculatorToGeofence(calc.id, geofenceId);
+        assignmentsToSave.push({
+          calc_id: calc.id,
+          operation_id: operationId,
+          zone_id: zoneId,
+          geofence_flespi_id: geofenceId,
+        });
       } catch (err) {
-        console.error(`❌ Failed assigning calc ${calcId}:`, err.message);
+        console.error(`Error creating/assigning calculator for ${zoneType} (${template?.name || 'template'}):`, err.message);
       }
     }
-    // 4️⃣ Fetch all calculator templates from DB
-    // const templates = await dbQuery("SELECT * FROM calculator_templates");
 
-    // // 5️⃣ Filter templates that match this zoneType
-    // const matchingTemplates = templates.filter(t => t.type === zoneType);
-    // if (!matchingTemplates.length) {
-    //   console.warn(`⚠️ No calculator templates found for zoneType ${zoneType}`);
-    // }
+    if (assignmentsToSave.length > 0) {
+      await saveCalculatorAssignments(assignmentsToSave);
+    }
 
-    // // 6️⃣ Create and assign calculators for this geofence
-    // for (const tpl of matchingTemplates) {
-    //   try {
-    //     const config = JSON.parse(tpl.config_json);
-    //     const calc = await createFlespiCalculator(config);
-    //     await assignCalculatorToGeofence(calc.id, geofenceId);
-    //     console.log(`✅ Assigned calculator "${tpl.name}" (ID ${calc.id}) to geofence ${geofenceId}`);
-    //   } catch (err) {
-    //     console.error(`❌ Failed to create/assign calculator "${tpl.name}":`, err.message);
-    //   }
-    // }
-    // 4️⃣ Save geofence ID into zone
+
     await dbQuery(
       "UPDATE zones SET flespi_geofence_id = ? WHERE id = ?",
       [geofenceId, zoneId]
@@ -207,7 +197,7 @@ export const createZone = async (zone) => {
 
     return { id: zoneId, flespi_geofence_id: geofenceId, ...zone };
   } catch (err) {
-    console.error("❌ Error creating zone or geofence:", err.message);
+    console.error("Error creating zone or geofence:", err.message);
     throw err;
   }
 };
@@ -299,6 +289,9 @@ export const updateZone = async (id, zone) => {
     );
 
     const geofenceId = zoneRow?.flespi_geofence_id;
+    if (geofenceId) {
+      await deleteCalculatorAssignmentsByGeofenceId(geofenceId);
+    }
 
     if (geofenceId) {
       /* ---------------------------------------------
@@ -427,24 +420,35 @@ export const getZonesByOperationId = async (operationId) => {
 // ======================================================
 export const deleteZone = async (id) => {
   try {
-    // ✅ 1) Delete device assignments for this zone
+// Delete device assignments for this zone
     await dbQuery(
       "DELETE FROM device_assignments WHERE zone_id = ?",
       [id]
     );
 
-    // ✅ 2) Get Flespi geofence ID before deleting
+// Get Flespi geofence ID before deleting
     const [zoneRow] = await dbQuery(
       "SELECT flespi_geofence_id FROM zones WHERE id = ?",
       [id]
     );
     const geofenceId = zoneRow?.flespi_geofence_id;
 
-    // ✅ 3) Delete zone from DB
+    const zoneCalcIds = await getCalculatorIdsByZoneId(id);
+    const zoneGeofenceCalcIds = geofenceId
+      ? await getCalculatorIdsByGeofenceId(geofenceId)
+      : [];
+    await deleteCalculatorsByIds([...zoneCalcIds, ...zoneGeofenceCalcIds]);
+
+    await deleteCalculatorAssignmentsByZoneId(id);
+    if (geofenceId) {
+      await deleteCalculatorAssignmentsByGeofenceId(geofenceId);
+    }
+
+// Delete zone from DB
     const results = await dbQuery("DELETE FROM zones WHERE id = ?", [id]);
     if (results.affectedRows === 0) return null;
 
-    // ✅ 4) Delete from Flespi if exists
+// Delete from Flespi if exists
     if (geofenceId) {
       await deleteFlespiGeofence(geofenceId.toString());
     }

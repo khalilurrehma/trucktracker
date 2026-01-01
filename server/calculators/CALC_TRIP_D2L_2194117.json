@@ -1,0 +1,137 @@
+{
+  "intervals_ttl": 31536000,
+  "update_delay": 30,
+  "update_period": 864000,
+  "update_onchange": true,
+  "messages_source": {
+    "source": "device"
+  },
+  "id": 2194117,
+  "validate_message": "",
+  "validate_interval": "$from_geofence == 'DUMP_AREA' && $to_geofence == 'LOAD_PAD'",
+  "name": "CALC_TRIP_D2L",
+  "selectors": [
+    {
+      "expression": "geofence('priority') == 10",
+      "merge_message_after": true,
+      "merge_message_before": true,
+      "merge_unknown": true,
+      "method": "boolean",
+      "type": "expression"
+    }
+  ],
+  "cid": 2208001,
+  "intervals_rotate": 0,
+  "counters": [
+    {
+      "expression": "geofence()",
+      "method": "first",
+      "name": "from_geofence",
+      "type": "expression"
+    },
+    {
+      "expression": "geofence()",
+      "method": "last",
+      "name": "to_geofence",
+      "type": "expression"
+    },
+    {
+      "expression": "duration/60",
+      "name": "D2L_duration",
+      "type": "interval"
+    },
+    {
+      "expression": "if(duration >= 3600, tostring(floor(duration/3600)) + 'h ' + tostring(floor((duration%3600)/60)) + 'm ' + tostring(floor(duration%60)) + 's', tostring(floor(duration/60)) + 'm ' + tostring(floor(duration%60)) + 's')",
+      "name": "D2L_duration_formated",
+      "type": "interval"
+    },
+    {
+      "expression": "mileage()",
+      "method": "summary",
+      "name": "D2L_distance",
+      "type": "expression"
+    },
+    {
+      "name": "trip_increment",
+      "type": "specified",
+      "value": 1
+    },
+    {
+      "counter": "trip_increment",
+      "name": "D2L_trip_count",
+      "reset_interval": "day",
+      "type": "accumulator"
+    },
+    {
+      "expression": "position.speed",
+      "method": "average",
+      "name": "D2L_avg_speed",
+      "type": "expression",
+      "validate_message": "movement.status == true"
+    },
+    {
+      "expression": "engine.inginition.status == true && position.speed < 2",
+      "method": "duration",
+      "name": "D2L_idle_time",
+      "type": "expression"
+    },
+    {
+      "expression": "if($position.speed < 3 && previous('position.speed') >= 3, 1, 0)",
+      "method": "summary",
+      "name": "D2L_stops_during_trip",
+      "type": "expression"
+    },
+    {
+      "calc_id": 2193941,
+      "fields": [
+        {
+          "aggregate": "summary",
+          "expression": "duration",
+          "name": "queue_duration"
+        },
+        {
+          "aggregate": "summary",
+          "expression": "queue_area_stop_time",
+          "name": "queue_stop_duration"
+        },
+        {
+          "aggregate": "summary",
+          "expression": "queue_area_idle_duration",
+          "name": "queue_idle_time"
+        },
+        {
+          "aggregate": "first",
+          "expression": "ideal_duration",
+          "name": "ideal_queue_duration"
+        }
+      ],
+      "method": "aggregate",
+      "name": "queue_data",
+      "type": "calc"
+    },
+    {
+      "expression": "if(geofence() == 'QUEUE_AREA', geofence('metadata.ideal_queue_duration_m') * 60, previous('ideal_queue_duration'))",
+      "method": "last",
+      "name": "ideal_queue_duration",
+      "type": "expression"
+    },
+    {
+      "expression": "if(geofence() == 'ZONE_AREA', geofence('metadata.zone_max_speed_kmh'), geofence('metadata.op_max_speed_kmh'))",
+      "method": "maximum",
+      "name": "zone_speed_limit",
+      "type": "expression"
+    },
+    {
+      "expression": "if(queue_data['queue_stop_duration'] > 0, ((D2L_distance / zone_speed_limit) * 3600) + ideal_queue_duration, (D2L_distance / zone_speed_limit) * 3600)",
+      "name": "D2L_ideal_trip_duration",
+      "type": "interval"
+    },
+    {
+      "expression": "min((D2L_ideal_trip_duration / D2L_duration) * 100, 100)",
+      "name": "D2L_trip_efficiency",
+      "type": "interval"
+    }
+  ],
+  "timezone": "America/Lima",
+  "version": 16
+}

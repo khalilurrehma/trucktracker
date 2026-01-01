@@ -120,23 +120,26 @@ const SubSocket = () => {
               store.dispatch(updateTelemetry({ deviceId, key, value }));
             }
           }
-          if (recievedData?.topic?.includes("calcs/2194137")) {
-            // console.log(recievedData);
-            updateMqttMessage(recievedData, "Events");
-          }
-          if (recievedData?.topic?.includes("calcs/2194137")) {
-            // console.log(recievedData);
-            updateMqttMessage(recievedData, "Alarms");
+          // if (recievedData?.topic?.includes("calcs/2194137")) {
+          //   // console.log(recievedData);
+          //   updateMqttMessage(recievedData, "Events");
+          // }
+          // if (recievedData?.topic?.includes("calcs/2194137")) {
+          //   // console.log(recievedData);
+          //   updateMqttMessage(recievedData, "Alarms");
 
-          }
-          if (recievedData?.topic?.includes("calcs/1742077")) {
-            updateMqttMessage(recievedData, "Behaivor");
-          }
-          if (recievedData?.topic?.includes("calcs/2194137")) {
-            updateMqttMessage(recievedData, "operationCalculator");
-          }
+          // }
+          // if (recievedData?.topic?.includes("calcs/1742077")) {
+          //   updateMqttMessage(recievedData, "Behaivor");
+          // }
+          // if (recievedData?.topic?.includes("calcs/2194137")) {
+          //   updateMqttMessage(recievedData, "operationCalculator");
+          // }
           if (recievedData?.topic?.includes("gw/geofences")) {
             updateMqttMessage(recievedData, "geofencesData");
+          }
+          if (recievedData?.calculatorInterval) {
+            updateMqttMessage(recievedData, "calculatorIntervals");
           }
 
           if (

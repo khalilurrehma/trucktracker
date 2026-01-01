@@ -1,0 +1,266 @@
+{
+  "intervals_ttl": 31536000,
+  "update_delay": 1,
+  "update_period": 864000,
+  "update_onchange": true,
+  "messages_source": {
+    "source": "calc",
+    "calc_id": 2194137
+  },
+  "id": 2194146,
+  "validate_message": "",
+  "validate_interval": "",
+  "name": "OP_CALCULATOR",
+  "selectors": [
+    {
+      "split": "day",
+      "type": "datetime"
+    }
+  ],
+  "cid": 2208001,
+  "intervals_rotate": 0,
+  "counters": [
+    {
+      "calc_id": 2194137,
+      "fields": [
+        {
+          "aggregate": "summary",
+          "name": "cycle_duration"
+        },
+        {
+          "aggregate": "summary",
+          "name": "cycle_distance"
+        },
+        {
+          "aggregate": "summary",
+          "name": "cycle_idle"
+        },
+        {
+          "aggregate": "summary",
+          "name": "cycle_efficiency"
+        },
+        {
+          "aggregate": "summary",
+          "name": "cycle_volume_m3"
+        },
+        {
+          "aggregate": "summary",
+          "expression": "1",
+          "name": "cycle_count"
+        },
+        {
+          "aggregate": "summary",
+          "name": "avg_cycle_volume_m3"
+        },
+        {
+          "aggregate": "first",
+          "name": "operation_total_m3"
+        },
+        {
+          "aggregate": "first",
+          "name": "avg_haul_distance"
+        }
+      ],
+      "method": "aggregate",
+      "name": "op_cycles",
+      "type": "calc",
+      "validate_interval": "zone == 'OP_AREA'"
+    },
+    {
+      "calc_id": 2193941,
+      "fields": [
+        {
+          "aggregate": "summary",
+          "name": "queue_area_stop_time"
+        },
+        {
+          "aggregate": "summary",
+          "expression": "1",
+          "name": "queue_count"
+        }
+      ],
+      "method": "aggregate",
+      "name": "queue_data",
+      "type": "calc"
+    },
+    {
+      "calc_id": 2181549,
+      "fields": [
+        {
+          "aggregate": "summary",
+          "name": "load_pad_duration"
+        },
+        {
+          "aggregate": "summary",
+          "expression": "1",
+          "name": "load_count"
+        }
+      ],
+      "method": "aggregate",
+      "name": "load_data",
+      "type": "calc"
+    },
+    {
+      "calc_id": 2181582,
+      "fields": [
+        {
+          "aggregate": "summary",
+          "name": "dump_area_duration"
+        },
+        {
+          "aggregate": "summary",
+          "expression": "1",
+          "name": "dump_count"
+        }
+      ],
+      "method": "aggregate",
+      "name": "dump_data",
+      "type": "calc"
+    },
+    {
+      "calc_id": 2194137,
+      "fields": [
+        {
+          "aggregate": "summary",
+          "expression": "l2d_trips['L2D_duration']",
+          "name": "L2D_duration"
+        },
+        {
+          "aggregate": "summary",
+          "expression": "d2l_trips['D2L_duration']",
+          "name": "D2L_duration"
+        },
+        {
+          "aggregate": "summary",
+          "name": "energy_efficiency_lm3"
+        }
+      ],
+      "method": "aggregate",
+      "name": "trip_data",
+      "type": "calc",
+      "validate_interval": "zone == 'OP_AREA'"
+    },
+    {
+      "expression": "if(queue_data['queue_count'] > 0, queue_data['queue_area_stop_time'] / queue_data['queue_count'], 0)",
+      "name": "op_avg_queue_time",
+      "type": "interval"
+    },
+    {
+      "expression": "op_cycles['cycle_duration'] / op_cycles['cycle_count']",
+      "name": "op_avg_cycle_duration",
+      "type": "interval"
+    },
+    {
+      "expression": "op_cycles['cycle_distance'] / op_cycles['cycle_count']",
+      "name": "op_avg_cycle_distance",
+      "type": "interval"
+    },
+    {
+      "expression": "op_cycles['cycle_idle'] / op_cycles['cycle_count']",
+      "name": "op_avg_cycle_idle",
+      "type": "interval"
+    },
+    {
+      "expression": "op_cycles['cycle_efficiency'] / op_cycles['cycle_count']",
+      "name": "op_avg_cycle_efficiency",
+      "type": "interval"
+    },
+    {
+      "expression": "op_cycles['cycle_count']",
+      "name": "op_total_l2d_trips",
+      "type": "interval"
+    },
+    {
+      "expression": "op_cycles['operation_total_m3']",
+      "name": "operation_total_volume_m3",
+      "type": "interval"
+    },
+    {
+      "calc_id": 2194137,
+      "fields": [
+        "device.id",
+        {
+          "aggregate": "summary",
+          "expression": "1",
+          "name": "count"
+        }
+      ],
+      "method": "aggregate_by_field",
+      "name": "vehicle_list",
+      "type": "calc",
+      "validate_interval": "zone == 'OP_AREA'"
+    },
+    {
+      "expression": "json_array_count($vehicle_list)",
+      "name": "op_vehicle_count",
+      "type": "interval"
+    },
+    {
+      "expression": "if(load_data['load_count'] > 0, load_data['load_pad_duration'] / load_data['load_count'], 0)",
+      "name": "load_cycle",
+      "type": "interval"
+    },
+    {
+      "expression": "if(op_cycles['cycle_count'] > 0, trip_data['L2D_duration'] / op_cycles['cycle_count'], 0)",
+      "name": "haul_cycle",
+      "type": "interval"
+    },
+    {
+      "expression": "if(dump_data['dump_count'] > 0, dump_data['dump_area_duration'] / dump_data['dump_count'], 0)",
+      "name": "dump_cycle",
+      "type": "interval"
+    },
+    {
+      "expression": "op_avg_queue_time / 60",
+      "name": "Queue_cycle",
+      "type": "interval"
+    },
+    {
+      "expression": "if(op_cycles['cycle_count'] > 0, trip_data['D2L_duration'] / op_cycles['cycle_count'], 0)",
+      "name": "return_cycle",
+      "type": "interval"
+    },
+    {
+      "expression": "if(op_cycles['cycle_count'] > 0, trip_data['energy_efficiency_lm3'] / op_cycles['cycle_count'], 0)",
+      "name": "avg_energy_efficiency_lm3",
+      "type": "interval"
+    },
+    {
+      "calc_id": 2194183,
+      "fields": [
+        "device.id",
+        {
+          "aggregate": "summary",
+          "expression": "1",
+          "name": "count"
+        }
+      ],
+      "method": "aggregate_by_field",
+      "name": "loader_data",
+      "type": "calc",
+      "validate_interval": "geofence_name == 'OP_AREA'"
+    },
+    {
+      "expression": "json_array_count($loader_data)",
+      "name": "op_loaders_count",
+      "type": "interval"
+    },
+    {
+      "expression": "if(op_cycles['cycle_count'] > 0, op_cycles['avg_cycle_volume_m3'] / op_cycles['cycle_count'], 0)",
+      "name": "op_avg_cycle_volume_m3",
+      "type": "interval"
+    },
+    {
+      "expression": "op_cycles['cycle_volume_m3']",
+      "name": "op_total_moved_m3",
+      "type": "interval"
+    },
+    {
+      "expression": "op_cycles['avg_haul_distance']",
+      "name": "avg_haul_distance_km",
+      "type": "interval"
+    }
+  ],
+  "timezone": "America/Lima",
+  "version": 17
+}

@@ -1,0 +1,246 @@
+{
+  "intervals_ttl": 31536000,
+  "update_delay": 30,
+  "update_period": 864000,
+  "update_onchange": true,
+  "messages_source": {
+    "source": "device"
+  },
+  "id": 2214462,
+  "validate_message": "",
+  "validate_interval": "",
+  "name": "KPIs_DASHBOARD_new",
+  "selectors": [
+    {
+      "split": "day",
+      "type": "datetime"
+    }
+  ],
+  "cid": 2208001,
+  "intervals_rotate": 0,
+  "counters": [
+    {
+      "calc_id": 2194152,
+      "fields": [
+        {
+          "aggregate": "summary",
+          "name": "average_op_efficiency"
+        },
+        {
+          "aggregate": "first",
+          "name": "operation_metadata"
+        },
+        {
+          "aggregate": "summary",
+          "name": "total_material_moved_m3"
+        },
+        {
+          "aggregate": "summary",
+          "name": "material_moved_today"
+        },
+        {
+          "aggregate": "first",
+          "name": "remaining_material_m3"
+        },
+        {
+          "aggregate": "first",
+          "name": "ETA_completion_h"
+        },
+        {
+          "aggregate": "first",
+          "name": "goal_data"
+        }
+      ],
+      "method": "aggregate",
+      "name": "summary_data",
+      "type": "calc"
+    },
+    {
+      "calc_id": 2194146,
+      "fields": [
+        {
+          "aggregate": "summary",
+          "name": "op_vehicle_count"
+        },
+        {
+          "aggregate": "first",
+          "name": "op_loaders_count"
+        },
+        {
+          "aggregate": "summary",
+          "name": "op_avg_cycle_duration"
+        },
+        {
+          "aggregate": "summary",
+          "name": "op_avg_queue_time"
+        },
+        {
+          "aggregate": "summary",
+          "name": "op_total_l2d_trips"
+        },
+        {
+          "aggregate": "summary",
+          "name": "op_avg_cycle_volume_m3"
+        },
+        {
+          "aggregate": "summary",
+          "name": "avg_energy_efficiency_lm3"
+        },
+        {
+          "aggregate": "summary",
+          "name": "avg_haul_distance_km"
+        },
+        {
+          "aggregate": "summary",
+          "name": "load_cycle"
+        },
+        {
+          "aggregate": "summary",
+          "name": "haul_cycle"
+        },
+        {
+          "aggregate": "summary",
+          "name": "dump_cycle"
+        },
+        {
+          "aggregate": "summary",
+          "name": "Queue_cycle"
+        },
+        {
+          "aggregate": "summary",
+          "name": "return_cycle"
+        }
+      ],
+      "method": "aggregate",
+      "name": "op_data",
+      "type": "calc"
+    },
+    {
+      "expression": "json($summary_data, 'average_op_efficiency') / 3",
+      "name": "operation_efficiency_pct",
+      "type": "interval"
+    },
+    {
+      "expression": "json(json($summary_data, 'operation_metadata'), 'operation_total_volume_m3')",
+      "name": "operation_total_m3",
+      "type": "interval"
+    },
+    {
+      "expression": "json($summary_data, 'total_material_moved_m3')",
+      "name": "total_material_moved_m3",
+      "type": "interval"
+    },
+    {
+      "expression": "json($summary_data, 'material_moved_today')",
+      "name": "material_moved_today_m3",
+      "type": "interval"
+    },
+    {
+      "expression": "json(json($summary_data, 'operation_metadata'), 'operation_total_volume_m3') - json($summary_data, 'total_material_moved_m3')",
+      "name": "remaining_material_m3",
+      "type": "interval"
+    },
+    {
+      "expression": "json($summary_data, 'ETA_completion_h')",
+      "name": "ETA_completion_h",
+      "type": "interval"
+    },
+    {
+      "expression": "json($summary_data, 'material_moved_today') / 10",
+      "name": "day_productivity",
+      "type": "interval"
+    },
+    {
+      "expression": "json($op_data, 'op_vehicle_count')",
+      "name": "Active_vehicles",
+      "type": "interval"
+    },
+    {
+      "expression": "json($op_data, 'op_loaders_count')",
+      "name": "active_loaders",
+      "type": "interval"
+    },
+    {
+      "expression": "json($op_data, 'op_avg_cycle_duration') / json($op_data, 'op_vehicle_count') / 60",
+      "name": "avg_cycle_time_min",
+      "type": "interval"
+    },
+    {
+      "expression": "json($op_data, 'op_avg_queue_time') / json($op_data, 'op_vehicle_count') / 60",
+      "name": "avg_queue_time_min",
+      "type": "interval"
+    },
+    {
+      "expression": "json($op_data, 'op_total_l2d_trips')",
+      "name": "total_trips_today",
+      "type": "interval"
+    },
+    {
+      "expression": "json($op_data, 'op_avg_cycle_volume_m3') / json($op_data, 'op_vehicle_count')",
+      "name": "trip_productivity",
+      "type": "interval"
+    },
+    {
+      "expression": "json($op_data, 'avg_energy_efficiency_lm3') / json($op_data, 'op_vehicle_count')",
+      "name": "energy_efficiency_lm3",
+      "type": "interval"
+    },
+    {
+      "expression": "json($op_data, 'avg_haul_distance_km') / json($op_data, 'op_vehicle_count')",
+      "name": "Total_haul_distance",
+      "type": "interval"
+    },
+    {
+      "expression": "json($op_data, 'load_cycle') / json($op_data, 'op_vehicle_count')",
+      "name": "load_cycle",
+      "type": "interval"
+    },
+    {
+      "expression": "json($op_data, 'haul_cycle') / json($op_data, 'op_vehicle_count')",
+      "name": "haul_cycle",
+      "type": "interval"
+    },
+    {
+      "expression": "json($op_data, 'dump_cycle') / json($op_data, 'op_vehicle_count')",
+      "name": "dump_cycle",
+      "type": "interval"
+    },
+    {
+      "expression": "json($op_data, 'Queue_cycle') / json($op_data, 'op_vehicle_count')",
+      "name": "queue_cycle",
+      "type": "interval"
+    },
+    {
+      "expression": "json($op_data, 'return_cycle') / json($op_data, 'op_vehicle_count')",
+      "name": "return_cycle",
+      "type": "interval"
+    },
+    {
+      "allow_start_before": true,
+      "calc_id": 2194146,
+      "fields": [
+        {
+          "aggregate": "first",
+          "expression": "strftime(begin, '%Y-%m-%d')",
+          "name": "date"
+        },
+        {
+          "aggregate": "first",
+          "expression": "op_avg_cycle_efficiency",
+          "name": "efficiency"
+        }
+      ],
+      "lookup_time_before": 864000,
+      "method": "each",
+      "name": "last_10_op_efficiency",
+      "type": "calc"
+    },
+    {
+      "expression": "if(json(json($summary_data, 'goal_data'), 'day_volume_goal_m3') > 0 && json($summary_data, 'material_moved_today') > 0, (json($summary_data, 'material_moved_today') / json(json($summary_data, 'goal_data'), 'day_volume_goal_m3')) * 100, null)",
+      "name": "day_goal_achievement",
+      "type": "interval"
+    }
+  ],
+  "timezone": "America/Lima",
+  "version": 1
+}

@@ -1,0 +1,69 @@
+{
+  "intervals_ttl": 31536000,
+  "update_delay": 30,
+  "update_period": 864000,
+  "update_onchange": true,
+  "messages_source": {
+    "source": "device"
+  },
+  "id": 2181549,
+  "validate_message": "",
+  "validate_interval": "",
+  "name": "CALC_LOAD_PAD",
+  "selectors": [
+    {
+      "expression": "geofence() == 'LOAD_PAD' && position.speed < 3",
+      "max_inactive": 500,
+      "method": "boolean",
+      "min_duration": 20,
+      "name": "Carga en LOAD_PAD con motor ON y detenido",
+      "type": "expression"
+    }
+  ],
+  "cid": 2208001,
+  "intervals_rotate": 0,
+  "counters": [
+    {
+      "method": "first",
+      "name": "load_start_time",
+      "parameter": "timestamp",
+      "type": "parameter"
+    },
+    {
+      "method": "last",
+      "name": "load_end_time",
+      "parameter": "timestamp",
+      "type": "parameter"
+    },
+    {
+      "expression": "position.altitude",
+      "method": "average",
+      "name": "load_altitude_m_avg",
+      "type": "expression"
+    },
+    {
+      "expression": "if(duration >= 3600, tostring(floor(duration/3600)) + 'h ' + tostring(floor((duration%3600)/60)) + 'm ' + tostring(floor(duration%60)) + 's', tostring(floor(duration/60)) + 'm ' + tostring(floor(duration%60)) + 's')",
+      "name": "load_pad_duration_formated",
+      "type": "interval"
+    },
+    {
+      "expression": "duration/60",
+      "name": "load_pad_duration",
+      "type": "interval"
+    },
+    {
+      "expression": "engine.ignition.status == true && movement.status == false",
+      "method": "duration",
+      "name": "load_idle_time",
+      "type": "expression"
+    },
+    {
+      "expression": "movement.status == false",
+      "method": "duration",
+      "name": "loading_time",
+      "type": "expression"
+    }
+  ],
+  "timezone": "America/Lima",
+  "version": 15
+}

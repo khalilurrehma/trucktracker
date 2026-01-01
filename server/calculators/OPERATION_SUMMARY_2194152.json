@@ -1,0 +1,124 @@
+{
+  "intervals_ttl": 31536000,
+  "update_delay": 30,
+  "update_period": 864000,
+  "update_onchange": true,
+  "messages_source": {
+    "source": "calc",
+    "calc_id": 2194146
+  },
+  "id": 2194152,
+  "validate_message": "",
+  "validate_interval": "",
+  "name": "OPERATION_SUMMARY",
+  "selectors": [
+    {
+      "split": "day",
+      "type": "datetime"
+    }
+  ],
+  "cid": 2208001,
+  "intervals_rotate": 0,
+  "counters": [
+    {
+      "calc_id": 2194146,
+      "fields": [
+        {
+          "aggregate": "summary",
+          "name": "op_total_moved_m3"
+        }
+      ],
+      "method": "aggregate",
+      "name": "daily_volume_data",
+      "type": "calc"
+    },
+    {
+      "calc_id": 2194146,
+      "fields": [
+        {
+          "aggregate": "summary",
+          "name": "op_avg_cycle_efficiency"
+        }
+      ],
+      "method": "aggregate",
+      "name": "efficiency_data",
+      "type": "calc"
+    },
+    {
+      "expression": "efficiency_data['op_avg_cycle_efficiency']",
+      "name": "daily_efficiency",
+      "type": "interval"
+    },
+    {
+      "counter": "daily_efficiency",
+      "name": "total_efficiency",
+      "type": "accumulator"
+    },
+    {
+      "name": "day_increment",
+      "type": "specified",
+      "value": 1
+    },
+    {
+      "counter": "day_increment",
+      "name": "total_days",
+      "type": "accumulator"
+    },
+    {
+      "expression": "total_efficiency / total_days",
+      "name": "average_op_efficiency",
+      "type": "interval"
+    },
+    {
+      "expression": "daily_volume_data['op_total_moved_m3']",
+      "name": "material_moved_today",
+      "type": "interval"
+    },
+    {
+      "counter": "material_moved_today",
+      "name": "total_material_moved_m3",
+      "type": "accumulator"
+    },
+    {
+      "calc_id": 2194146,
+      "fields": [
+        {
+          "aggregate": "first",
+          "name": "operation_total_volume_m3"
+        }
+      ],
+      "method": "first",
+      "name": "operation_metadata",
+      "type": "calc"
+    },
+    {
+      "expression": "operation_metadata['operation_total_volume_m3'] - total_material_moved_m3",
+      "name": "remaining_material_m3",
+      "type": "interval"
+    },
+    {
+      "expression": "total_material_moved_m3 / total_days",
+      "name": "avg_daily_volume_m3",
+      "type": "interval"
+    },
+    {
+      "expression": "if(avg_daily_volume_m3 > 0, ((operation_metadata['operation_total_volume_m3'] - total_material_moved_m3) / avg_daily_volume_m3) * 24, 0)",
+      "name": "ETA_completion_h",
+      "type": "interval"
+    },
+    {
+      "calc_id": 2194137,
+      "fields": [
+        {
+          "aggregate": "first",
+          "name": "day_volume_goal_m3"
+        }
+      ],
+      "method": "first",
+      "name": "goal_data",
+      "type": "calc"
+    }
+  ],
+  "timezone": "America/Lima",
+  "version": 18
+}
