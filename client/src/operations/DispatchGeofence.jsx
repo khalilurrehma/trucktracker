@@ -195,8 +195,12 @@ export default function OperationWithZonesMap() {
   const [activeZone, setActiveZone] = useState(null);
   const [deviceRenderTick, setDeviceRenderTick] = useState(0);
 
-  const { mqttDeviceLiveLocation, mqttMessages, mqttCalculatorIntervals } =
-    useAppContext();
+  const appContext = useAppContext() || {};
+  const {
+    mqttDeviceLiveLocation = [],
+    mqttMessages = [],
+    mqttCalculatorIntervals = [],
+  } = appContext;
   const operationId = new URLSearchParams(window.location.search).get("id");
 
   const activeStyle = useMemo(

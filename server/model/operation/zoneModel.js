@@ -121,13 +121,25 @@ export const createZone = async (zone) => {
 
     const flespiGeometry = toFlespiGeometry(geometry);
 
-    let metadata = { op_id: operationId };
+    let metadata = {
+      op_id: operationId,
+      zone_type: zoneType,
+      area_ha,
+      color:
+        zoneType === "QUEUE_AREA"
+          ? "#e67e22"
+          : zoneType === "DUMP_AREA"
+            ? "#c0392b"
+            : zoneType === "LOAD_PAD"
+              ? "#27ae60"
+              : "#3498db",
+    };
 
     if (zoneType === "QUEUE_AREA") {
       metadata = {
         ...metadata,
         ideal_queue_duration_m,
-        queue_max_vehicles_count: max_vehicles_count,
+        max_vehicles_count,
       };
     }
 

@@ -136,9 +136,14 @@ import RemoveSnapshotsDevices from "./settings/RemoveSnapshotsDevices";
 import RimacFinalReportView from "./operations/RimacFinalReportView";
 import DispatchGeofence from "./operations/DispatchGeofence";
 import DispatchGeofenceList from "./operations/DispatchGeofenceList";
+import DispatchGeofenceListlistNew from "./operations1/pages/Index";
+import Operations1Edit from "./operations1/pages/Edit";
+import OperationDetail from "./operations1/pages/OperationDetail";
 import DispatchGeofenceDashboard from "./operations/dashboard/DispatchGeofenceDashboard";
 import DispatchDeviceDashboard from "./operations/dashboard/DispatchDeviceDashboard";
 import DispatchGeofenceSettings from "./operations/setting/DispatchGeofenceSettings";
+import Operations1GeofenceDashboard from "./operations1/dashboard/DispatchGeofenceDashboard";
+import Operations1DeviceDashboard from "./operations1/dashboard/DispatchDeviceDashboard";
 import DeviceTrackPage from "./other/DeviceTrackPage";
 import DeviceTelemetry from "./settings/DeviceTelemetry";
 import Dashboard from "./dashboard/Dashboard";
@@ -190,8 +195,12 @@ const Navigation = () => {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/change-server" element={<ChangeServerPage />} />
       <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/operations1/edit/:id" element={<Operations1Edit />} />
+      <Route path="/operations1/geofence/dashboard/:id" element={<Operations1GeofenceDashboard />} />
+      <Route path="/operations1/geofence/device/:id" element={<Operations1DeviceDashboard />} />
       <Route path="/" element={<App />}>
         <Route index element={<MainPage />} />
+        <Route path="operations/:id" element={<OperationDetail />} />
 
         <Route path="position/:id" element={<PositionPage />} />
         <Route path="network/:positionId" element={<NetworkPage />} />
@@ -423,6 +432,7 @@ const Navigation = () => {
           />
           <Route path="dispatch" element={<DispatchResult />} />
           <Route path="geofence/list" element={<DispatchGeofenceList />} />
+          <Route path="geofence/list_new" element={<DispatchGeofenceListlistNew />} />
           <Route path="geofence/map" element={<DispatchGeofence />} />
           <Route path="geofence/dashboard/:id" element={<DispatchGeofenceDashboard />} />
           <Route path="geofence/device/:id" element={<DispatchDeviceDashboard />} />
