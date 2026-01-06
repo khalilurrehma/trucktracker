@@ -431,8 +431,8 @@ const Navigation = () => {
             }
           />
           <Route path="dispatch" element={<DispatchResult />} />
-          <Route path="geofence/list" element={<DispatchGeofenceList />} />
-          <Route path="geofence/list_new" element={<DispatchGeofenceListlistNew />} />
+          <Route path="geofence/list" element={< DispatchGeofenceListlistNew />} />
+          <Route path="geofence/list_new" element={<DispatchGeofenceList />} />
           <Route path="geofence/map" element={<DispatchGeofence />} />
           <Route path="geofence/dashboard/:id" element={<DispatchGeofenceDashboard />} />
           <Route path="geofence/device/:id" element={<DispatchDeviceDashboard />} />

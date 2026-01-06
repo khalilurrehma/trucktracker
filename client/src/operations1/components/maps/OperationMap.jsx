@@ -15,7 +15,7 @@ import { cn } from "../../lib/utils";
 import { Maximize2, Layers, Circle, Pentagon, Trash2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, } from "../ui/alert-dialog";
-const MAPBOX_TOKEN = "pk.eyJ1IjoibmV4dG9wbGRhIiwiYSI6ImNtamJndjZ5ajBka3MzZHJ6c2hycmR3MGgifQ.zFdt6Si2E-Yc92j93x2phA";
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || "";
 // Circle drawing helper - creates a polygon approximating a circle
 const createCircle = (center, radiusKm, points = 64) => {
     const coords = [];
@@ -37,6 +37,18 @@ const createCircle = (center, radiusKm, points = 64) => {
         },
     };
 };
+const getDistanceKm = (start, end) => {
+    const R = 6371;
+    const dLat = ((end[1] - start[1]) * Math.PI) / 180;
+    const dLon = ((end[0] - start[0]) * Math.PI) / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((start[1] * Math.PI) / 180) *
+            Math.cos((end[1] * Math.PI) / 180) *
+            Math.sin(dLon / 2) *
+            Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+};
 const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePolygon, referencePolygons, referencePolygonColors, restrictionPolygon, center = [-77.0428, -12.0464], zoom = 13, drawMode = "polygon", height = "400px", }) => {
     const mapContainer = useRef(null);
     const map = useRef(null);
@@ -44,11 +56,17 @@ const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePo
     const geocoder = useRef(null);
     const styleRef = useRef("satellite");
     const [isLoaded, setIsLoaded] = useState(false);
+    const [mapReady, setMapReady] = useState(false);
     const [mapStyle, setMapStyle] = useState("satellite");
     const [activeDrawTool, setActiveDrawTool] = useState(null);
     const [hasShape, setHasShape] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const circleCenter = useRef(null);
+    const circlePreviewSourceId = "circle-preview";
+    const circlePreviewFillId = "circle-preview-fill";
+    const circlePreviewLineId = "circle-preview-line";
+    const referenceFitKey = useRef("");
+    const lastViewRef = useRef({ center, zoom });
     const setInteractionEnabled = useCallback((enabled) => {
         if (!map.current)
             return;
@@ -61,8 +79,26 @@ const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePo
             map.current.doubleClickZoom.disable();
         }
     }, []);
+    const onPolygonChangeRef = useRef(onPolygonChange);
+    const referenceRef = useRef({
+        referencePolygon,
+        referencePolygons,
+        referencePolygonColors,
+        restrictionPolygon,
+    });
+    useEffect(() => {
+        onPolygonChangeRef.current = onPolygonChange;
+    }, [onPolygonChange]);
+    useEffect(() => {
+        referenceRef.current = {
+            referencePolygon,
+            referencePolygons,
+            referencePolygonColors,
+            restrictionPolygon,
+        };
+    }, [referencePolygon, referencePolygons, referencePolygonColors, restrictionPolygon]);
     const normalizeGeoJson = (feature) => {
-        if (!feature || !feature.type)
+        if (!feature)
             return null;
         if (feature.type === "FeatureCollection") {
             return feature;
@@ -73,13 +109,43 @@ const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePo
                 features: [feature],
             };
         }
+        if (feature.type === "Polygon" || feature.type === "MultiPolygon") {
+            return {
+                type: "FeatureCollection",
+                features: [
+                    {
+                        type: "Feature",
+                        properties: {},
+                        geometry: feature,
+                    },
+                ],
+            };
+        }
+        if (feature.geometry && feature.geometry.type) {
+            return {
+                type: "FeatureCollection",
+                features: [
+                    {
+                        type: "Feature",
+                        properties: feature.properties || {},
+                        geometry: feature.geometry,
+                    },
+                ],
+            };
+        }
         return null;
     };
     const getRestrictionFeature = useCallback(() => {
+        const { restrictionPolygon, referencePolygons, referencePolygon } = referenceRef.current || {};
         const candidate = restrictionPolygon || (referencePolygons && referencePolygons[0]) || referencePolygon;
         const normalized = normalizeGeoJson(candidate);
         return normalized && normalized.features ? normalized.features[0] : null;
-    }, [restrictionPolygon, referencePolygons, referencePolygon]);
+    }, []);
+    const emitPolygonChange = useCallback((value) => {
+        if (onPolygonChangeRef.current) {
+            onPolygonChangeRef.current(value);
+        }
+    }, []);
     const fitToFeature = (feature) => {
         if (!map.current || !feature)
             return;
@@ -106,17 +172,47 @@ const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePo
         map.current.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 40, duration: 0 });
     };
     const addReferenceLayer = useCallback(() => {
-        if (!map.current || (!referencePolygon && (!referencePolygons || referencePolygons.length === 0)))
-            return;
-        const polygons = referencePolygons && referencePolygons.length
+        const { referencePolygon, referencePolygons, referencePolygonColors, restrictionPolygon } = referenceRef.current || {};
+        const basePolygons = referencePolygons && referencePolygons.length
             ? referencePolygons
-            : [referencePolygon];
-        const normalizedPolygons = polygons
+            : referencePolygon
+                ? [referencePolygon]
+                : restrictionPolygon
+                    ? [restrictionPolygon]
+                    : [];
+        if (!map.current || basePolygons.length === 0) {
+            console.log("[OperationMap] addReferenceLayer skipped", {
+                hasMap: Boolean(map.current),
+                hasReferencePolygon: Boolean(referencePolygon),
+                referencePolygonsCount: referencePolygons ? referencePolygons.length : 0,
+                hasRestrictionPolygon: Boolean(restrictionPolygon),
+                isLoaded,
+                mapReady,
+            });
+            return;
+        }
+        const normalizedPolygons = basePolygons
             .map((poly) => normalizeGeoJson(poly))
             .filter(Boolean);
-        if (normalizedPolygons.length === 0)
+        if (normalizedPolygons.length === 0) {
+            console.log("[OperationMap] addReferenceLayer no normalized polygons", {
+                baseCount: basePolygons.length,
+                isLoaded,
+                mapReady,
+            });
             return;
+        }
         const run = () => {
+            if (!map.current)
+                return;
+            if (!map.current.isStyleLoaded()) {
+                map.current.once("idle", run);
+                return;
+            }
+            console.log("[OperationMap] addReferenceLayer run", {
+                normalizedCount: normalizedPolygons.length,
+                isStyleLoaded: map.current.isStyleLoaded(),
+            });
             normalizedPolygons.forEach((normalized, index) => {
                 const color = (referencePolygonColors && referencePolygonColors[index]) || (index === 0 ? "#22d3ee" : "#38bdf8");
                 const sourceId = `operation-boundary-${index}`;
@@ -167,17 +263,53 @@ const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePo
                 }, beforeId);
                 map.current.moveLayer(lineId);
                 if (index === 0) {
-                    fitToFeature(normalized);
+                    const feature = normalized.features && normalized.features[0];
+                    const geometryKey = feature && feature.geometry
+                        ? JSON.stringify(feature.geometry)
+                        : "";
+                    if (geometryKey && geometryKey !== referenceFitKey.current) {
+                        referenceFitKey.current = geometryKey;
+                        fitToFeature(normalized);
+                    }
                 }
             });
         };
-        if (map.current.isStyleLoaded()) {
-            run();
+        if (!map.current.isStyleLoaded()) {
+            map.current.once("idle", run);
+            return;
+        }
+        run();
+    }, []);
+    const updatePolygon = useCallback(() => {
+        if (!draw.current)
+            return;
+        const data = draw.current.getAll();
+        if (data.features.length > 0) {
+            const restriction = getRestrictionFeature();
+            if (restriction &&
+                !booleanWithin(data.features[0], restriction) &&
+                !booleanContains(restriction, data.features[0])) {
+                draw.current.deleteAll();
+                setHasShape(false);
+                emitPolygonChange(null);
+                addReferenceLayer();
+                Swal.fire("Outside Operation", "Zone must be inside the Operation geofence.", "warning");
+                return;
+            }
+            setHasShape(true);
+            emitPolygonChange(data.features[0]);
+            if (map.current) {
+                map.current.getCanvas().style.cursor = "";
+            }
+            setInteractionEnabled(true);
+            setActiveDrawTool(null);
         }
         else {
-            map.current.once("style.load", run);
+            setHasShape(false);
+            emitPolygonChange(null);
         }
-    }, [referencePolygon, referencePolygons]);
+        addReferenceLayer();
+    }, [getRestrictionFeature, emitPolygonChange, addReferenceLayer, setInteractionEnabled]);
     const initializeMap = useCallback(() => {
         if (!mapContainer.current || map.current)
             return;
@@ -195,6 +327,7 @@ const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePo
             attributionControl: false,
             preserveDrawingBuffer: true,
         });
+        setMapReady(true);
         // Add navigation controls in bottom-left to avoid overlap
         map.current.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), "bottom-right");
         // Add geocoder with proper configuration
@@ -300,6 +433,7 @@ const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePo
         map.current.on("load", () => {
             var _a, _b, _c, _d;
             setIsLoaded(true);
+            console.log("[OperationMap] map loaded");
             // Add 3D buildings
             const layers = (_b = (_a = map.current) === null || _a === void 0 ? void 0 : _a.getStyle()) === null || _b === void 0 ? void 0 : _b.layers;
             const labelLayerId = (_c = layers === null || layers === void 0 ? void 0 : layers.find((layer) => { var _a; return layer.type === "symbol" && ((_a = layer.layout) === null || _a === void 0 ? void 0 : _a["text-field"]); })) === null || _c === void 0 ? void 0 : _c.id;
@@ -319,10 +453,6 @@ const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePo
                     },
                 }, labelLayerId);
             }
-            // Load existing polygon
-            if (existingPolygon && draw.current) {
-                draw.current.add(existingPolygon);
-            }
             addReferenceLayer();
         });
         map.current.on("styledata", addReferenceLayer);
@@ -335,35 +465,7 @@ const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePo
             map.current.on("draw.delete", updatePolygon);
             map.current.on("draw.update", updatePolygon);
         }
-        function updatePolygon() {
-            if (!draw.current)
-                return;
-            const data = draw.current.getAll();
-            if (data.features.length > 0) {
-                const restriction = getRestrictionFeature();
-                if (restriction && !booleanWithin(data.features[0], restriction) && !booleanContains(restriction, data.features[0])) {
-                    draw.current.deleteAll();
-                    setHasShape(false);
-                    onPolygonChange === null || onPolygonChange === void 0 ? void 0 : onPolygonChange(null);
-                    addReferenceLayer();
-                    Swal.fire("Outside Operation", "Zone must be inside the Operation geofence.", "warning");
-                    return;
-                }
-                setHasShape(true);
-                onPolygonChange === null || onPolygonChange === void 0 ? void 0 : onPolygonChange(data.features[0]);
-                if (map.current) {
-                    map.current.getCanvas().style.cursor = "";
-                }
-                setInteractionEnabled(true);
-                setActiveDrawTool(null);
-            }
-            else {
-                setHasShape(false);
-                onPolygonChange === null || onPolygonChange === void 0 ? void 0 : onPolygonChange(null);
-            }
-            addReferenceLayer();
-        }
-    }, [center, zoom, existingPolygon, onPolygonChange, drawMode, mapStyle, addReferenceLayer, setInteractionEnabled]);
+    }, []);
     useEffect(() => {
         initializeMap();
         return () => {
@@ -380,10 +482,35 @@ const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePo
         };
     }, [initializeMap]);
     useEffect(() => {
+        if (!mapReady)
+            return;
+        addReferenceLayer();
+    }, [mapReady, referencePolygon, referencePolygons, referencePolygonColors, addReferenceLayer]);
+    useEffect(() => {
+        if (!draw.current)
+            return;
+        if (existingPolygon) {
+            draw.current.deleteAll();
+            draw.current.add(existingPolygon);
+            setHasShape(true);
+        }
+        else {
+            draw.current.deleteAll();
+            setHasShape(false);
+        }
+        addReferenceLayer();
+    }, [existingPolygon, addReferenceLayer]);
+    useEffect(() => {
         if (!map.current)
             return;
+        const [lng, lat] = center || [];
+        const [prevLng, prevLat] = lastViewRef.current.center || [];
+        if (lng === prevLng && lat === prevLat && zoom === lastViewRef.current.zoom) {
+            return;
+        }
         map.current.setCenter(center);
         map.current.setZoom(zoom);
+        lastViewRef.current = { center, zoom };
     }, [center, zoom]);
     useEffect(() => {
         if (!map.current)
@@ -400,10 +527,71 @@ const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePo
     useEffect(() => {
         addReferenceLayer();
     }, [addReferenceLayer]);
+    const clearCirclePreview = useCallback(() => {
+        if (!map.current)
+            return;
+        if (map.current.getLayer(circlePreviewLineId)) {
+            map.current.removeLayer(circlePreviewLineId);
+        }
+        if (map.current.getLayer(circlePreviewFillId)) {
+            map.current.removeLayer(circlePreviewFillId);
+        }
+        if (map.current.getSource(circlePreviewSourceId)) {
+            map.current.removeSource(circlePreviewSourceId);
+        }
+    }, []);
     // Handle circle drawing mode
     useEffect(() => {
         if (!map.current || !draw.current || activeDrawTool !== "circle")
             return;
+        const ensureCirclePreview = () => {
+            if (!map.current)
+                return;
+            if (!map.current.getSource(circlePreviewSourceId)) {
+                map.current.addSource(circlePreviewSourceId, {
+                    type: "geojson",
+                    data: {
+                        type: "FeatureCollection",
+                        features: [],
+                    },
+                });
+            }
+            const beforeId = map.current.getLayer("gl-draw-polygon-fill")
+                ? "gl-draw-polygon-fill"
+                : undefined;
+            if (!map.current.getLayer(circlePreviewFillId)) {
+                map.current.addLayer({
+                    id: circlePreviewFillId,
+                    type: "fill",
+                    source: circlePreviewSourceId,
+                    paint: {
+                        "fill-color": "#22d3ee",
+                        "fill-opacity": 0.15,
+                    },
+                }, beforeId);
+            }
+            if (!map.current.getLayer(circlePreviewLineId)) {
+                map.current.addLayer({
+                    id: circlePreviewLineId,
+                    type: "line",
+                    source: circlePreviewSourceId,
+                    paint: {
+                        "line-color": "#22d3ee",
+                        "line-width": 2,
+                        "line-dasharray": [2, 1],
+                    },
+                }, beforeId);
+            }
+        };
+        const updateCirclePreview = (feature) => {
+            var _a;
+            ensureCirclePreview();
+            (_a = map.current
+                .getSource(circlePreviewSourceId)) === null || _a === void 0 ? void 0 : _a.setData({
+                type: "FeatureCollection",
+                features: feature ? [feature] : [],
+            });
+        };
         const handleClick = (e) => {
             var _a, _b;
             if (!circleCenter.current) {
@@ -415,16 +603,7 @@ const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePo
                 const center = circleCenter.current;
                 const endPoint = [e.lngLat.lng, e.lngLat.lat];
                 // Calculate distance in km
-                const R = 6371; // Earth's radius in km
-                const dLat = ((endPoint[1] - center[1]) * Math.PI) / 180;
-                const dLon = ((endPoint[0] - center[0]) * Math.PI) / 180;
-                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                    Math.cos((center[1] * Math.PI) / 180) *
-                        Math.cos((endPoint[1] * Math.PI) / 180) *
-                        Math.sin(dLon / 2) *
-                        Math.sin(dLon / 2);
-                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                const radiusKm = R * c;
+                const radiusKm = getDistanceKm(center, endPoint);
                 // Create circle polygon
                 const circleFeature = createCircle(center, radiusKm);
                 const restriction = getRestrictionFeature();
@@ -435,6 +614,7 @@ const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePo
                     }
                     circleCenter.current = null;
                     setActiveDrawTool(null);
+                    updateCirclePreview(null);
                     Swal.fire("Outside Operation", "Zone must be inside the Operation geofence.", "warning");
                     return;
                 }
@@ -442,26 +622,41 @@ const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePo
                 (_a = draw.current) === null || _a === void 0 ? void 0 : _a.deleteAll();
                 (_b = draw.current) === null || _b === void 0 ? void 0 : _b.add(circleFeature);
                 // Update polygon
-                onPolygonChange === null || onPolygonChange === void 0 ? void 0 : onPolygonChange(circleFeature);
+                emitPolygonChange(circleFeature);
                 setInteractionEnabled(true);
                 if (map.current) {
                     map.current.getCanvas().style.cursor = "";
                 }
+                updateCirclePreview(null);
                 // Reset
                 circleCenter.current = null;
                 setActiveDrawTool(null);
             }
         };
+        const handleMove = (e) => {
+            if (!circleCenter.current)
+                return;
+            const center = circleCenter.current;
+            const endPoint = [e.lngLat.lng, e.lngLat.lat];
+            const radiusKm = getDistanceKm(center, endPoint);
+            if (!radiusKm || Number.isNaN(radiusKm))
+                return;
+            updateCirclePreview(createCircle(center, radiusKm));
+        };
         map.current.on("click", handleClick);
+        map.current.on("mousemove", handleMove);
         map.current.getCanvas().style.cursor = "crosshair";
         return () => {
             var _a;
             (_a = map.current) === null || _a === void 0 ? void 0 : _a.off("click", handleClick);
+            (_a = map.current) === null || _a === void 0 ? void 0 : _a.off("mousemove", handleMove);
             if (map.current) {
                 map.current.getCanvas().style.cursor = "";
             }
+            updateCirclePreview(null);
+            clearCirclePreview();
         };
-    }, [activeDrawTool, onPolygonChange]);
+    }, [activeDrawTool, emitPolygonChange, getRestrictionFeature, setInteractionEnabled, clearCirclePreview]);
     const toggleMapStyle = () => {
         var _a;
         const newStyle = mapStyle === "satellite" ? "streets" : "satellite";
@@ -518,7 +713,7 @@ const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePo
         if (draw.current) {
             draw.current.deleteAll();
             setHasShape(false);
-            onPolygonChange === null || onPolygonChange === void 0 ? void 0 : onPolygonChange(null);
+            emitPolygonChange(null);
         }
         setShowDeleteDialog(false);
     };

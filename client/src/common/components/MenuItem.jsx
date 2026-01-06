@@ -9,10 +9,17 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const MenuItem = ({ title, link, icon, selected }) => {
+const MenuItem = ({ title, link, icon, selected, sx }) => {
   const classes = useStyles();
   return (
-    <ListItemButton key={link} component={Link} to={link} selected={selected}>
+    <ListItemButton
+      key={link}
+      component={Link}
+      to={link}
+      selected={selected}
+      className={selected ? "Mui-selected" : undefined}
+      sx={sx}
+    >
       <ListItemIcon>{icon}</ListItemIcon>
       <ListItemText primary={title} className={classes.menuItemText} />
     </ListItemButton>

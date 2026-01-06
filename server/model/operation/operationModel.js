@@ -142,7 +142,6 @@ export const createOperation = async (operation) => {
                 },
             },
         ]);
-
         const geofenceId = geofence?.[0]?.id;
 
         // 4️⃣ Update DB with Flespi geofence id
@@ -151,27 +150,6 @@ export const createOperation = async (operation) => {
             [geofenceId, operationId]
         );
 
-        // 5️⃣ Get calculator templates of type 'OP_AREA'
-        // const templates = await dbQuery(
-        //     "SELECT * FROM calculator_templates WHERE type = 'OP_AREA'"
-        // );
-
-        // 6️⃣ Create and assign calculators for this operation
-        // for (const tpl of templates) {
-        //     try {
-        //         const config = JSON.parse(tpl.config_json);
-        //         const calc = await createFlespiCalculator(config);
-        //         await assignCalculatorToGeofence(calc.id, geofenceId);
-        //         console.log(
-        //             `✅ Assigned calculator "${tpl.name}" (ID ${calc.id}) to geofence ${geofenceId}`
-        //         );
-        //     } catch (err) {
-        //         console.error(
-        //             `❌ Failed to create/assign calculator "${tpl.name}":`,
-        //             err.message
-        //         );
-        //     }
-        // }
         const templates = await getCalculatorTemplatesByType("OP_AREA");
         const assignmentsToSave = [];
 
@@ -179,6 +157,9 @@ export const createOperation = async (operation) => {
             try {
                 const config = await loadCalculatorTemplateConfig(template.file_path);
                 const cleanedConfig = sanitizeCalculatorConfig(config);
+                const templateLabel = template?.name || `template-${template?.id || "unknown"}`;
+                const calcName = `OP-${name}-${templateLabel}`.slice(0, 200);
+                cleanedConfig.name = calcName;
                 const calc = await createFlespiCalculator(cleanedConfig);
                 await assignCalculatorToGeofence(calc.id, geofenceId);
                 assignmentsToSave.push({
@@ -265,6 +246,7 @@ export const updateOperation = async (id, operation) => {
         if (geofenceId) {
             const opGeofenceCalcIds = await getCalculatorIdsByGeofenceId(geofenceId);
             await deleteCalculatorsByIds(opGeofenceCalcIds);
+            await deleteCalculatorAssignmentsByGeofenceId(geofenceId);
             await updateFlespiGeofence(geofenceId.toString(), {
                 name: name,
                 enabled: enabled,
@@ -277,6 +259,32 @@ export const updateOperation = async (id, operation) => {
                     priority: priority
                 },
             });
+
+            const templates = await getCalculatorTemplatesByType("OP_AREA");
+            const assignmentsToSave = [];
+
+            for (const template of templates) {
+                try {
+                    const config = await loadCalculatorTemplateConfig(template.file_path);
+                    const cleanedConfig = sanitizeCalculatorConfig(config);
+                    const templateLabel = template?.name || `template-${template?.id || "unknown"}`;
+                    const calcName = `OP-${name}-${templateLabel}`.slice(0, 200);
+                    cleanedConfig.name = calcName;
+                    const calc = await createFlespiCalculator(cleanedConfig);
+                    await assignCalculatorToGeofence(calc.id, geofenceId);
+                    assignmentsToSave.push({
+                        calc_id: calc.id,
+                        operation_id: id,
+                        geofence_flespi_id: geofenceId,
+                    });
+                } catch (err) {
+                    console.error(`Error creating/assigning calculator for OP_AREA (${template?.name || 'template'}):`, err.message);
+                }
+            }
+
+            if (assignmentsToSave.length > 0) {
+                await saveCalculatorAssignments(assignmentsToSave);
+            }
         }
 
         return { id, ...operation };

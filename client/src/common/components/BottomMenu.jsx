@@ -99,7 +99,8 @@ const BottomMenu = () => {
       case "operations":
         superVisor
           ? navigate("/operations/cases")
-          : navigate("/operations/dispatch");
+          // : navigate("/operations/dispatch");
+          : navigate("/operations/geofence/list");
         break;
       case "dashboard":
         navigate("/dashboard");

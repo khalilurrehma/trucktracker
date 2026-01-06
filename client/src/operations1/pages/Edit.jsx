@@ -312,7 +312,7 @@ const EditOperation = () => {
       }
 
       await Swal.fire("Success", "Operation updated successfully.", "success");
-      navigate("/operations/geofence/list_new");
+      navigate("/operations/geofence/list");
     } catch (error) {
       console.error(error);
       Swal.fire("Error", "Failed to update operation.", "error");
@@ -358,7 +358,7 @@ const EditOperation = () => {
               polygon={opPolygon}
               setPolygon={setOpPolygon}
               onNext={() => setCurrentStep(1)}
-              onBack={() => navigate("/operations/geofence/list_new")}
+              onBack={() => navigate("/operations/geofence/list")}
             />
           )}
 

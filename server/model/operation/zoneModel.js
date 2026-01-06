@@ -118,6 +118,8 @@ export const createZone = async (zone) => {
   try {
     const results = await dbQuery(sql, values);
     const zoneId = results.insertId;
+    const [opRow] = await dbQuery("SELECT name FROM operations WHERE id = ?", [operationId]);
+    const operationName = opRow?.name || `operation-${operationId}`;
 
     const flespiGeometry = toFlespiGeometry(geometry);
 
@@ -184,6 +186,9 @@ export const createZone = async (zone) => {
       try {
         const config = await loadCalculatorTemplateConfig(template.file_path);
         const cleanedConfig = sanitizeCalculatorConfig(config);
+        const templateLabel = template?.name || `template-${template?.id || "unknown"}`;
+        const calcName = `OP-${operationName}-${zoneType}-${name}-${templateLabel}`.slice(0, 200);
+        cleanedConfig.name = calcName;
         const calc = await createFlespiCalculator(cleanedConfig);
         await assignCalculatorToGeofence(calc.id, geofenceId);
         assignmentsToSave.push({
@@ -200,7 +205,6 @@ export const createZone = async (zone) => {
     if (assignmentsToSave.length > 0) {
       await saveCalculatorAssignments(assignmentsToSave);
     }
-
 
     await dbQuery(
       "UPDATE zones SET flespi_geofence_id = ? WHERE id = ?",
@@ -296,12 +300,16 @@ export const updateZone = async (id, zone) => {
         3) Get geofence ID
     --------------------------------------------- */
     const [zoneRow] = await dbQuery(
-      "SELECT flespi_geofence_id FROM zones WHERE id = ?",
+      "SELECT flespi_geofence_id, operationId FROM zones WHERE id = ?",
       [id]
     );
 
     const geofenceId = zoneRow?.flespi_geofence_id;
     if (geofenceId) {
+      const zoneCalcIds = await getCalculatorIdsByZoneId(id);
+      const zoneGeofenceCalcIds = await getCalculatorIdsByGeofenceId(geofenceId);
+      await deleteCalculatorsByIds([...zoneCalcIds, ...zoneGeofenceCalcIds]);
+      await deleteCalculatorAssignmentsByZoneId(id);
       await deleteCalculatorAssignmentsByGeofenceId(geofenceId);
     }
 
@@ -356,6 +364,38 @@ export const updateZone = async (id, zone) => {
         geometry: toFlespiGeometry(geometry),
         metadata,
       });
+
+      const [opRow] = await dbQuery(
+        "SELECT name FROM operations WHERE id = ?",
+        [zoneRow?.operationId]
+      );
+      const operationName = opRow?.name || `operation-${zoneRow?.operationId || "unknown"}`;
+      const templates = await getCalculatorTemplatesByType(zoneType);
+      const assignmentsToSave = [];
+
+      for (const template of templates) {
+        try {
+          const config = await loadCalculatorTemplateConfig(template.file_path);
+          const cleanedConfig = sanitizeCalculatorConfig(config);
+          const templateLabel = template?.name || `template-${template?.id || "unknown"}`;
+          const calcName = `OP-${operationName}-${zoneType}-${name}-${templateLabel}`.slice(0, 200);
+          cleanedConfig.name = calcName;
+          const calc = await createFlespiCalculator(cleanedConfig);
+          await assignCalculatorToGeofence(calc.id, geofenceId);
+          assignmentsToSave.push({
+            calc_id: calc.id,
+            operation_id: zoneRow?.operationId,
+            zone_id: id,
+            geofence_flespi_id: geofenceId,
+          });
+        } catch (err) {
+          console.error(`Error creating/assigning calculator for ${zoneType} (${template?.name || 'template'}):`, err.message);
+        }
+      }
+
+      if (assignmentsToSave.length > 0) {
+        await saveCalculatorAssignments(assignmentsToSave);
+      }
     }
 
     return { id, ...zone };

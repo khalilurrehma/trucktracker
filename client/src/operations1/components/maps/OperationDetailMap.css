@@ -5,45 +5,45 @@
 }
 
 .mapboxgl-popup-tip {
-  border-top-color: #1f2531 !important;
+  border-top-color: hsl(var(--card)) !important;
 }
 
 .operation-detail-popup .truck-info-card {
-  background: #1f2531 !important;
+  background: hsl(var(--card)) !important;
   border-radius: 12px;
   padding: 12px 14px;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 40px hsl(0 0% 0% / 0.25) !important;
+  border: 1px solid hsl(var(--border) / 0.6);
   min-width: 260px;
   font-family: "Inter", sans-serif;
   font-size: 13px;
-  color: #e2e8f0 !important;
+  color: hsl(var(--card-foreground)) !important;
 }
 
 .operation-detail-popup .truck-info-header {
-  border-bottom: 1px solid rgba(148, 163, 184, 0.2) !important;
+  border-bottom: 1px solid hsl(var(--border) / 0.6) !important;
   padding-bottom: 6px;
 }
 
 .operation-detail-popup .truck-info-header h4 {
-  color: #f8fafc !important;
+  color: hsl(var(--card-foreground)) !important;
 }
 
 .operation-detail-popup .truck-info-time {
-  color: #94a3b8 !important;
+  color: hsl(var(--muted-foreground)) !important;
 }
 
 .operation-detail-popup .truck-info-grid div {
-  color: #e2e8f0 !important;
+  color: hsl(var(--card-foreground)) !important;
 }
 
 .operation-detail-popup .truck-info-grid strong {
-  color: #facc15 !important;
+  color: hsl(var(--accent)) !important;
   font-weight: 600;
 }
 
 .operation-detail-popup .truck-info-icons {
-  border-top: 1px solid rgba(148, 163, 184, 0.2) !important;
+  border-top: 1px solid hsl(var(--border) / 0.6) !important;
   padding-top: 10px;
   padding-bottom: 4px;
   gap: 10px;
@@ -59,17 +59,17 @@
   align-items: center;
   justify-content: center;
   line-height: 0;
-  background: #252c38;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  background: hsl(var(--secondary));
+  border: 1px solid hsl(var(--border) / 0.5);
+  box-shadow: inset 0 0 0 1px hsl(var(--border) / 0.2);
   transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 }
 
 .operation-detail-popup .truck-info-icons .truck-info-icon:hover,
 .operation-detail-popup .truck-info-icons a:hover {
   transform: translateY(-1px);
-  background: #2c3442;
-  border-color: rgba(148, 163, 184, 0.35);
+  background: hsl(var(--secondary) / 0.8);
+  border-color: hsl(var(--border));
 }
 
 .operation-detail-popup .truck-info-icons svg,
@@ -79,17 +79,17 @@
 }
 
 .operation-detail-popup .truck-info-icon.locate {
-  color: #f97316 !important;
+  color: hsl(var(--telemetry-warning)) !important;
 }
 
 .operation-detail-popup .truck-info-icon.settings {
-  color: #e2e8f0 !important;
+  color: hsl(var(--foreground)) !important;
 }
 
 .operation-detail-popup .truck-info-icon.info {
-  color: #facc15 !important;
+  color: hsl(var(--telemetry-warning)) !important;
 }
 
 .operation-detail-popup .truck-info-link {
-  color: #60a5fa !important;
+  color: hsl(var(--primary)) !important;
 }

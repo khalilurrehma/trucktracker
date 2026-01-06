@@ -39,6 +39,7 @@ const Index = () => {
   const [operations, setOperations] = useState([]);
   const [devices, setDevices] = useState(mockDevices);
   const [loadingOperations, setLoadingOperations] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   // Operation Step
   const [operationName, setOperationName] = useState("");
@@ -310,6 +311,19 @@ const Index = () => {
   };
 
   const handleDelete = async (id) => {
+    const result = await Swal.fire({
+      title: "Delete Operation?",
+      text: "This will remove the operation and its zones.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Delete",
+      confirmButtonColor: "#dc2626",
+      cancelButtonText: "Cancel",
+    });
+    if (!result.isConfirmed) {
+      return;
+    }
+    setDeletingId(id);
     try {
       await deleteOperation(id);
       setOperations((prev) => prev.filter((op) => (op.id ?? op.operation_id) !== id));
@@ -317,6 +331,8 @@ const Index = () => {
     } catch (error) {
       console.error(error);
       toast.error("Failed to delete operation");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -345,6 +361,7 @@ const Index = () => {
             onDelete={handleDelete}
             onView={handleView}
             onCreate={handleCreateNew}
+            deletingId={deletingId}
           />
         ) : (
           <div className="space-y-6">
@@ -374,7 +391,15 @@ const Index = () => {
                 setTotalMaterial={setTotalMaterial}
                 polygon={opPolygon}
                 setPolygon={setOpPolygon}
-                onNext={() => {
+                onNext={async () => {
+                  if (!operationName.trim()) {
+                    await Swal.fire("Required", "Operation name is required.", "warning");
+                    return;
+                  }
+                  if (!opPolygon) {
+                    await Swal.fire("Required", "Operation geofence is required.", "warning");
+                    return;
+                  }
                   setOperationPolygon(opPolygon ? JSON.parse(JSON.stringify(opPolygon)) : null);
                   setCurrentStep(1);
                 }}
@@ -384,6 +409,7 @@ const Index = () => {
 
             {currentStep === 1 && (
               <ZoneAreaStep
+                title="Create Zone Area"
                 operationName={operationName}
                 zoneName={zoneName}
                 setZoneName={setZoneName}
@@ -402,13 +428,13 @@ const Index = () => {
                 polygon={zonePolygon}
                 setPolygon={setZonePolygon}
                 operationPolygon={operationPolygon || opPolygon}
-                onNext={() => {
+                onNext={async () => {
                   if (!zoneName.trim()) {
-                    toast.error("Zone Area name is required.");
+                    await Swal.fire("Required", "Zone Area name is required.", "warning");
                     return;
                   }
                   if (!zonePolygon) {
-                    toast.error("Please draw the Zone Area geofence.");
+                    await Swal.fire("Required", "Zone Area geofence is required.", "warning");
                     return;
                   }
                   if (!isInsideOperation(zonePolygon)) {
@@ -438,7 +464,15 @@ const Index = () => {
                 setPolygon={setLoadPadPolygon}
                 operationPolygon={operationPolygon || opPolygon}
                 zonePolygon={zonePolygon}
-                onNext={() => {
+                onNext={async () => {
+                  if (!loadPadName.trim()) {
+                    await Swal.fire("Required", "Load Pad name is required.", "warning");
+                    return;
+                  }
+                  if (!loadPadPolygon) {
+                    await Swal.fire("Required", "Load Pad geofence is required.", "warning");
+                    return;
+                  }
                   if (!isInsideOperation(loadPadPolygon)) {
                     toast.error("Load Pad must be inside the Operation geofence.");
                     return;
@@ -467,7 +501,15 @@ const Index = () => {
                 operationPolygon={operationPolygon || opPolygon}
                 zonePolygon={zonePolygon}
                 loadPadPolygon={loadPadPolygon}
-                onNext={() => {
+                onNext={async () => {
+                  if (!dumpAreaName.trim()) {
+                    await Swal.fire("Required", "Dump Area name is required.", "warning");
+                    return;
+                  }
+                  if (!dumpAreaPolygon) {
+                    await Swal.fire("Required", "Dump Area geofence is required.", "warning");
+                    return;
+                  }
                   if (!isInsideOperation(dumpAreaPolygon)) {
                     toast.error("Dump Area must be inside the Operation geofence.");
                     return;
@@ -499,7 +541,15 @@ const Index = () => {
                 zonePolygon={zonePolygon}
                 loadPadPolygon={loadPadPolygon}
                 dumpAreaPolygon={dumpAreaPolygon}
-                onNext={() => {
+                onNext={async () => {
+                  if (!queueName.trim()) {
+                    await Swal.fire("Required", "Queue Area name is required.", "warning");
+                    return;
+                  }
+                  if (!queuePolygon) {
+                    await Swal.fire("Required", "Queue Area geofence is required.", "warning");
+                    return;
+                  }
                   if (!isInsideOperation(queuePolygon)) {
                     toast.error("Queue Area must be inside the Operation geofence.");
                     return;

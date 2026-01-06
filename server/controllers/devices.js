@@ -96,11 +96,20 @@ const createAndAssignDeviceCalculators = async (deviceDbId, deviceFlespiId) => {
   }
 
   const assignments = [];
+  const [deviceRow] = await dbQuery(
+    "SELECT name FROM new_settings_devices WHERE id = ?",
+    [deviceDbId]
+  );
+  const deviceName = deviceRow?.name || `device-${deviceDbId}`;
 
   for (const template of templates) {
     try {
+      
       const config = await loadCalculatorTemplateConfig(template.file_path);
       const cleanedConfig = sanitizeCalculatorConfig(config);
+      const templateLabel = template?.name || `template-${template?.id || "unknown"}`;
+      const calcName = `DEVICE-${deviceName}-${templateLabel}`.slice(0, 200);
+      cleanedConfig.name = calcName;
       const calc = await createFlespiCalculator(cleanedConfig);
       await assignCalculatorToDevice(deviceFlespiId, calc.id);
       assignments.push({

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTheme } from "@mui/material/styles";
 import { useParams, useNavigate } from "react-router-dom";
 import ZonesSidebar from "../components/operations/ZonesSidebar";
 import AlertsPanel from "../components/operations/AlertsPanel";
@@ -10,6 +11,8 @@ import { useAppContext } from "../../AppContext";
 const OperationDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const dataTheme = theme?.palette?.mode === "dark" ? "dark" : "light";
   const [selectedZoneId, setSelectedZoneId] = useState();
   const [alertsOpen, setAlertsOpen] = useState(true);
   const [operation, setOperation] = useState(null);
@@ -34,9 +37,24 @@ const OperationDetail = () => {
     liveRimacCases = [],
   } = useAppContext() || {};
 
+  const parseGeometryValue = (value) => {
+    if (!value) return null;
+    let parsed = value;
+    for (let i = 0; i < 2; i += 1) {
+      if (typeof parsed !== "string") break;
+      try {
+        parsed = JSON.parse(parsed);
+      } catch (error) {
+        break;
+      }
+    }
+    return parsed;
+  };
+
   const normalizeGeometry = (value) => {
     if (!value) return null;
-    const raw = typeof value === "string" ? JSON.parse(value) : value;
+    const raw = parseGeometryValue(value);
+    if (!raw) return null;
     if (raw.type === "Feature") {
       return raw;
     }
@@ -51,6 +69,47 @@ const OperationDetail = () => {
       };
     }
     return null;
+  };
+
+  const closeRing = (coords) => {
+    if (!Array.isArray(coords) || coords.length < 3) return coords;
+    const first = coords[0];
+    const last = coords[coords.length - 1];
+    if (!first || !last) return coords;
+    if (first[0] !== last[0] || first[1] !== last[1]) {
+      return [...coords, first];
+    }
+    return coords;
+  };
+
+  const closePolygonFeature = (feature) => {
+    if (!feature?.geometry) return feature;
+    if (feature.geometry.type === "Polygon") {
+      const ring = feature.geometry.coordinates?.[0];
+      if (ring) {
+        const closed = closeRing(ring);
+        return {
+          ...feature,
+          geometry: {
+            ...feature.geometry,
+            coordinates: [closed],
+          },
+        };
+      }
+    }
+    if (feature.geometry.type === "MultiPolygon") {
+      const polygons = feature.geometry.coordinates || [];
+      return {
+        ...feature,
+        geometry: {
+          ...feature.geometry,
+          coordinates: polygons.map((poly) =>
+            Array.isArray(poly) && poly[0] ? [closeRing(poly[0])] : poly
+          ),
+        },
+      };
+    }
+    return feature;
   };
 
   const circleToPolygon = (center, radiusMeters, points = 64) => {
@@ -73,7 +132,8 @@ const OperationDetail = () => {
   };
 
   const resolvePolygonFromGeometry = (geometryValue) => {
-    const raw = typeof geometryValue === "string" ? JSON.parse(geometryValue) : geometryValue;
+    const raw = parseGeometryValue(geometryValue);
+    if (!raw) return null;
     if (raw?.path && Array.isArray(raw.path)) {
       const coordinates = raw.path.map((point) => [point.lon, point.lat]);
       if (coordinates.length > 2) {
@@ -100,8 +160,8 @@ const OperationDetail = () => {
       return circleToPolygon([raw.center.lon, raw.center.lat], raw.radius);
     }
     const geometry = normalizeGeometry(geometryValue);
-    if (geometry?.geometry?.type === "Polygon") {
-      return geometry;
+    if (geometry?.geometry?.type === "Polygon" || geometry?.geometry?.type === "MultiPolygon") {
+      return closePolygonFeature(geometry);
     }
     if (geometry?.geometry?.type === "circle" && geometry?.geometry?.coordinates?.length >= 2) {
       const [lng, lat] = geometry.geometry.coordinates;
@@ -148,6 +208,7 @@ const OperationDetail = () => {
           getZonesByOperationId(id),
         ]);
         if (!isMounted) return;
+        console.log("Operation geometry raw:", operationData?.geometry);
         setOperation(operationData);
         const mappedZones = (zonesData || [])
           .map((zone) => ({
@@ -162,6 +223,7 @@ const OperationDetail = () => {
           setSelectedZoneId(mappedZones[0].id);
         }
         const opGeometry = resolvePolygonFromGeometry(operationData?.geometry);
+        console.log("Operation geometry parsed:", opGeometry);
         const opCenter = opGeometry ? getPolygonCenter(opGeometry) : null;
         setOperationPolygon(opGeometry);
         if (opCenter) {
@@ -180,7 +242,7 @@ const OperationDetail = () => {
     return () => {
       isMounted = false;
     };
-  }, [id, selectedZoneId]);
+  }, [id]);
 
   const operationName = useMemo(() => {
     return operation?.name || `Operation ${id || ""}`.trim();
@@ -266,7 +328,10 @@ const OperationDetail = () => {
   }
 
   return (
-    <div className="h-screen flex overflow-hidden bg-background">
+    <div
+      className="ops-theme h-screen flex overflow-hidden bg-background"
+      data-theme={dataTheme}
+    >
       {/* Left Sidebar - Zones */}
       <ZonesSidebar
         operationId={id || ""}

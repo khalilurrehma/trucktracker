@@ -157,7 +157,7 @@ export default function EditStep7Finalize({ goPrev }) {
         <Accordion defaultExpanded>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Typography variant="subtitle1">
-              Final Review — Operation {operation?.name}
+              Final Review - Operation {operation?.name}
             </Typography>
           </AccordionSummary>
 
@@ -183,7 +183,7 @@ export default function EditStep7Finalize({ goPrev }) {
                 style={{
                   padding: "10px 20px",
                   background: "#444",
-                  color: "white",
+                  color: "hsl(var(--primary-foreground))",
                   borderRadius: 6,
                   border: "none",
                   cursor: saving ? "default" : "pointer",
@@ -197,14 +197,14 @@ export default function EditStep7Finalize({ goPrev }) {
                 disabled={saving}
                 style={{
                   padding: "10px 20px",
-                  background: saving ? "#888" : "#2e7d32",
-                  color: "white",
+                  background: saving ? "hsl(var(--muted))" : "hsl(var(--primary))",
+                  color: "hsl(var(--primary-foreground))",
                   borderRadius: 6,
                   border: "none",
                   cursor: saving ? "default" : "pointer",
                 }}
               >
-                {saving ? "Updating…" : "Update Everything"}
+                {saving ? "Updating..." : "Update Everything"}
               </button>
             </div>
           </AccordionDetails>
@@ -213,3 +213,4 @@ export default function EditStep7Finalize({ goPrev }) {
     </PageLayout>
   );
 }
+
