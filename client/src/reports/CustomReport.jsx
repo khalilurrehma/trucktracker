@@ -16,6 +16,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Autocomplete,
+  Checkbox,
 } from "@mui/material";
 import { useParams } from "react-router-dom";
 import axios from "axios";
@@ -191,10 +193,19 @@ const CustomReport = () => {
   const [selectedColumns, setSelectedColumns] = useState([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [showMap, setShowMap] = useState(false);
-console.log(reportId);
+  const [activeCalcId, setActiveCalcId] = useState(null);
+  const [reportCalcIds, setReportCalcIds] = useState([]);
+  const [tableTitle, setTableTitle] = useState("Report Data");
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [columnLabelOverrides, setColumnLabelOverrides] = useState({});
+  const [operations, setOperations] = useState([]);
+  const [selectedOperation, setSelectedOperation] = useState(null);
+  const [operationCalcIds, setOperationCalcIds] = useState([]);
+  const [calcTotals, setCalcTotals] = useState({});
 
   const handleShowRoute = (route) => {
     setSelectedRoute(route);
@@ -203,9 +214,104 @@ console.log(reportId);
 
   useEffect(() => {
     if (reportId && userId) {
-      fetchCalculatorReport(reportId, userId);
+      fetchReportData(reportId, userId, page, rowsPerPage);
     }
-  }, [reportId, userId]);
+  }, [reportId, userId, page, rowsPerPage]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [reportId]);
+
+  useEffect(() => {
+    const fetchOperations = async () => {
+      try {
+        const response = await axios.get(`${url}/operations`);
+        if (Array.isArray(response.data)) {
+          setOperations(response.data);
+        }
+      } catch (error) {
+        // ignore
+      }
+    };
+    fetchOperations();
+  }, [url]);
+
+  useEffect(() => {
+    const fetchOperationCalcs = async () => {
+      if (!selectedOperation?.id) {
+        setOperationCalcIds([]);
+        return;
+      }
+      try {
+        const response = await axios.get(
+          `${url}/operations/${selectedOperation.id}/calcs`
+        );
+        if (response.data?.status) {
+          setOperationCalcIds(response.data.data || []);
+        } else if (Array.isArray(response.data)) {
+          setOperationCalcIds(response.data);
+        } else {
+          setOperationCalcIds([]);
+        }
+      } catch (error) {
+        setOperationCalcIds([]);
+      }
+    };
+    fetchOperationCalcs();
+  }, [selectedOperation, url]);
+
+  useEffect(() => {
+    if (!reportId) return;
+    const storedTitle = sessionStorage.getItem(`report-title-${reportId}`);
+    const storedColumns = sessionStorage.getItem(`report-columns-${reportId}`);
+    const storedColumnLabels = sessionStorage.getItem(
+      `report-column-labels-${reportId}`
+    );
+    if (storedTitle) {
+      setTableTitle(storedTitle);
+    }
+    if (storedColumns) {
+      try {
+        const parsedColumns = JSON.parse(storedColumns);
+        if (Array.isArray(parsedColumns)) {
+          setSelectedColumns(parsedColumns);
+        }
+      } catch (error) {
+        // ignore
+      }
+    }
+    if (storedColumnLabels) {
+      try {
+        const parsedLabels = JSON.parse(storedColumnLabels);
+        if (parsedLabels && typeof parsedLabels === "object") {
+          setColumnLabelOverrides(parsedLabels);
+        }
+      } catch (error) {
+        // ignore
+      }
+    }
+  }, [reportId]);
+
+  useEffect(() => {
+    if (!reportId) return;
+    sessionStorage.setItem(`report-title-${reportId}`, tableTitle);
+  }, [reportId, tableTitle]);
+
+  useEffect(() => {
+    if (!reportId) return;
+    sessionStorage.setItem(
+      `report-columns-${reportId}`,
+      JSON.stringify(selectedColumns)
+    );
+  }, [reportId, selectedColumns]);
+
+  useEffect(() => {
+    if (!reportId) return;
+    sessionStorage.setItem(
+      `report-column-labels-${reportId}`,
+      JSON.stringify(columnLabelOverrides)
+    );
+  }, [reportId, columnLabelOverrides]);
 
   const formatAnyDate = (value, language = "en") => {
     const locale = getLocale(language);
@@ -266,53 +372,156 @@ console.log(reportId);
     return units[key] ? `${value} ${units[key]}` : value;
   };
 
-  const fetchCalculatorReport = async (calcId, traccarId) => {
+  const getDeviceIds = async () => {
+    const apiUrl = `${url}/new-devices`;
+    const [newDevicesResponse, permissionDevicesResponse] =
+      await Promise.allSettled([
+        axios.get(apiUrl),
+        fetch("/api/devices").then((res) =>
+          res.ok ? res.json() : Promise.reject("API Error")
+        ),
+      ]);
+
+    if (
+      newDevicesResponse.status !== "fulfilled" ||
+      permissionDevicesResponse.status !== "fulfilled"
+    ) {
+      throw new Error("Failed to fetch data");
+    }
+
+    const newDevices = newDevicesResponse.value.data.data;
+    const permissionDevices = permissionDevicesResponse.value;
+    const matchedDevices = findMatchingDevices(newDevices, permissionDevices);
+
+    return {
+      deviceIds:
+        userId === 1
+          ? newDevices.map((device) => device.id)
+          : matchedDevices.map((device) => device.id),
+      isSuperAdmin: userId === 1,
+    };
+  };
+
+  const requestCalcReport = async (
+    calcId,
+    traccarId,
+    deviceIds,
+    isSuperAdmin,
+    pageIndex,
+    pageSize
+  ) => {
+    const response = await axios.post(
+      `${url}/c-report-paged/calcs/${calcId}/user/${traccarId}`,
+      {
+        deviceIds,
+        superAdmin: isSuperAdmin,
+        page: pageIndex,
+        pageSize,
+      }
+    );
+    return {
+      rows: response.data.message || [],
+      total: response.data.total || 0,
+    };
+  };
+
+  const fetchCalculatorReport = async (calcId, traccarId, pageIndex, pageSize) => {
     setLoading(true);
     setError(null);
     setSelectedColumns([]);
 
     try {
-      const apiUrl = `${url}/new-devices`;
-
-      const [newDevicesResponse, permissionDevicesResponse] =
-        await Promise.allSettled([
-          axios.get(apiUrl),
-          fetch("/api/devices").then((res) =>
-            res.ok ? res.json() : Promise.reject("API Error")
-          ),
-        ]);
-
-      if (
-        newDevicesResponse.status !== "fulfilled" ||
-        permissionDevicesResponse.status !== "fulfilled"
-      ) {
-        throw new Error("Failed to fetch data");
-      }
-
-      const newDevices = newDevicesResponse.value.data.data;
-      const permissionDevices = permissionDevicesResponse.value;
-
-      const matchedDevices = findMatchingDevices(newDevices, permissionDevices);
-      const deviceIds =
-        userId === 1
-          ? newDevices.map((device) => device.id)
-          : matchedDevices.map((device) => device.id);
-
-      const response = await axios.post(
-        `${url}/c-report/calcs/${calcId}/user/${traccarId}`,
-        {
-          deviceIds,
-          superAdmin: userId === 1 ? true : false,
-        }
+      const { deviceIds, isSuperAdmin } = await getDeviceIds();
+      const reportData = await requestCalcReport(
+        calcId,
+        traccarId,
+        deviceIds,
+        isSuperAdmin,
+        pageIndex,
+        pageSize
       );
 
-      const reportData = response.data.message;
-
-      setData(reportData);
-      setColumns(Object.keys(reportData[0] || {}));
+      setData(reportData.rows);
+      setColumns(Object.keys(reportData.rows[0] || {}));
 
       const mappingKeys = Object.keys(columnMappings[calcId] || {});
       setSelectedColumns(mappingKeys);
+      setActiveCalcId(calcId);
+      setReportCalcIds([calcId]);
+      setTotalCount(reportData.total);
+      setCalcTotals({ [calcId]: reportData.total });
+    } catch (err) {
+      console.error("Error fetching data:", err);
+      setError("Failed to fetch data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchReportData = async (incomingId, traccarId, pageIndex, pageSize) => {
+    setLoading(true);
+    setError(null);
+    setSelectedColumns([]);
+
+    try {
+      let calcIds = [];
+
+      try {
+        const reportResponse = await axios.get(`${url}/report/${incomingId}`);
+        const report = reportResponse.data?.data;
+        if (report?.calcs_ids) {
+          const parsed = JSON.parse(report.calcs_ids);
+          calcIds = Array.isArray(parsed) ? parsed : [parsed];
+        }
+        if (report?.name) {
+          setTableTitle(report.name);
+        }
+      } catch (error) {
+        calcIds = [];
+      }
+
+      if (calcIds.length === 0) {
+        calcIds = [incomingId];
+      }
+
+      const { deviceIds, isSuperAdmin } = await getDeviceIds();
+      const reportDataList = await Promise.all(
+        calcIds.map((calcId) =>
+          requestCalcReport(
+            calcId,
+            traccarId,
+            deviceIds,
+            isSuperAdmin,
+            pageIndex,
+            pageSize
+          )
+        )
+      );
+
+      const merged = reportDataList.flatMap((result, index) =>
+        result.rows.map((row) => ({
+          ...row,
+          calcId: calcIds[index],
+        }))
+      );
+
+      setData(merged);
+      setColumns(Object.keys(merged[0] || {}));
+      setActiveCalcId(calcIds[0]);
+      setReportCalcIds(calcIds);
+      setTotalCount(
+        reportDataList.reduce((sum, result) => sum + (result.total || 0), 0)
+      );
+      const totalsMap = reportDataList.reduce((acc, result, index) => {
+        acc[calcIds[index]] = result.total || 0;
+        return acc;
+      }, {});
+      setCalcTotals(totalsMap);
+
+      const mappingKeys = Object.keys(columnMappings[calcIds[0]] || {});
+      const mergedColumns =
+        calcIds.length > 1 ? ["calcId", ...mappingKeys] : mappingKeys;
+      setSelectedColumns(mergedColumns);
     } catch (err) {
       console.error("Error fetching data:", err);
       setError("Failed to fetch data");
@@ -337,6 +546,20 @@ console.log(reportId);
 
   const filteredData = useMemo(() => {
     let result = [...data];
+    const operationFilterActive =
+      selectedOperation?.id && operationCalcIds.length > 0;
+
+    if (operationFilterActive) {
+      const allowed = new Set(
+        reportCalcIds.length > 0
+          ? operationCalcIds.filter((id) => reportCalcIds.includes(id))
+          : operationCalcIds
+      );
+      result = result.filter((row) => {
+        const calcId = row.calcId ?? activeCalcId;
+        return allowed.has(calcId);
+      });
+    }
 
     const hasDateField = data.length > 0 && "date" in data[0];
     const dateField = hasDateField ? "date" : "begin";
@@ -366,9 +589,25 @@ console.log(reportId);
     return result;
   }, [data, selectedDate, searchQuery]);
 
+  const effectiveTotalCount = useMemo(() => {
+    const operationFilterActive =
+      selectedOperation?.id && operationCalcIds.length > 0;
+    if (!operationFilterActive) {
+      return totalCount;
+    }
+    const allowed = new Set(
+      reportCalcIds.length > 0
+        ? operationCalcIds.filter((id) => reportCalcIds.includes(id))
+        : operationCalcIds
+    );
+    return Object.entries(calcTotals).reduce((sum, [calcId, count]) => {
+      return allowed.has(Number(calcId)) ? sum + count : sum;
+    }, 0);
+  }, [operationCalcIds, reportCalcIds, selectedOperation, calcTotals, totalCount]);
+
   useEffect(() => {
     setPage(0);
-  }, [filteredData]);
+  }, [selectedDate, searchQuery, selectedOperation]);
 
   const handleExportExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(filteredData);
@@ -398,13 +637,8 @@ console.log(reportId);
     return mappedColumns;
   };
 
-  const sortedMappedColumns = getMappedColumns(selectedColumns, reportId);
-  const sortedOriginalColumns = getMappedColumns(selectedColumns, reportId).map(
-    (mappedCol) =>
-      Object.keys(columnMappings[reportId] || {}).find(
-        (key) => columnMappings[reportId][key] === mappedCol
-      ) || mappedCol
-  );
+  const mapCalcId = activeCalcId || reportId;
+  const visibleColumns = selectedColumns.length > 0 ? selectedColumns : columns;
 
   const today = new Date();
 
@@ -412,6 +646,27 @@ console.log(reportId);
     (col) =>
       col.toLowerCase().includes("date") || col.toLowerCase().includes("time")
   );
+  const hasRouteColumn = filteredData.some((row) => Boolean(row.route));
+
+  const getColumnLabel = (column) => {
+    if (columnLabelOverrides[column]) return columnLabelOverrides[column];
+    if (column === "calcId") return "Calculator";
+    return columnMappings[mapCalcId]?.[column] || formatColumnName(column);
+  };
+
+  const handleRenameColumn = (column) => {
+    const currentLabel = getColumnLabel(column);
+    const nextLabel = window.prompt("Rename column", currentLabel);
+    if (nextLabel == null) return;
+    const trimmed = nextLabel.trim();
+    setColumnLabelOverrides((prev) => {
+      if (!trimmed) {
+        const { [column]: _removed, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [column]: trimmed };
+    });
+  };
 
   if (loading) {
     return (
@@ -435,7 +690,7 @@ console.log(reportId);
 
   return (
     <PageLayout menu={<ReportsMenu />} breadcrumbs2={["reportTitle", "Wait"]}>
-      <div style={{ display: "flex", gap: "20px", padding: "30px" }}>
+      <div style={{ display: "flex", gap: "20px", padding: "30px", alignItems: "center" }}>
         {hasDateField && (
           <LocalizationProvider dateAdapter={AdapterDateFns}>
             <DatePicker
@@ -461,58 +716,136 @@ console.log(reportId);
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
+        <div style={{ minWidth: "260px" }}>
+          <Autocomplete
+            options={operations}
+            value={selectedOperation}
+            onChange={(event, value) => setSelectedOperation(value)}
+            getOptionLabel={(option) =>
+              option?.name ? `${option.name} (#${option.id})` : ""
+            }
+            renderInput={(params) => (
+              <TextField {...params} label="Operation" size="small" />
+            )}
+          />
+        </div>
 
         <Button
-          variant="outlined"
+          variant="contained"
+          onClick={() => fetchReportData(reportId, traccarUser.id, page, rowsPerPage)}
+          sx={{ width: "15%" }}
+        >
+          {t("sharedFetchData")}
+        </Button>
+        {columns.length > 0 && (
+          <div style={{ marginLeft: "auto", minWidth: "320px" }}>
+            <Autocomplete
+              multiple
+              limitTags={3}
+              disableCloseOnSelect
+              options={columns}
+              value={selectedColumns}
+              onChange={(event, values) => {
+                const ordered = [...values].sort(
+                  (a, b) => columns.indexOf(a) - columns.indexOf(b)
+                );
+                setSelectedColumns(ordered);
+              }}
+              getOptionLabel={(option) => getColumnLabel(option)}
+              renderTags={(value, getTagProps) => {
+                if (value.length === 0) {
+                  return null;
+                }
+                return (
+                  <span style={{ color: "#cbd5f5" }}>
+                    {value.length}
+                  </span>
+                );
+              }}
+              renderOption={(props, option, { selected }) => (
+                <li {...props}>
+                  <Checkbox checked={selected} sx={{ mr: 1 }} />
+                  {getColumnLabel(option)}
+                </li>
+              )}
+              renderInput={(params) => (
+                <TextField {...params} label="Show Columns" size="small" />
+              )}
+            />
+          </div>
+        )}
+        <Button
+          variant="contained"
           onClick={handleExportExcel}
           sx={{ width: "20%" }}
         >
           {t("sharedDownloadExcel")}
         </Button>
-        <Button
-          variant="contained"
-          onClick={() => fetchCalculatorReport(reportId, traccarUser.id)}
-          sx={{ width: "15%" }}
-        >
-          {t("sharedFetchData")}
-        </Button>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "0 30px", flexWrap: "wrap" }}>
+        {isEditingTitle ? (
+          <TextField
+            size="small"
+            value={tableTitle}
+            onChange={(e) => setTableTitle(e.target.value)}
+            onBlur={() => setIsEditingTitle(false)}
+            sx={{ width: "40%" }}
+          />
+        ) : (
+          <Typography
+            variant="h6"
+            onClick={() => setIsEditingTitle(true)}
+            sx={{ cursor: "pointer" }}
+          >
+            {tableTitle}
+          </Typography>
+        )}
       </div>
 
       <TableContainer sx={{ mt: 3, p: 2 }}>
         <Table>
           <TableHead>
             <TableRow>
-              {sortedMappedColumns?.map((index, col) => (
-                <TableCell key={col}>{index}</TableCell>
+              {visibleColumns.map((column) => (
+                <TableCell
+                  key={column}
+                  onDoubleClick={() => handleRenameColumn(column)}
+                  style={{ cursor: "pointer" }}
+                  title="Double-click to rename"
+                >
+                  {getColumnLabel(column)}
+                </TableCell>
               ))}
+              {hasRouteColumn && <TableCell>Map</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredData
-              .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-              .map((row, index) => (
+            {filteredData.map((row, index) => (
                 <TableRow key={index}>
-                  {sortedOriginalColumns.map((col) => {
+                  {visibleColumns.map((col) => {
                     let value = formatValue(col, row[col], language);
                     value =
                       value === true
                         ? "True"
                         : value === false
-                        ? "False"
-                        : value;
+                          ? "False"
+                          : value;
 
                     return <TableCell key={col}>{value}</TableCell>;
                   })}
-                  <TableCell>
-                    {row.route && (
-                      <IconButton
-                        onClick={() => handleShowRoute(row.route)}
-                        aria-label="Show route"
-                      >
-                        <MapIcon />
-                      </IconButton>
-                    )}
-                  </TableCell>
+                  {hasRouteColumn && (
+                    <TableCell>
+                      {row.route && (
+                        <IconButton
+                          onClick={() => handleShowRoute(row.route)}
+                          aria-label="Show route"
+                        >
+                          <MapIcon />
+                        </IconButton>
+                      )}
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
           </TableBody>
@@ -522,13 +855,14 @@ console.log(reportId);
       <TablePagination
         rowsPerPageOptions={[10, 25, 50]}
         component="div"
-        count={filteredData.length}
+        count={effectiveTotalCount}
         rowsPerPage={rowsPerPage}
         page={page}
         onPageChange={(e, newPage) => setPage(newPage)}
-        onRowsPerPageChange={(e) =>
-          setRowsPerPage(parseInt(e.target.value, 10))
-        }
+        onRowsPerPageChange={(e) => {
+          setRowsPerPage(parseInt(e.target.value, 10));
+          setPage(0);
+        }}
       />
 
       {showMap && selectedRoute && (

@@ -59,7 +59,7 @@ const CreateReportPage = () => {
   const [categoryOptions, setCategoryOptions] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
 
-  const [selectedFlespiCalcs, setSelectedFlespiCalcs] = useState(null);
+  const [selectedFlespiCalcs, setSelectedFlespiCalcs] = useState([]);
   const [flespiCalcsOptions, setFlespiCalcsOptions] = useState([]);
   const [selectedIcon, setSelectedIcon] = useState("");
   const [selectedDevices, setSelectedDevices] = useState([]);
@@ -100,7 +100,6 @@ const CreateReportPage = () => {
     
     try {
       const { data } = await axios.get(`${url}/calcs`);
-      // console.log("flespi calcs data: ", data);
       if (data.status) {
         setFlespiCalcsOptions(data.message || []);
       }
@@ -111,7 +110,6 @@ const CreateReportPage = () => {
     }
   };
   useEffect(() => {
-    // console.log(report);
     setReportName(report?.name);
     setSelectedIcon(report?.icon);
     if (report && report.category_id) {
@@ -123,8 +121,8 @@ const CreateReportPage = () => {
     }
     if (report && report.calcs_ids) {
       const calc = JSON.parse(report.calcs);
-
-      setSelectedFlespiCalcs(calc || null);
+      const normalized = Array.isArray(calc) ? calc : calc ? [calc] : [];
+      setSelectedFlespiCalcs(normalized);
     }
   }, [report, categoryOptions, flespiDevices]);
 
@@ -189,14 +187,14 @@ const CreateReportPage = () => {
       ? `${url}/report/${params.reportId}`
       : `${url}/report`;
 
-    // const devicesIds = selectedDevices.map((device) => device.id);
-
     const requestBody = {
       name: reportName,
       created_by: userId,
       category_id: selectedCategory.id,
       calcs: selectedFlespiCalcs,
-      calcs_ids: selectedFlespiCalcs.calc_id,
+      calcs_ids: selectedFlespiCalcs
+        .map((calc) => calc?.calc_id ?? calc?.id)
+        .filter(Boolean),
       icon: selectedIcon,
     };
 
@@ -286,14 +284,39 @@ const CreateReportPage = () => {
 
               <Autocomplete
                 id="flespiCalcs"
+                multiple
+                limitTags={2}
+                disableCloseOnSelect
                 options={flespiCalcsOptions}
-                getOptionLabel={(option) => option?.name || ""}
+                getOptionLabel={(option) =>
+                  typeof option === "string" ? option : option?.name || ""
+                }
+                isOptionEqualToValue={(option, value) => {
+                  const optionId = option?.calc_id ?? option?.id;
+                  const valueId = value?.calc_id ?? value?.id;
+                  if (optionId != null && valueId != null) {
+                    return optionId === valueId;
+                  }
+                  if (option?.name && value?.name) {
+                    return option.name === value.name;
+                  }
+                  return option === value;
+                }}
                 value={selectedFlespiCalcs}
                 onChange={(e, values) => setSelectedFlespiCalcs(values)}
+                renderOption={(props, option, { selected }) => (
+                  <li {...props}>
+                    <Checkbox
+                      checked={selected}
+                      sx={{ mr: 1 }}
+                    />
+                    {option?.name || ""}
+                  </li>
+                )}
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label="Select Calcs"
+                    label="Select Calcs1"
                     variant="outlined"
                     sx={{ width: "100%" }}
                   />
@@ -345,7 +368,7 @@ const CreateReportPage = () => {
               disabled={
                 loading ||
                 !selectedCategory ||
-                !selectedFlespiCalcs ||
+                selectedFlespiCalcs.length === 0 ||
                 !selectedIcon ||
                 !reportName
               }

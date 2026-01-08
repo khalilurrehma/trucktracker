@@ -228,7 +228,7 @@ const ReportsMenu = () => {
                 {category?.reports.length > 0 &&
                   category?.reports
                     ?.filter((report) => {
-                      let parsedCalcId = report.calcs_ids;
+                      let parsedCalcId = report.id;
                       if (
                         !Array.isArray(realmUserCalcs) ||
                         realmUserCalcs.length === 0
@@ -250,11 +250,11 @@ const ReportsMenu = () => {
 
                       return companyValidCalcs.find(
                         (item) =>
-                          item["metadata.superAdminCalcId"] == report.calcs_ids
+                          item["metadata.superAdminCalcId"] == report.id
                       );
                     })
                     .map((filteredReport) => {
-                      let calcId = JSON.parse(filteredReport.calcs_ids);
+                      let calcId = JSON.parse(filteredReport.id);
 
                       return (
                         <MenuItem

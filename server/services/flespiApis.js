@@ -1,5 +1,10 @@
 import axios from "axios";
 import dotenv from "dotenv";
+import {
+  getCalculatorByCalcId,
+  removeCalculatorByCalcId,
+  saveCalculator,
+} from "../model/calculator.js";
 
 dotenv.config();
 
@@ -591,6 +596,7 @@ export const deleteFlespiCalculator = async (calcId) => {
         },
       }
     );
+    await removeCalculatorByCalcId(calcId);
     return data.result;
   } catch (error) {
     console.error(
@@ -601,10 +607,6 @@ export const deleteFlespiCalculator = async (calcId) => {
   }
 };
 
-
-
-
-// Unassign geofence from device
 export const unassignGeofenceFromDevice = async (deviceId, geofenceId) => {
   try {
     const url = `${flespiUrl}/devices/${encodeURIComponent(deviceId)}/geofences/${encodeURIComponent(geofenceId)}`;
@@ -613,16 +615,17 @@ export const unassignGeofenceFromDevice = async (deviceId, geofenceId) => {
         Authorization: `FlespiToken ${FlespiToken}`,
       },
     });
-    console.log(`🗑 Unassigned geofence ${geofenceId} from device ${deviceId}`);
+    console.log(`Unassigned geofence ${geofenceId} from device ${deviceId}`);
     return data.result || data;
   } catch (error) {
     console.error(
-      `❌ Unassign geofence error (${geofenceId} ← ${deviceId}):`,
+      `Unassign geofence error (${geofenceId} -> ${deviceId}):`,
       error.response?.data || error.message
     );
     throw error;
   }
 };
+
 
 
 export const createFlespiCalculator = async (calculatorConfig) => {
@@ -638,11 +641,25 @@ export const createFlespiCalculator = async (calculatorConfig) => {
     const created = data.result?.[0] || data[0];
     if (!created?.id) throw new Error("Flespi did not return calculator ID");
 
-    console.log(`🧮 Created calculator "${created.name}" (ID ${created.id})`);
+    const existing = await getCalculatorByCalcId(created.id);
+    if (!existing) {
+      const calcType = calculatorConfig?.metadata || {
+        id: 3,
+        name: "generated",
+      };
+      await saveCalculator({
+        calc_id: created.id,
+        name: created.name,
+        calcs_body: created,
+        calc_type: calcType,
+      });
+    }
+
+    console.log(`Created calculator "${created.name}" (ID ${created.id})`);
     return created;
   } catch (error) {
     console.error(
-      "❌ Error creating Flespi calculator:",
+      "Error creating Flespi calculator:",
       error.response?.data || error.message
     );
     throw error;
@@ -651,29 +668,42 @@ export const createFlespiCalculator = async (calculatorConfig) => {
 
 // Assign calculator (geofence) to device
 export const assignCalculatorToDevice = async (deviceId, calculatorId) => {
+  const headers = {
+    Authorization: `FlespiToken ${FlespiToken}`,
+    "Content-Type": "application/json",
+  };
+  const calcId = encodeURIComponent(calculatorId);
+  const devId = encodeURIComponent(deviceId);
+  const urlPrimary = `${flespiUrl}/calcs/${calcId}/devices/${devId}`;
+  const urlFallback = `${flespiUrl}/devices/${devId}/calcs/${calcId}`;
+  const payload = { enabled: true };
+
   try {
-    const url = `${flespiUrl}/devices/${encodeURIComponent(deviceId)}/calcs/${encodeURIComponent(calculatorId)}`;
-
-    const { data } = await axios.put(
-      url,
-      {},
-      {
-        headers: {
-          Authorization: `FlespiToken ${FlespiToken}`,
-        },
-      }
-    );
-
-    console.log(`🔗 Assigned calculator ${calculatorId} → device ${deviceId}`);
+    const { data } = await axios.post(urlPrimary, payload, { headers });
+    console.log(`Assigned calculator ${calculatorId} -> device ${deviceId}`);
     return data.result || data;
   } catch (error) {
+    if (error.response?.status === 404) {
+      try {
+        const { data } = await axios.post(urlFallback, payload, { headers });
+        console.log(`Assigned calculator ${calculatorId} -> device ${deviceId}`);
+        return data.result || data;
+      } catch (fallbackError) {
+        console.error(
+          `Error assigning calculator (${calculatorId} -> ${deviceId}):`,
+          fallbackError.response?.data || fallbackError.message
+        );
+        throw fallbackError;
+      }
+    }
     console.error(
-      `❌ Error assigning calculator (${calculatorId} → ${deviceId}):`,
+      `Error assigning calculator (${calculatorId} -> ${deviceId}):`,
       error.response?.data || error.message
     );
     throw error;
   }
 };
+
 export const assignCalculatorToGeofence = async (calcId, geofenceId) => {
   try {
     const url = `${flespiUrl}/calcs/${encodeURIComponent(calcId)}/geofences/${encodeURIComponent(geofenceId)}`;
@@ -937,3 +967,4 @@ export const fetchOperationStatsForDevices = async (deviceIds = [], calcId) => {
     throw error;
   }
 };
+

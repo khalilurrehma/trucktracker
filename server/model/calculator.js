@@ -54,6 +54,19 @@ export const getCalculatorById = async (id) => {
   });
 };
 
+export const getCalculatorByCalcId = async (calcId) => {
+  const sql = "SELECT * FROM calculators WHERE calc_id =?";
+
+  return new Promise((resolve, reject) => {
+    dbQuery(sql, [calcId], (err, results) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(results[0]);
+    });
+  });
+};
+
 export const superAdminDefaultCalc = async () => {
   const sql = `SELECT * FROM calculators WHERE JSON_EXTRACT(calc_type, '$.id') = 0;`;
 
@@ -152,6 +165,19 @@ export const removeCalculator = async (id) => {
 
   return new Promise((resolve, reject) => {
     dbQuery(sql, [id], (err, results) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(results);
+    });
+  });
+};
+
+export const removeCalculatorByCalcId = async (calcId) => {
+  const sql = "DELETE FROM calculators WHERE calc_id =?";
+
+  return new Promise((resolve, reject) => {
+    dbQuery(sql, [calcId], (err, results) => {
       if (err) {
         reject(err);
       }

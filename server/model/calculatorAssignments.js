@@ -59,6 +59,14 @@ export const deleteCalculatorAssignmentsByZoneId = async (zoneId) => {
   return dbQuery(sql, [zoneId]);
 };
 
+export const deleteCalculatorAssignmentsByDeviceZone = async (deviceId, zoneId) => {
+  const sql = `
+    DELETE FROM calculator_assignments
+    WHERE device_id = ? AND zone_id = ?
+  `;
+  return dbQuery(sql, [deviceId, zoneId]);
+};
+
 export const deleteCalculatorAssignmentsByGeofenceId = async (geofenceId) => {
   const sql = `
     DELETE FROM calculator_assignments
@@ -94,6 +102,16 @@ export const getCalculatorIdsByZoneId = async (zoneId) => {
     WHERE zone_id = ?
   `;
   const rows = await dbQuery(sql, [zoneId]);
+  return rows.map((row) => row.calc_id);
+};
+
+export const getCalculatorIdsByDeviceZone = async (deviceId, zoneId) => {
+  const sql = `
+    SELECT DISTINCT calc_id
+    FROM calculator_assignments
+    WHERE device_id = ? AND zone_id = ?
+  `;
+  const rows = await dbQuery(sql, [deviceId, zoneId]);
   return rows.map((row) => row.calc_id);
 };
 

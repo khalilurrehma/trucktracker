@@ -1,4 +1,4 @@
-﻿// server/model/operation/deviceAssignmentModel.js
+// server/model/operation/deviceAssignmentModel.js
 import pool from "../../config/dbConfig.js";
 import util from "util";
 const dbQuery = util.promisify(pool.query).bind(pool);
@@ -7,8 +7,21 @@ import {
   unassignGeofenceFromDevice,
   fetchCalcData,
   fetchGeofenceDevices,
-  fetchDevicePositions
+  fetchDevicePositions,
+  createFlespiCalculator,
+  assignCalculatorToDevice,
+  deleteFlespiCalculator
 } from "../../services/flespiApis.js";
+import { getCalculatorTemplatesByType } from "../calculatorTemplates.js";
+import {
+  saveCalculatorAssignments,
+  getCalculatorIdsByDeviceZone,
+  deleteCalculatorAssignmentsByDeviceZone
+} from "../calculatorAssignments.js";
+import {
+  loadCalculatorTemplateConfig,
+  sanitizeCalculatorConfig
+} from "../../utils/calculatorTemplates.js";
 
 
 export const createDeviceAssignment = async ({ device_id, operation_id, zone_id }) => {
@@ -16,46 +29,85 @@ export const createDeviceAssignment = async ({ device_id, operation_id, zone_id 
     INSERT INTO device_assignments (device_id, operation_id, zone_id, created_at, updated_at)
     VALUES (?, ?, ?, NOW(), NOW())
   `;
-  const values = [Number(device_id), Number(operation_id), Number(zone_id)];
+  const effectiveZoneId = Number(zone_id ?? operation_id);
+  const values = [Number(device_id), Number(operation_id), effectiveZoneId];
 
   try {
     const [device] = await dbQuery(
       "SELECT flespiId, traccarId, name FROM new_settings_devices WHERE id = ?",
       [device_id]
     );
+    const [operation] = await dbQuery(
+      "SELECT name FROM operations WHERE id = ?",
+      [operation_id]
+    );
     const [zone] = await dbQuery(
+      "SELECT flespi_geofence_id, name FROM zones WHERE id = ?",
+      [effectiveZoneId]
+    );
+    const [operationGeofence] = await dbQuery(
       "SELECT flespi_geofence_id, name FROM operations WHERE id = ?",
-      [zone_id]
+      [effectiveZoneId]
     );
 
     if (!device) throw new Error(`Device ${device_id} not found`);
-    if (!zone) throw new Error(`Zone ${zone_id} not found`);
+    if (!zone && !operationGeofence) throw new Error(`Zone ${effectiveZoneId} not found`);
 
     const flespiId = device.flespiId;
-    const geofenceId = zone.flespi_geofence_id;
+    const geofenceId = zone?.flespi_geofence_id || operationGeofence?.flespi_geofence_id;
 
     const result = await dbQuery(sql, values);
-    const newAssignment = { id: result.insertId, device_id, operation_id, zone_id };
+    const newAssignment = { id: result.insertId, device_id, operation_id, zone_id: effectiveZoneId };
 
-    console.log("ðŸ“¦ Device Assignment Created:", newAssignment);
+    console.log("Device Assignment Created:", newAssignment);
 
-    // âœ… Corrected order of arguments
     if (flespiId && geofenceId) {
-      console.log(`ðŸŒ Assigning Flespi Geofence ${geofenceId} â†’ Device ${flespiId}`);
+      console.log(`Assigning Flespi Geofence ${geofenceId} -> Device ${flespiId}`);
       await assignGeofenceToDevice(flespiId, geofenceId);
-      console.log(`âœ… Assigned geofence ${geofenceId} to device ${device.name} (${flespiId})`);
+      console.log(`Assigned geofence ${geofenceId} to device ${device.name} (${flespiId})`);
     } else {
-      console.warn(`âš ï¸ Missing flespiId or geofenceId for device ${device_id} / zone ${zone_id}`);
+      console.warn(`Missing flespiId or geofenceId for device ${device_id} / zone ${effectiveZoneId}`);
+    }
+
+    const templates = await getCalculatorTemplatesByType("DEVICE");
+    console.log(`DEVICE templates found: ${templates.length} (device ${device_id})`);
+    const assignments = [];
+    const operationName = operation?.name || "operation";
+    const zoneName = zone?.name || operationGeofence?.name || operationName || "zone";
+
+    for (const template of templates) {
+      try {
+        const config = await loadCalculatorTemplateConfig(template.file_path);
+        const cleanedConfig = sanitizeCalculatorConfig(config);
+        const templateLabel = template?.name || `template-${template?.id || "unknown"}`;
+        const calcName = `DEVICE-${device.name}-${operationName}-${zoneName}-${templateLabel}`.slice(0, 200);
+        cleanedConfig.name = calcName;
+        const calc = await createFlespiCalculator(cleanedConfig);
+        await assignCalculatorToDevice(flespiId, calc.id);
+        assignments.push({
+          calc_id: calc.id,
+          device_id,
+          device_flespi_id: flespiId,
+          operation_id,
+          zone_id: effectiveZoneId,
+        });
+      } catch (err) {
+        console.error(`Error creating/assigning calculator for DEVICE (${template?.name || "template"}):`, err.message);
+      }
+    }
+
+    if (assignments.length > 0) {
+      await saveCalculatorAssignments(assignments);
+      console.log(`DEVICE calculators created/assigned: ${assignments.length} (device ${device_id})`);
     }
 
     return newAssignment;
   } catch (err) {
-    console.error("âŒ Error in createDeviceAssignment:", err.message);
+    console.error("Error in createDeviceAssignment:", err.message);
     throw err;
   }
 };
-
-// âœ… Get all assignments
+// Get all assignments
 export const getAllAssignments = async () => {
   const sql = `
     SELECT 
@@ -74,7 +126,7 @@ export const getAllAssignments = async () => {
 };
 
 
-// âœ… Get assignment by ID
+// ✅ Get assignment by ID
 export const getAssignmentById = async (id) => {
   const sql = `
     SELECT * FROM device_assignments WHERE id = ?
@@ -84,7 +136,7 @@ export const getAssignmentById = async (id) => {
 };
 
 
-// âœ… Mark assignment completed
+// ✅ Mark assignment completed
 export const markAssignmentCompleted = async (id) => {
   const sql = `
     UPDATE device_assignments
@@ -95,10 +147,9 @@ export const markAssignmentCompleted = async (id) => {
   return result.affectedRows > 0;
 };
 
-// âœ… Delete assignment
+// ✅ Delete assignment
 export const deleteDeviceAssignment = async (device_id, zone_id) => {
   try {
-    // 1ï¸âƒ£ Get the Flespi identifiers before deleting the record
     const [device] = await dbQuery(
       "SELECT flespiId, name FROM new_settings_devices WHERE id = ?",
       [device_id]
@@ -107,26 +158,39 @@ export const deleteDeviceAssignment = async (device_id, zone_id) => {
       "SELECT flespi_geofence_id, name FROM zones WHERE id = ?",
       [zone_id]
     );
+    const [operationGeofence] = await dbQuery(
+      "SELECT flespi_geofence_id, name FROM operations WHERE id = ?",
+      [zone_id]
+    );
 
-    // 2ï¸âƒ£ Delete DB record
     const sql = `
       DELETE FROM device_assignments
       WHERE device_id = ? AND zone_id = ?
     `;
     const result = await dbQuery(sql, [device_id, zone_id]);
 
-    // 3ï¸âƒ£ Unassign geofence from Flespi (only if both exist)
-    if (device?.flespiId && zone?.flespi_geofence_id) {
-      console.log(`ðŸ—‘ Unassigning geofence ${zone.flespi_geofence_id} â† device ${device.flespiId}`);
-      await unassignGeofenceFromDevice(device.flespiId, zone.flespi_geofence_id);
-      console.log(`âœ… Unassigned geofence ${zone.flespi_geofence_id} from device ${device.name}`);
+    const geofenceId = zone?.flespi_geofence_id || operationGeofence?.flespi_geofence_id;
+    if (device?.flespiId && geofenceId) {
+      console.log(`Unassigning geofence ${geofenceId} from device ${device.flespiId}`);
+      await unassignGeofenceFromDevice(device.flespiId, geofenceId);
+      console.log(`Unassigned geofence ${geofenceId} from device ${device.name}`);
     } else {
-      console.warn("âš ï¸ Missing Flespi ID or geofence ID, skipping Flespi unassignment.");
+      console.warn("Missing Flespi ID or geofence ID, skipping Flespi unassignment.");
     }
+
+    const calcIds = await getCalculatorIdsByDeviceZone(device_id, zone_id);
+    for (const calcId of calcIds) {
+      try {
+        await deleteFlespiCalculator(calcId);
+      } catch (err) {
+        console.error(`Error deleting calculator ${calcId}:`, err.message);
+      }
+    }
+    await deleteCalculatorAssignmentsByDeviceZone(device_id, zone_id);
 
     return result.affectedRows > 0;
   } catch (err) {
-    console.error("âŒ DB error deleting assignment:", err.message);
+    console.error("DB error deleting assignment:", err.message);
     throw err;
   }
 };
@@ -151,7 +215,7 @@ export const getPositions = async (deviceIds) => {
     const data = await fetchDevicePositions(deviceIds);
     return data;
   } catch (err) {
-    console.error("âŒ Model error in getPositions:", err.message);
+    console.error("❌ Model error in getPositions:", err.message);
     throw err;
   }
 };
@@ -160,7 +224,7 @@ export const getDevicesByGeofence = async (geofenceId) => {
     const data = await fetchGeofenceDevices(geofenceId);
     return data;
   } catch (err) {
-    console.error("âŒ Model error in getDevicesByGeofence:", err.message);
+    console.error("❌ Model error in getDevicesByGeofence:", err.message);
     throw err;
   }
 };
@@ -230,10 +294,25 @@ export const getDevicesByOperation = async (operationId) => {
     return devicesWithPositions;
 
   } catch (err) {
-    console.error("âŒ Model error in getDevicesByOperation:", err.message);
+    console.error("❌ Model error in getDevicesByOperation:", err.message);
     throw err;
   }
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

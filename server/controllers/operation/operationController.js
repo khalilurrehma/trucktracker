@@ -1,4 +1,5 @@
 import * as operationModel from "../../model/operation/operationModel.js";
+import { getCalculatorIdsByOperationId } from "../../model/calculatorAssignments.js";
 
 // Create a new operation
 export const createOperation = async (req, res) => {
@@ -59,5 +60,16 @@ export const deleteOperation = async (req, res) => {
     res.status(200).json({ message: "Operation deleted successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+export const getOperationCalculatorIds = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const calcIds = await getCalculatorIdsByOperationId(id);
+    res.status(200).json({ status: true, data: calcIds || [] });
+  } catch (err) {
+    res.status(500).json({ status: false, error: err.message });
   }
 };

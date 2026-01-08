@@ -14,6 +14,8 @@ router.get('/operations', operationController.getAllOperations);
 
 // Route for getting a single operation by ID (GET /api/operations/:id)
 router.get('/operations/:id', operationController.getSingleOperation);
+// Route for getting calculator IDs by operation (GET /api/operations/:id/calcs)
+router.get('/operations/:id/calcs', operationController.getOperationCalculatorIds);
 
 // Route for deleting an operation by ID (DELETE /api/operations/:id)
 router.delete('/operations/:id', operationController.deleteOperation);

@@ -49,7 +49,7 @@ const getDistanceKm = (start, end) => {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
 };
-const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePolygon, referencePolygons, referencePolygonColors, restrictionPolygon, center = [-77.0428, -12.0464], zoom = 13, drawMode = "polygon", height = "400px", }) => {
+const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePolygon, referencePolygons, referencePolygonColors, restrictionPolygon, center = [-77.0428, -12.0464], zoom = 13, drawMode = "polygon", height = "400px", circleCenter: circleCenterValue = null, circleRadiusMeters = null, }) => {
     const mapContainer = useRef(null);
     const map = useRef(null);
     const draw = useRef(null);
@@ -66,6 +66,7 @@ const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePo
     const circlePreviewFillId = "circle-preview-fill";
     const circlePreviewLineId = "circle-preview-line";
     const referenceFitKey = useRef("");
+    const circleFocusKey = useRef("");
     const lastViewRef = useRef({ center, zoom });
     const setInteractionEnabled = useCallback((enabled) => {
         if (!map.current)
@@ -73,10 +74,18 @@ const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePo
         if (enabled) {
             map.current.dragPan.enable();
             map.current.doubleClickZoom.enable();
+            map.current.scrollZoom.enable();
+            map.current.boxZoom.enable();
+            map.current.keyboard.enable();
+            map.current.touchZoomRotate.enable();
         }
         else {
             map.current.dragPan.disable();
             map.current.doubleClickZoom.disable();
+            map.current.scrollZoom.disable();
+            map.current.boxZoom.disable();
+            map.current.keyboard.disable();
+            map.current.touchZoomRotate.disable();
         }
     }, []);
     const onPolygonChangeRef = useRef(onPolygonChange);
@@ -500,6 +509,59 @@ const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePo
         }
         addReferenceLayer();
     }, [existingPolygon, addReferenceLayer]);
+    useEffect(() => {
+        if (!draw.current || !map.current)
+            return;
+        if (!circleCenterValue || !circleRadiusMeters)
+            return;
+        const [lng, lat] = circleCenterValue;
+        const radiusValue = Number(circleRadiusMeters);
+        if (!Number.isFinite(lng) || !Number.isFinite(lat) || !Number.isFinite(radiusValue) || radiusValue <= 0)
+            return;
+        const circleFeature = createCircle([lng, lat], radiusValue / 1000);
+        const restriction = getRestrictionFeature();
+        if (restriction &&
+            !booleanWithin(circleFeature, restriction) &&
+            !booleanContains(restriction, circleFeature)) {
+            Swal.fire("Outside Operation", "Zone must be inside the Operation geofence.", "warning");
+            return;
+        }
+        draw.current.deleteAll();
+        draw.current.add(circleFeature);
+        setHasShape(true);
+        emitPolygonChange(circleFeature);
+        setActiveDrawTool(null);
+        if (draw.current) {
+            draw.current.changeMode("simple_select");
+        }
+        setInteractionEnabled(true);
+        if (map.current) {
+            const focusKey = `${lng},${lat},${radiusValue}`;
+            if (circleFocusKey.current !== focusKey) {
+                circleFocusKey.current = focusKey;
+                map.current.easeTo({
+                    center: [lng, lat],
+                    zoom: Math.max(map.current.getZoom(), 14),
+                    duration: 0,
+                });
+            }
+            map.current.getCanvas().style.cursor = "";
+            map.current.dragPan.enable();
+            map.current.doubleClickZoom.enable();
+            map.current.scrollZoom.enable();
+            map.current.boxZoom.enable();
+            map.current.keyboard.enable();
+            map.current.touchZoomRotate.enable();
+        }
+    }, [circleCenterValue, circleRadiusMeters, emitPolygonChange, getRestrictionFeature]);
+    useEffect(() => {
+        if (activeDrawTool)
+            return;
+        setInteractionEnabled(true);
+        if (map.current) {
+            map.current.getCanvas().style.cursor = "";
+        }
+    }, [activeDrawTool, setInteractionEnabled]);
     useEffect(() => {
         if (!map.current)
             return;
