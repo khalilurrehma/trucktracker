@@ -4,7 +4,7 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { createRoot } from "react-dom/client";
 import { cn } from "../../lib/utils";
-import { Maximize2, Layers, Bell, Eye, EyeOff, Radio, Trash2, Check } from "lucide-react";
+import { Maximize2, Layers, Bell, Eye, EyeOff, Radio, Trash2, Check, Map as MapIcon, Columns2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, } from "../ui/dropdown-menu";
 import { zoneTypeColors } from "../operations/ZonesSidebar";
@@ -13,7 +13,16 @@ import { getDumpTruckSvgString, getLoaderSvgString } from "../icons/VehicleIcons
 import "./OperationDetailMap.css";
 import { useAppContext } from "../../../AppContext";
 import { getDevicesByPositionOperation, fetchOperationKPI } from "../../../apis/deviceAssignmentApi";
+import {
+    getOperationLayers,
+    createOperationLayer,
+    updateOperationLayer,
+    deleteOperationLayer,
+} from "../../../apis/operationLayersApi";
 import { useNavigate } from "react-router-dom";
+import LayersPanel from "./LayersPanel";
+import POILayerWizard from "./POILayerWizard";
+import { getCategoryIcon } from "../../services/poiService";
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || "";
 const mapStyles = [
     { id: "satellite-streets", name: "Satellite Streets", url: "mapbox://styles/mapbox/satellite-streets-v12" },
@@ -23,10 +32,11 @@ const mapStyles = [
     { id: "streets", name: "Streets", url: "mapbox://styles/mapbox/streets-v12" },
     { id: "outdoors", name: "Outdoors", url: "mapbox://styles/mapbox/outdoors-v12" },
 ];
-const OperationDetailMap = ({ className, zones, selectedZoneId, center = [-76.9, -15.5], zoom = 12, onAlertsToggle, alertsOpen, operationId, operationPolygon, }) => {
+const OperationDetailMap = ({ className, zones, selectedZoneId, center = [-76.9, -15.5], zoom = 12, onAlertsToggle, alertsOpen, operationId, operationGeofenceId, operationPolygon, }) => {
     const mapContainer = useRef(null);
     const map = useRef(null);
     const markersRef = useRef(new Map());
+    const poiMarkersRef = useRef(new Map());
     const popupRef = useRef(null);
     const popupRootRef = useRef(null);
     const navigate = useNavigate();
@@ -34,10 +44,22 @@ const OperationDetailMap = ({ className, zones, selectedZoneId, center = [-76.9,
     const [mapStyle, setMapStyle] = useState("satellite-streets");
     const [showLabels, setShowLabels] = useState(true);
     const [showTracks, setShowTracks] = useState(true);
+    const [showZones, setShowZones] = useState(true);
+    const [showVehicles, setShowVehicles] = useState(true);
     const [apiVehicles, setApiVehicles] = useState([]);
     const [positions, setPositions] = useState([]);
     const [deviceKPI, setDeviceKPI] = useState({});
     const clearTracks = () => { };
+    const [layersPanelOpen, setLayersPanelOpen] = useState(false);
+    const [poiWizardOpen, setPOIWizardOpen] = useState(false);
+    const [pickedPoint, setPickedPoint] = useState(null);
+    const [isPickingPoint, setIsPickingPoint] = useState(false);
+    const [mapLayers, setMapLayers] = useState([]);
+    const [systemLayers, setSystemLayers] = useState([
+        { id: "zones", name: "Zones", visible: true },
+        { id: "vehicles", name: "Vehicles", visible: true },
+        { id: "tracks", name: "Tracks", visible: true },
+    ]);
     const { mqttDeviceLiveLocation, mqttCalculatorIntervals, mqttDeviceConnected } = useAppContext();
     const isConnected = Boolean(mqttDeviceConnected?.length);
     const connectionStatus = isConnected ? "connected" : "disconnected";
@@ -339,6 +361,231 @@ const OperationDetailMap = ({ className, zones, selectedZoneId, center = [-76.9,
             // Ignore
         }
     }, [showTracks]);
+
+    useEffect(() => {
+        if (!operationId)
+            return;
+        const loadLayers = async () => {
+            try {
+                const data = await getOperationLayers(operationId);
+                const mapped = (Array.isArray(data) ? data : []).map((layer) => ({
+                    id: layer.id,
+                    name: layer.name,
+                    type: layer.type,
+                    visible: layer.visible !== false,
+                    opacity: Number(layer.opacity ?? 1),
+                    data: layer.data ?? null,
+                }));
+                setMapLayers(mapped);
+            }
+            catch (error) {
+                console.error("Failed to load layers:", error);
+            }
+        };
+        loadLayers();
+    }, [operationId]);
+
+    const handlePickPoint = () => {
+        setIsPickingPoint(true);
+        setPOIWizardOpen(false);
+        if (map.current) {
+            map.current.getCanvas().style.cursor = "crosshair";
+        }
+    };
+
+    useEffect(() => {
+        if (!map.current || !isPickingPoint)
+            return;
+        const clickHandler = (event) => {
+            setPickedPoint({ lat: event.lngLat.lat, lng: event.lngLat.lng });
+            setIsPickingPoint(false);
+            setPOIWizardOpen(true);
+            if (map.current) {
+                map.current.getCanvas().style.cursor = "";
+            }
+        };
+        map.current.on("click", clickHandler);
+        return () => {
+            map.current?.off("click", clickHandler);
+        };
+    }, [isPickingPoint]);
+
+    const showPOIPopup = (poi, layerName) => {
+        if (!map.current)
+            return;
+        if (popupRef.current)
+            popupRef.current.remove();
+        popupRef.current = new mapboxgl.Popup({
+            closeButton: true,
+            closeOnClick: true,
+            offset: 10,
+        })
+            .setLngLat([poi.lng, poi.lat])
+            .setHTML(`
+        <div class="poi-popup p-2">
+          <div class="flex items-center gap-2 mb-1">
+            <span style="font-size: 18px;">${getCategoryIcon(poi.categoryId)}</span>
+            <strong>${poi.name}</strong>
+          </div>
+          <div class="text-xs text-gray-400">${layerName}</div>
+          ${poi.address ? `<div class="text-xs mt-1">${poi.address}</div>` : ""}
+          <div class="text-xs text-green-400 mt-1">${poi.distanceMeters}m away</div>
+        </div>
+      `)
+            .addTo(map.current);
+    };
+
+    const addPOIMarkersToMap = useCallback(() => {
+        if (!map.current)
+            return;
+        poiMarkersRef.current.forEach((marker) => marker.remove());
+        poiMarkersRef.current.clear();
+        mapLayers
+            .filter((layer) => layer.type === "POI" && layer.visible && layer.data)
+            .forEach((layer) => {
+            const config = layer.data;
+            const icon = config?.customIcon;
+            (config?.pois || []).forEach((poi) => {
+                const el = document.createElement("div");
+                el.className = "poi-marker";
+                if (icon) {
+                    el.innerHTML = `<img src="${icon}" alt="POI" style="width: 24px; height: 24px; border-radius: 6px; object-fit: cover;" />`;
+                }
+                else {
+                    el.innerHTML = `<span style="font-size: 20px;">${getCategoryIcon(poi.categoryId)}</span>`;
+                }
+                el.style.cursor = "pointer";
+                el.style.opacity = String(layer.opacity ?? 1);
+                el.addEventListener("click", (event) => {
+                    event.stopPropagation();
+                    showPOIPopup(poi, layer.name);
+                });
+                const marker = new mapboxgl.Marker({ element: el, anchor: "center" })
+                    .setLngLat([poi.lng, poi.lat])
+                    .addTo(map.current);
+                poiMarkersRef.current.set(poi.id, marker);
+            });
+        });
+    }, [mapLayers]);
+
+    const handleCreatePOILayer = useCallback(async (config) => {
+        if (!operationId)
+            return;
+        try {
+            const created = await createOperationLayer(operationId, {
+                name: config.name || "POI Layer",
+                type: "POI",
+                visible: true,
+                opacity: 1,
+                data: config,
+            });
+            const newLayer = {
+                id: created?.id ?? `poi-${Date.now()}`,
+                name: created?.name ?? config.name ?? "POI Layer",
+                type: "POI",
+                visible: created?.visible ?? true,
+                opacity: Number(created?.opacity ?? 1),
+                data: created?.data ?? config,
+            };
+            setMapLayers((prev) => [...prev, newLayer]);
+            setPickedPoint(null);
+        }
+        catch (error) {
+            console.error("Failed to create POI layer:", error);
+        }
+    }, [operationId]);
+
+    const addGeoJSONLayerToMap = useCallback((layer) => {
+        if (!map.current || !layer.data)
+            return;
+        const sourceId = `geojson-source-${layer.id}`;
+        const fillLayerId = `geojson-fill-${layer.id}`;
+        const lineLayerId = `geojson-line-${layer.id}`;
+        try {
+            if (map.current.getLayer(lineLayerId))
+                map.current.removeLayer(lineLayerId);
+            if (map.current.getLayer(fillLayerId))
+                map.current.removeLayer(fillLayerId);
+            if (map.current.getSource(sourceId))
+                map.current.removeSource(sourceId);
+        }
+        catch (e) {
+            // ignore
+        }
+        map.current.addSource(sourceId, {
+            type: "geojson",
+            data: layer.data,
+        });
+        map.current.addLayer({
+            id: fillLayerId,
+            type: "fill",
+            source: sourceId,
+            paint: {
+                "fill-color": "#8b5cf6",
+                "fill-opacity": (layer.opacity ?? 1) * 0.3,
+            },
+        });
+        map.current.addLayer({
+            id: lineLayerId,
+            type: "line",
+            source: sourceId,
+            paint: {
+                "line-color": "#8b5cf6",
+                "line-width": 2,
+                "line-opacity": layer.opacity ?? 1,
+            },
+        });
+    }, []);
+
+    const removeGeoJSONLayerFromMap = useCallback((layerId) => {
+        if (!map.current)
+            return;
+        const sourceId = `geojson-source-${layerId}`;
+        const fillLayerId = `geojson-fill-${layerId}`;
+        const lineLayerId = `geojson-line-${layerId}`;
+        try {
+            if (map.current.getLayer(lineLayerId))
+                map.current.removeLayer(lineLayerId);
+            if (map.current.getLayer(fillLayerId))
+                map.current.removeLayer(fillLayerId);
+            if (map.current.getSource(sourceId))
+                map.current.removeSource(sourceId);
+        }
+        catch (e) {
+            // ignore
+        }
+    }, []);
+
+    const handleGeoJSONUpload = useCallback(async (file) => {
+        try {
+            const text = await file.text();
+            const geojson = JSON.parse(text);
+            if (!operationId)
+                return;
+            const created = await createOperationLayer(operationId, {
+                name: file.name.replace(/\.(geo)?json$/i, "") || "GeoJSON Layer",
+                type: "GeoJSON",
+                visible: true,
+                opacity: 1,
+                data: geojson,
+            });
+            const newLayer = {
+                id: created?.id ?? `geojson-${Date.now()}`,
+                name: created?.name ?? file.name.replace(/\.(geo)?json$/i, ""),
+                type: "GeoJSON",
+                visible: created?.visible ?? true,
+                opacity: Number(created?.opacity ?? 1),
+                data: created?.data ?? geojson,
+            };
+            setMapLayers((prev) => [...prev, newLayer]);
+            if (map.current && map.current.isStyleLoaded()) {
+                addGeoJSONLayerToMap(newLayer);
+            }
+        }
+        catch (error) {
+            console.error("Error parsing GeoJSON:", error);
+        }
+    }, [addGeoJSONLayerToMap, operationId]);
     useEffect(() => {
         if (!operationId)
             return;
@@ -431,6 +678,11 @@ const OperationDetailMap = ({ className, zones, selectedZoneId, center = [-76.9,
     const updateVehicleMarkers = useCallback(() => {
         if (!map.current)
             return;
+        if (!showVehicles) {
+            markersRef.current.forEach((marker) => marker.remove());
+            markersRef.current.clear();
+            return;
+        }
         const vehiclesWithPos = displayVehicles.map((device) => {
             const live = positions.find((p) => p.flespiDeviceId === device.flespi_device_id);
             if (!live)
@@ -479,7 +731,7 @@ const OperationDetailMap = ({ className, zones, selectedZoneId, center = [-76.9,
                 markersRef.current.delete(vehicleId);
             }
         });
-    }, [displayVehicles, positions]);
+    }, [displayVehicles, positions, showVehicles]);
     // Show vehicle popup with details
     const showVehiclePopup = (vehicle) => {
         if (!map.current)
@@ -651,6 +903,21 @@ useEffect(() => {
         }
     }, [isLoaded, updateVehicleMarkers, addTracksToMap]);
     useEffect(() => {
+        if (!map.current || !isLoaded || !map.current.isStyleLoaded())
+            return;
+        addPOIMarkersToMap();
+        mapLayers
+            .filter((layer) => layer.type === "GeoJSON")
+            .forEach((layer) => {
+            if (layer.visible) {
+                addGeoJSONLayerToMap(layer);
+            }
+            else {
+                removeGeoJSONLayerFromMap(layer.id);
+            }
+        });
+    }, [isLoaded, mapLayers, addPOIMarkersToMap, addGeoJSONLayerToMap, removeGeoJSONLayerFromMap]);
+    useEffect(() => {
         if (!map.current || !isLoaded)
             return;
         if (operationPolygon && operationPolygon.geometry && operationPolygon.geometry.type === "Polygon") {
@@ -671,6 +938,10 @@ useEffect(() => {
         const reapplyLayers = () => {
             reapplyGeofences();
             addTracksToMap();
+            addPOIMarkersToMap();
+            mapLayers
+                .filter((layer) => layer.type === "GeoJSON" && layer.visible)
+                .forEach((layer) => addGeoJSONLayerToMap(layer));
         };
         map.current.once("style.load", reapplyLayers);
         map.current.once("idle", reapplyLayers);
@@ -705,6 +976,89 @@ useEffect(() => {
             }
         }
     };
+    const handleAddLayer = useCallback((type) => {
+        if (type === "POI") {
+            setLayersPanelOpen(false);
+            setPOIWizardOpen(true);
+        }
+    }, []);
+    const handleLayerToggle = useCallback((layerId) => {
+        setMapLayers((prev) => prev.map((layer) => layer.id === layerId
+            ? { ...layer, visible: !layer.visible }
+            : layer));
+        if (!operationId)
+            return;
+        const target = mapLayers.find((layer) => layer.id === layerId);
+        if (target) {
+            updateOperationLayer(operationId, layerId, {
+                visible: !target.visible,
+            }).catch((error) => {
+                console.error("Failed to toggle layer:", error);
+            });
+        }
+    }, [mapLayers, operationId]);
+    const handleLayerDelete = useCallback((layerId) => {
+        const layer = mapLayers.find((item) => item.id === layerId);
+        if (layer?.type === "GeoJSON") {
+            removeGeoJSONLayerFromMap(layerId);
+        }
+        setMapLayers((prev) => prev.filter((item) => item.id !== layerId));
+        if (!operationId)
+            return;
+        deleteOperationLayer(operationId, layerId).catch((error) => {
+            console.error("Failed to delete layer:", error);
+        });
+    }, [mapLayers, operationId, removeGeoJSONLayerFromMap]);
+    const handleLayerRename = useCallback((layerId, name) => {
+        setMapLayers((prev) => prev.map((layer) => layer.id === layerId
+            ? { ...layer, name }
+            : layer));
+        if (!operationId)
+            return;
+        updateOperationLayer(operationId, layerId, { name }).catch((error) => {
+            console.error("Failed to rename layer:", error);
+        });
+    }, [operationId]);
+    const handleLayerOpacityChange = useCallback((layerId, opacity) => {
+        setMapLayers((prev) => prev.map((layer) => layer.id === layerId
+            ? { ...layer, opacity }
+            : layer));
+        if (!operationId)
+            return;
+        updateOperationLayer(operationId, layerId, { opacity }).catch((error) => {
+            console.error("Failed to update layer opacity:", error);
+        });
+    }, [operationId]);
+    const setLayerVisibility = useCallback((layerId, visibility) => {
+        if (!map.current || !map.current.getLayer(layerId))
+            return;
+        map.current.setLayoutProperty(layerId, "visibility", visibility);
+    }, []);
+    const toggleZonesVisibility = useCallback((visible) => {
+        const visibility = visible ? "visible" : "none";
+        setLayerVisibility("zones-fill", visibility);
+        setLayerVisibility("zones-line", visibility);
+        setLayerVisibility("zones-label", visibility);
+        setLayerVisibility("operation-fill", visibility);
+        setLayerVisibility("operation-line", visibility);
+    }, [setLayerVisibility]);
+    const handleSystemLayerToggle = useCallback((layerId) => {
+        setSystemLayers((prev) => prev.map((layer) => layer.id === layerId
+            ? { ...layer, visible: !layer.visible }
+            : layer));
+        if (layerId === "tracks") {
+            setShowTracks((prev) => !prev);
+        }
+        if (layerId === "vehicles") {
+            setShowVehicles((prev) => !prev);
+        }
+        if (layerId === "zones") {
+            setShowZones((prev) => !prev);
+        }
+    }, []);
+    useEffect(() => {
+        toggleZonesVisibility(showZones);
+    }, [showZones, toggleZonesVisibility]);
     return (_jsxs("div", {
         className: cn("relative h-full", className), children: [_jsx("div", { ref: mapContainer, className: "absolute inset-0" }), !isLoaded && (_jsx("div", { className: "absolute inset-0 bg-background/80 flex items-center justify-center z-50", children: _jsxs("div", { className: "flex flex-col items-center gap-3", children: [_jsx("div", { className: "w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin" }), _jsx("span", { className: "text-sm text-muted-foreground", children: "Loading map..." })] }) })), _jsx("div", {
             className: "absolute bottom-16 left-3 z-20", children: _jsxs("div", {
@@ -713,12 +1067,34 @@ useEffect(() => {
                     : "bg-amber-500/20 text-amber-400 border border-amber-500/30"), children: [_jsx(Radio, { className: cn("w-3 h-3", isConnected && "animate-pulse") }), _jsx("span", { children: connectionStatus === "connected" ? "Live Tracking" : "Connecting..." })]
             })
         }), _jsxs("div", {
-            className: "absolute top-3 right-80 flex gap-2 z-20", children: [_jsx(Button, { variant: "icon", size: "iconSm", onClick: () => setShowLabels(!showLabels), className: "bg-card/90 border border-border shadow-lg backdrop-blur-sm", title: showLabels ? "Hide labels" : "Show labels", children: showLabels ? _jsx(Eye, { className: "w-4 h-4" }) : _jsx(EyeOff, { className: "w-4 h-4" }) }), _jsxs(DropdownMenu, { children: [_jsx(DropdownMenuTrigger, { asChild: true, children: _jsx(Button, { variant: "icon", size: "iconSm", className: "bg-card/90 border border-border shadow-lg backdrop-blur-sm", title: "Map layers", children: _jsx(Layers, { className: "w-4 h-4" }) }) }), _jsx(DropdownMenuContent, { align: "end", className: "w-44", children: mapStyles.map((style) => (_jsxs(DropdownMenuItem, { onClick: () => changeMapStyle(style.id), className: "flex items-center justify-between", children: [_jsx("span", { children: style.name }), mapStyle === style.id && _jsx(Check, { className: "w-4 h-4 text-primary" })] }, style.id))) })] }), _jsx(Button, { variant: "icon", size: "iconSm", onClick: handleFullscreen, className: "bg-card/90 border border-border shadow-lg backdrop-blur-sm", title: "Fullscreen", children: _jsx(Maximize2, { className: "w-4 h-4" }) }), _jsx(Button, { variant: "icon", size: "iconSm", onClick: clearTracks, className: "bg-card/90 border border-border shadow-lg backdrop-blur-sm", title: "Clear tracks", children: _jsx(Trash2, { className: "w-4 h-4" }) }), _jsx(Button, {
+        className: "absolute top-3 right-80 flex gap-2 z-20", children: [_jsx(Button, { variant: "icon", size: "iconSm", onClick: () => {
+                    const isSplitView = window.location.pathname.includes("/split");
+                    const splitPath = operationGeofenceId
+                        ? `/operations/${operationId}/split?geofenceId=${operationGeofenceId}`
+                        : `/operations/${operationId}/split`;
+                    navigate(isSplitView ? `/operations/${operationId}` : splitPath);
+                }, className: "bg-card/90 border border-border shadow-lg backdrop-blur-sm", title: "Split view", children: _jsx(Columns2, { className: "w-4 h-4" }) }), _jsx(Button, { variant: layersPanelOpen ? "default" : "icon", size: "iconSm", onClick: () => {
+                    setLayersPanelOpen(!layersPanelOpen);
+                    setPOIWizardOpen(false);
+                    setIsPickingPoint(false);
+                    if (map.current) {
+                        map.current.getCanvas().style.cursor = "";
+                    }
+                }, className: cn("shadow-lg backdrop-blur-sm", layersPanelOpen
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card/90 border border-border"), title: "Layers", children: _jsx(Layers, { className: "w-4 h-4" }) }), _jsx(Button, { variant: "icon", size: "iconSm", onClick: () => setShowLabels(!showLabels), className: "bg-card/90 border border-border shadow-lg backdrop-blur-sm", title: showLabels ? "Hide labels" : "Show labels", children: showLabels ? _jsx(Eye, { className: "w-4 h-4" }) : _jsx(EyeOff, { className: "w-4 h-4" }) }), _jsxs(DropdownMenu, { children: [_jsx(DropdownMenuTrigger, { asChild: true, children: _jsx(Button, { variant: "icon", size: "iconSm", className: "bg-card/90 border border-border shadow-lg backdrop-blur-sm", title: "Map style", children: _jsx(MapIcon, { className: "w-4 h-4" }) }) }), _jsx(DropdownMenuContent, { align: "end", className: "w-44", children: mapStyles.map((style) => (_jsxs(DropdownMenuItem, { onClick: () => changeMapStyle(style.id), className: "flex items-center justify-between", children: [_jsx("span", { children: style.name }), mapStyle === style.id && _jsx(Check, { className: "w-4 h-4 text-primary" })] }, style.id))) })] }), _jsx(Button, { variant: "icon", size: "iconSm", onClick: handleFullscreen, className: "bg-card/90 border border-border shadow-lg backdrop-blur-sm", title: "Fullscreen", children: _jsx(Maximize2, { className: "w-4 h-4" }) }), _jsx(Button, { variant: "icon", size: "iconSm", onClick: clearTracks, className: "bg-card/90 border border-border shadow-lg backdrop-blur-sm", title: "Clear tracks", children: _jsx(Trash2, { className: "w-4 h-4" }) }), _jsx(Button, {
                 variant: alertsOpen ? "default" : "icon", size: "iconSm", onClick: onAlertsToggle, className: cn("shadow-lg backdrop-blur-sm", alertsOpen
                     ? "bg-primary text-primary-foreground"
                     : "bg-card/90 border border-border"), title: "Toggle alerts", children: _jsx(Bell, { className: "w-4 h-4" })
             })]
-        })]
+        }), isPickingPoint && (_jsx("div", { className: "absolute top-16 left-1/2 -translate-x-1/2 z-30 bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium shadow-lg", children: "Click on the map to pick a location" })), _jsx(LayersPanel, { isOpen: layersPanelOpen, onClose: () => setLayersPanelOpen(false), layers: mapLayers, systemLayers: systemLayers, onSystemLayerToggle: handleSystemLayerToggle, onAddLayer: handleAddLayer, onLayerToggle: handleLayerToggle, onLayerDelete: handleLayerDelete, onLayerRename: handleLayerRename, onLayerOpacityChange: handleLayerOpacityChange, onGeoJSONUpload: handleGeoJSONUpload }), _jsx(POILayerWizard, { isOpen: poiWizardOpen, onClose: () => {
+                setPOIWizardOpen(false);
+                setPickedPoint(null);
+                setIsPickingPoint(false);
+                if (map.current) {
+                    map.current.getCanvas().style.cursor = "";
+                }
+            }, onCreateLayer: handleCreatePOILayer, onPickPoint: handlePickPoint, pickedPoint: pickedPoint })]
     }));
 };
 export default OperationDetailMap;

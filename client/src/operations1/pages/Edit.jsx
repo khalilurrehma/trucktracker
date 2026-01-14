@@ -325,11 +325,33 @@ const EditOperation = () => {
   const listDevices = useMemo(() => devices, [devices]);
 
   if (loading) {
-    return <AppLayout><div className="p-6">Loading...</div></AppLayout>;
+    return (
+      <AppLayout
+        showWizard
+        wizardSteps={wizardSteps}
+        currentStep={currentStep}
+        onStepClick={(stepIndex) => {
+          if (stepIndex <= currentStep) {
+            setCurrentStep(stepIndex);
+          }
+        }}
+      >
+        <div className="p-6">Loading...</div>
+      </AppLayout>
+    );
   }
 
   return (
-    <AppLayout>
+    <AppLayout
+      showWizard
+      wizardSteps={wizardSteps}
+      currentStep={currentStep}
+      onStepClick={(stepIndex) => {
+        if (stepIndex <= currentStep) {
+          setCurrentStep(stepIndex);
+        }
+      }}
+    >
       <div className="p-6 lg:p-8 max-w-6xl mx-auto">
         <div className="space-y-6">
           <div className="overflow-x-auto pb-2">

@@ -41,20 +41,21 @@ const useSystemTheme = () => {
 
   return theme;
 };
-const Index = () => {
+const Index = ({ geofenceId }) => {
   const { id } = useParams();
+  const resolvedId = geofenceId ?? id;
   const [kpi, setKpi] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(dayjs().tz("America/Lima")); // ✅ Default to today (GMT-5)
   const theme = useSystemTheme();
 
   useEffect(() => {
-    if (!id) return;
+    if (!resolvedId) return;
 
     const fetchKPIs = async () => {
       try {
         setLoading(true);
-        const devices = await getDevicesByGeofence(id);
+        const devices = await getDevicesByGeofence(resolvedId);
         const deviceIds = devices.map((d) => d.device_id || d.flespiId).filter(Boolean);
         if (!deviceIds.length) {
           setKpi(null);
@@ -161,7 +162,7 @@ const Index = () => {
     fetchKPIs();
     const interval = setInterval(fetchKPIs, 60000);
     return () => clearInterval(interval);
-  }, [id, selectedDate]); // ✅ re-fetch when date changes
+  }, [resolvedId, selectedDate]); // ✅ re-fetch when date changes
 
   if (loading) return <div className="p-6">Loading dashboard...</div>;
   if (!kpi) return <div className="p-6">No KPI data available for this geofence.</div>;
@@ -179,7 +180,7 @@ const Index = () => {
           <div className="flex items-center gap-4">
             {/* 🔗 Back Button */}
             <a
-              href="/operations/geofence/list_new"
+              href="/operations/geofence/list"
               className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors duration-300
             ${theme === "dark"
                   ? "border-gray-700 text-gray-200 hover:bg-[#1f1f1f]"
@@ -209,7 +210,7 @@ const Index = () => {
                 className={`text-4xl font-bold mb-1 ${theme === "dark" ? "text-gray-100" : "text-gray-900"
                   }`}
               >
-                Operation Dashboard — Geofence {id}
+                Operation Dashboard — Geofence {resolvedId}
               </h1>
               <p
                 className={`text-base ${theme === "dark" ? "text-gray-400" : "text-gray-600"

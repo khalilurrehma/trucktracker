@@ -31,6 +31,7 @@ import { useTranslation } from "../common/components/LocalizationProvider";
 import { useDeviceReadonly } from "../common/util/permissions";
 import DeviceRow from "./DeviceRow";
 import { nativePostMessage } from "../common/components/NativeInterface";
+import { sessionActions } from "../store";
 
 const useStyles = makeStyles((theme) => ({
   toolbar: {

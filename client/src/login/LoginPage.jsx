@@ -18,6 +18,7 @@ import { handleLoginTokenListeners, nativeEnvironment, nativePostMessage } from 
 import LogoImage from './LogoImage';
 import { useCatch } from '../reactHelper';
 import Loader from '../common/components/Loader';
+import { setAuthToken } from '../common/util/authToken';
 
 const useStyles = makeStyles((theme) => ({
   options: {
@@ -57,6 +58,9 @@ const LoginPage = () => {
 
   const { languages, language, setLanguage } = useLocalization();
   const languageList = Object.entries(languages).map((values) => ({ code: values[0], country: values[1].country, name: values[1].name }));
+  const apiBaseUrl = import.meta.env.DEV
+    ? import.meta.env.VITE_DEV_BACKEND_URL
+    : import.meta.env.VITE_PROD_BACKEND_URL;
 
   const [failed, setFailed] = useState(false);
 
@@ -86,6 +90,7 @@ const LoginPage = () => {
         });
         if (response.ok) {
           token = await response.text();
+             console.log(token);
         }
       } catch (error) {
         token = '';
@@ -103,8 +108,28 @@ const LoginPage = () => {
         method: 'POST',
         body: new URLSearchParams(code.length ? `${query}&code=${code}` : query),
       });
+      
       if (response.ok) {
         const user = await response.json();
+        try {
+          const tokenBody = { email, password };
+          if (code.length) {
+            tokenBody.code = code;
+          }
+          const tokenResponse = await fetch(`${apiBaseUrl}/auth/token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(tokenBody),
+          });
+          if (tokenResponse.ok) {
+            const tokenPayload = await tokenResponse.json();
+            if (tokenPayload?.token) {
+              await setAuthToken(tokenPayload.token);
+            }
+          }
+        } catch (tokenError) {
+          // Token is optional for Traccar session login; proceed without blocking.
+        }
         generateLoginToken();
         dispatch(sessionActions.updateUser(user));
         navigate('/');
@@ -207,6 +232,7 @@ const LoginPage = () => {
             onChange={(e) => setCode(e.target.value)}
           />
         )}
+        
         <Button
           onClick={handlePasswordLogin}
           type="submit"

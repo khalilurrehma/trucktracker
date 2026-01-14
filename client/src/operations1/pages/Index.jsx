@@ -351,8 +351,19 @@ const Index = () => {
     }
   }, [currentStep, opPolygon, operationPolygon]);
 
+  const handleSidebarStepClick = (stepIndex) => {
+    if (stepIndex <= currentStep) {
+      setCurrentStep(stepIndex);
+    }
+  };
+
   return (
-    <AppLayout>
+    <AppLayout
+      showWizard={viewMode === "wizard"}
+      wizardSteps={wizardSteps}
+      currentStep={currentStep}
+      onStepClick={handleSidebarStepClick}
+    >
       <div className="p-6 lg:p-8 max-w-6xl mx-auto">
         {viewMode === "list" ? (
           <OperationsList

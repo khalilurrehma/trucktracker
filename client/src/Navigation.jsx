@@ -139,6 +139,7 @@ import DispatchGeofenceList from "./operations/DispatchGeofenceList";
 import DispatchGeofenceListlistNew from "./operations1/pages/Index";
 import Operations1Edit from "./operations1/pages/Edit";
 import OperationDetail from "./operations1/pages/OperationDetail";
+import OperationDetailSplit from "./operations1/pages/OperationDetailSplit";
 import DispatchGeofenceDashboard from "./operations/dashboard/DispatchGeofenceDashboard";
 import DispatchDeviceDashboard from "./operations/dashboard/DispatchDeviceDashboard";
 import DispatchGeofenceSettings from "./operations/setting/DispatchGeofenceSettings";
@@ -201,6 +202,7 @@ const Navigation = () => {
       <Route path="/" element={<App />}>
         <Route index element={<MainPage />} />
         <Route path="operations/:id" element={<OperationDetail />} />
+        <Route path="operations/:id/split" element={<OperationDetailSplit />} />
 
         <Route path="position/:id" element={<PositionPage />} />
         <Route path="network/:positionId" element={<NetworkPage />} />

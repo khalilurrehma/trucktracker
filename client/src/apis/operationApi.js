@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getAuthToken } from "../common/util/authToken";
 
 // Base URL for the API, dynamically loaded from environment variables
 let apiUrl = import.meta.env.DEV
@@ -8,7 +9,10 @@ let apiUrl = import.meta.env.DEV
 // Fetch all operations
 export const getAllOperations = async () => {
   try {
-    const { data } = await axios.get(`${apiUrl}/operations`);
+    const token = await getAuthToken();
+    const { data } = await axios.get(`${apiUrl}/operations`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
     return data;
   } catch (error) {
     console.error("Error fetching operations:", error);
@@ -19,7 +23,10 @@ export const getAllOperations = async () => {
 // Fetch a single operation by ID
 export const getOperationById = async (id) => {
   try {
-    const { data } = await axios.get(`${apiUrl}/operations/${id}`);
+    const token = await getAuthToken();
+    const { data } = await axios.get(`${apiUrl}/operations/${id}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
     return data;
   } catch (error) {
     console.error(`Error fetching operation with ID ${id}:`, error);
@@ -30,7 +37,10 @@ export const getOperationById = async (id) => {
 // Create a new operation
 export const createOperation = async (operationData) => {
   try {
-    const { data } = await axios.post(`${apiUrl}/operations`, operationData);
+    const token = await getAuthToken();
+    const { data } = await axios.post(`${apiUrl}/operations`, operationData, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
     return data;
   } catch (error) {
     console.error("Error creating operation:", error);
@@ -41,7 +51,10 @@ export const createOperation = async (operationData) => {
 // Update an existing operation
 export const updateOperation = async (id, operationData) => {
   try {
-    const { data } = await axios.put(`${apiUrl}/operations/${id}`, operationData);
+    const token = await getAuthToken();
+    const { data } = await axios.put(`${apiUrl}/operations/${id}`, operationData, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
     return data;
   } catch (error) {
     console.error(`Error updating operation with ID ${id}:`, error);
@@ -52,7 +65,10 @@ export const updateOperation = async (id, operationData) => {
 // Delete an operation
 export const deleteOperation = async (id) => {
   try {
-    const { data } = await axios.delete(`${apiUrl}/operations/${id}`);
+    const token = await getAuthToken();
+    const { data } = await axios.delete(`${apiUrl}/operations/${id}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
     return data;
   } catch (error) {
     console.error(`Error deleting operation with ID ${id}:`, error);

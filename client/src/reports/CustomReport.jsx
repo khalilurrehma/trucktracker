@@ -24,6 +24,7 @@ import axios from "axios";
 import PageLayout from "../common/components/PageLayout";
 import ReportsMenu from "./components/ReportsMenu";
 import { useAppContext } from "../AppContext";
+import { getAuthToken } from "../common/util/authToken";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { saveAs } from "file-saver";
@@ -225,7 +226,10 @@ const CustomReport = () => {
   useEffect(() => {
     const fetchOperations = async () => {
       try {
-        const response = await axios.get(`${url}/operations`);
+        const token = await getAuthToken();
+        const response = await axios.get(`${url}/operations`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
         if (Array.isArray(response.data)) {
           setOperations(response.data);
         }
@@ -243,8 +247,12 @@ const CustomReport = () => {
         return;
       }
       try {
+        const token = await getAuthToken();
         const response = await axios.get(
-          `${url}/operations/${selectedOperation.id}/calcs`
+          `${url}/operations/${selectedOperation.id}/calcs`,
+          {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          }
         );
         if (response.data?.status) {
           setOperationCalcIds(response.data.data || []);

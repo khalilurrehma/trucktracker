@@ -1,16 +1,19 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useTheme } from "@mui/material/styles";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import ZonesSidebar from "../components/operations/ZonesSidebar";
 import AlertsPanel from "../components/operations/AlertsPanel";
 import OperationDetailMap from "../components/maps/OperationDetailMap";
+import DispatchGeofenceDashboard from "../dashboard/DispatchGeofenceDashboard";
 import { getOperationById } from "../../apis/operationApi";
 import { getZonesByOperationId } from "../../apis/zoneApi";
 import { useAppContext } from "../../AppContext";
 
-const OperationDetail = () => {
+const OperationDetailSplit = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const dataTheme = theme?.palette?.mode === "dark" ? "dark" : "light";
   const [selectedZoneId, setSelectedZoneId] = useState();
@@ -21,6 +24,7 @@ const OperationDetail = () => {
   const [operationPolygon, setOperationPolygon] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const geofenceParam = new URLSearchParams(location.search).get("geofenceId");
   const {
     mqttMessages = [],
     mqttReportsEvents = [],
@@ -97,18 +101,6 @@ const OperationDetail = () => {
         };
       }
     }
-    if (feature.geometry.type === "MultiPolygon") {
-      const polygons = feature.geometry.coordinates || [];
-      return {
-        ...feature,
-        geometry: {
-          ...feature.geometry,
-          coordinates: polygons.map((poly) =>
-            Array.isArray(poly) && poly[0] ? [closeRing(poly[0])] : poly
-          ),
-        },
-      };
-    }
     return feature;
   };
 
@@ -134,39 +126,12 @@ const OperationDetail = () => {
   const resolvePolygonFromGeometry = (geometryValue) => {
     const raw = parseGeometryValue(geometryValue);
     if (!raw) return null;
-    if (raw?.path && Array.isArray(raw.path)) {
-      const coordinates = raw.path.map((point) => [point.lon, point.lat]);
-      if (coordinates.length > 2) {
-        coordinates.push(coordinates[0]);
-        return {
-          type: "Feature",
-          properties: {},
-          geometry: { type: "Polygon", coordinates: [coordinates] },
-        };
-      }
-    }
-    if (raw?.type === "polygon" && Array.isArray(raw.path)) {
-      const coordinates = raw.path.map((point) => [point.lon, point.lat]);
-      if (coordinates.length > 2) {
-        coordinates.push(coordinates[0]);
-        return {
-          type: "Feature",
-          properties: {},
-          geometry: { type: "Polygon", coordinates: [coordinates] },
-        };
-      }
-    }
     if (raw?.type === "circle" && raw?.center && raw?.radius) {
       return circleToPolygon([raw.center.lon, raw.center.lat], raw.radius);
     }
     const geometry = normalizeGeometry(geometryValue);
-    if (geometry?.geometry?.type === "Polygon" || geometry?.geometry?.type === "MultiPolygon") {
+    if (geometry?.geometry?.type === "Polygon") {
       return closePolygonFeature(geometry);
-    }
-    if (geometry?.geometry?.type === "circle" && geometry?.geometry?.coordinates?.length >= 2) {
-      const [lng, lat] = geometry.geometry.coordinates;
-      const radius = geometry.geometry.radius || 0;
-      return circleToPolygon([lng, lat], radius);
     }
     return null;
   };
@@ -208,7 +173,6 @@ const OperationDetail = () => {
           getZonesByOperationId(id),
         ]);
         if (!isMounted) return;
-        console.log("Operation geometry raw:", operationData?.geometry);
         setOperation(operationData);
         const mappedZones = (zonesData || [])
           .map((zone) => ({
@@ -223,7 +187,6 @@ const OperationDetail = () => {
           setSelectedZoneId(mappedZones[0].id);
         }
         const opGeometry = resolvePolygonFromGeometry(operationData?.geometry);
-        console.log("Operation geometry parsed:", opGeometry);
         const opCenter = opGeometry ? getPolygonCenter(opGeometry) : null;
         setOperationPolygon(opGeometry);
         if (opCenter) {
@@ -247,6 +210,10 @@ const OperationDetail = () => {
   const operationName = useMemo(() => {
     return operation?.name || `Operation ${id || ""}`.trim();
   }, [operation?.name, id]);
+
+  const dashboardGeofenceId = useMemo(() => {
+    return operation?.flespi_geofence_id ?? geofenceParam ?? null;
+  }, [operation?.flespi_geofence_id, geofenceParam]);
 
   const alerts = useMemo(() => {
     const buildAlert = (entry, type, label, index) => {
@@ -332,7 +299,6 @@ const OperationDetail = () => {
       className="ops-theme h-screen flex overflow-hidden bg-background"
       data-theme={dataTheme}
     >
-      {/* Left Sidebar - Zones */}
       <ZonesSidebar
         operationId={id || ""}
         operationName={operationName}
@@ -342,29 +308,44 @@ const OperationDetail = () => {
         onBack={handleBack}
       />
 
-      {/* Main Map Area */}
-      <div className="flex-1 relative">
-        <OperationDetailMap
-          operationId={id || ""}
-          operationGeofenceId={operation?.flespi_geofence_id}
-          zones={zones}
-          selectedZoneId={selectedZoneId}
-          operationPolygon={operationPolygon}
-          center={mapCenter}
-          zoom={13}
-          onAlertsToggle={() => setAlertsOpen(!alertsOpen)}
-          alertsOpen={alertsOpen}
-        />
-
-        {/* Alerts Panel */}
-        <AlertsPanel
-          alerts={alerts}
-          isOpen={alertsOpen}
-          onClose={() => setAlertsOpen(false)}
-        />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
+          <button
+            type="button"
+            onClick={() => navigate(`/operations/${id}`)}
+            className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
+          <div className="text-sm font-semibold text-foreground">
+            Split View
+          </div>
+        </div>
+        <div className="relative flex-1 min-h-[45%]">
+          <OperationDetailMap
+            operationId={id || ""}
+            operationGeofenceId={dashboardGeofenceId}
+            zones={zones}
+            selectedZoneId={selectedZoneId}
+            operationPolygon={operationPolygon}
+            center={mapCenter}
+            zoom={13}
+            onAlertsToggle={() => setAlertsOpen(!alertsOpen)}
+            alertsOpen={alertsOpen}
+          />
+          <AlertsPanel
+            alerts={alerts}
+            isOpen={alertsOpen}
+            onClose={() => setAlertsOpen(false)}
+          />
+        </div>
+        <div className="flex-1 overflow-auto bg-background">
+          <DispatchGeofenceDashboard geofenceId={dashboardGeofenceId} />
+        </div>
       </div>
     </div>
   );
 };
 
-export default OperationDetail;
+export default OperationDetailSplit;
