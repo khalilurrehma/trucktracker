@@ -225,8 +225,8 @@ const Index = () => {
         await Swal.fire("Validation", "Operation geofence is required.", "warning");
         return;
       }
-      if (!zonePolygon || !loadPadPolygon || !dumpAreaPolygon || !queuePolygon) {
-        await Swal.fire("Validation", "All zone geofences are required.", "warning");
+      if (!zonePolygon || !loadPadPolygon || !dumpAreaPolygon) {
+        await Swal.fire("Validation", "Zone Area, Load Pad and Dump Area geofences are required.", "warning");
         return;
       }
       const operationGeo = operationPolygon || opPolygon;
@@ -276,10 +276,12 @@ const Index = () => {
       await createZone(buildZonePayload("DUMP_AREA", dumpAreaName, dumpAreaPolygon, dumpAreaLatitude, dumpAreaLongitude, dumpAreaRadius, {
         dump_area_max_duration_min: dumpAreaMaxTime ? Number(dumpAreaMaxTime) : null,
       }));
-      await createZone(buildZonePayload("QUEUE_AREA", queueName, queuePolygon, queueLatitude, queueLongitude, queueRadius, {
-        max_vehicles_count: queueMaxVehicles ? Number(queueMaxVehicles) : null,
-        ideal_queue_duration_m: queueIdealTime ? Number(queueIdealTime) : null,
-      }));
+      if (queuePolygon && queueName.trim()) {
+        await createZone(buildZonePayload("QUEUE_AREA", queueName, queuePolygon, queueLatitude, queueLongitude, queueRadius, {
+          max_vehicles_count: queueMaxVehicles ? Number(queueMaxVehicles) : null,
+          ideal_queue_duration_m: queueIdealTime ? Number(queueIdealTime) : null,
+        }));
+      }
 
       const assignedDeviceIds = devices.filter((d) => d.assigned).map((d) => d.id);
       for (const deviceId of assignedDeviceIds) {
@@ -553,11 +555,17 @@ const Index = () => {
                 loadPadPolygon={loadPadPolygon}
                 dumpAreaPolygon={dumpAreaPolygon}
                 onNext={async () => {
-                  if (!queueName.trim()) {
+                  const hasName = Boolean(queueName.trim());
+                  const hasPolygon = Boolean(queuePolygon);
+                  if (!hasName && !hasPolygon) {
+                    setCurrentStep(5);
+                    return;
+                  }
+                  if (!hasName) {
                     await Swal.fire("Required", "Queue Area name is required.", "warning");
                     return;
                   }
-                  if (!queuePolygon) {
+                  if (!hasPolygon) {
                     await Swal.fire("Required", "Queue Area geofence is required.", "warning");
                     return;
                   }

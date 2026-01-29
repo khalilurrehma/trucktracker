@@ -129,12 +129,15 @@ export const createOperation = async (operation) => {
         // 3️⃣ Create Flespi Geofence
         const geofence = await createFlespiGeofence([
             {
-                name: `OP_AREA-${name}`,
+                name: `${name} - LIQ`,
                 priority: 10,
                 enabled: true,
                 geometry: geometryData,
                 metadata: {
                     op_id: operationId,
+                    loadiq_operation: true,
+                    estimated_start_date: operation?.estimated_start_date ?? null,
+                    estimated_end_date: operation?.estimated_end_date ?? null,
                     day_volume_m3_goal: DayVolumeM3Goal,
                     op_max_speed_kmh: opMaxSpeedKmh,
                     op_swell_factor: opSwellFactor,
@@ -158,7 +161,7 @@ export const createOperation = async (operation) => {
                 const config = await loadCalculatorTemplateConfig(template.file_path);
                 const cleanedConfig = sanitizeCalculatorConfig(config);
                 const templateLabel = template?.name || `template-${template?.id || "unknown"}`;
-                const calcName = `OP-${name}-${templateLabel}`.slice(0, 200);
+                const calcName = `${templateLabel} - ${name} - LIQ`.slice(0, 200);
                 cleanedConfig.name = calcName;
                 const calc = await createFlespiCalculator(cleanedConfig);
                 await assignCalculatorToGeofence(calc.id, geofenceId);
@@ -248,10 +251,13 @@ export const updateOperation = async (id, operation) => {
             await deleteCalculatorsByIds(opGeofenceCalcIds);
             await deleteCalculatorAssignmentsByGeofenceId(geofenceId);
             await updateFlespiGeofence(geofenceId.toString(), {
-                name: name,
+                name: `${name} - LIQ`,
                 enabled: enabled,
                 geometry: geometryData,
                 metadata: {
+                    loadiq_operation: true,
+                    estimated_start_date: operation?.estimated_start_date ?? null,
+                    estimated_end_date: operation?.estimated_end_date ?? null,
                     day_volume_m3_goal: day_volume_m3_goal,
                     op_max_speed_kmh: op_max_speed_kmh,
                     op_swell_factor: op_swell_factor,
@@ -268,7 +274,7 @@ export const updateOperation = async (id, operation) => {
                     const config = await loadCalculatorTemplateConfig(template.file_path);
                     const cleanedConfig = sanitizeCalculatorConfig(config);
                     const templateLabel = template?.name || `template-${template?.id || "unknown"}`;
-                    const calcName = `OP-${name}-${templateLabel}`.slice(0, 200);
+                    const calcName = `${templateLabel} - ${name} - LIQ`.slice(0, 200);
                     cleanedConfig.name = calcName;
                     const calc = await createFlespiCalculator(cleanedConfig);
                     await assignCalculatorToGeofence(calc.id, geofenceId);

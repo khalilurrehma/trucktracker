@@ -144,10 +144,17 @@ export default function Step2QueueZone({ goNext, goPrev }) {
   }, [queueZone]);
 
   const handleNext = () => {
-    if (!zone.name) {
+    // Allow skipping QUEUE_AREA entirely
+    const hasName = Boolean(zone.name && zone.name.trim());
+    const hasGeometry = Boolean(zone.geofence?.geometry);
+    if (!hasName && !hasGeometry) {
+      setQueueZone(null);
+      return goNext("queue-area");
+    }
+    if (!hasName) {
       return Swal.fire("Validation", "Zone name is required", "warning");
     }
-    if (!zone.geofence?.geometry) {
+    if (!hasGeometry) {
       return Swal.fire("Validation", "Please draw the queue area", "warning");
     }
 
@@ -294,21 +301,39 @@ export default function Step2QueueZone({ goNext, goPrev }) {
               />
             ))}
 
-            <button
-              onClick={handleNext}
-              style={{
-                marginTop: 30,
-                padding: "10px 20px",
-                background: "#1976d2",
-                color: "white",
-                borderRadius: 6,
-                border: "none",
-                cursor: "pointer",
-                fontSize: 16,
-              }}
-            >
-              Next
-            </button>
+            <div style={{ marginTop: 30, display: "flex", gap: 12 }}>
+              <button
+                onClick={() => {
+                  setQueueZone(null);
+                  goNext("queue-area");
+                }}
+                style={{
+                  padding: "10px 20px",
+                  background: "#777",
+                  color: "white",
+                  borderRadius: 6,
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 16,
+                }}
+              >
+                Skip
+              </button>
+              <button
+                onClick={handleNext}
+                style={{
+                  padding: "10px 20px",
+                  background: "#1976d2",
+                  color: "white",
+                  borderRadius: 6,
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 16,
+                }}
+              >
+                Next
+              </button>
+            </div>
           </AccordionDetails>
         </Accordion>
       </Container>

@@ -66,6 +66,7 @@ const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePo
     const circlePreviewFillId = "circle-preview-fill";
     const circlePreviewLineId = "circle-preview-line";
     const referenceFitKey = useRef("");
+    const existingFitKey = useRef("");
     const circleFocusKey = useRef("");
     const lastViewRef = useRef({ center, zoom });
     const setInteractionEnabled = useCallback((enabled) => {
@@ -509,6 +510,17 @@ const OperationMap = ({ className, onPolygonChange, existingPolygon, referencePo
         }
         addReferenceLayer();
     }, [existingPolygon, addReferenceLayer]);
+    useEffect(() => {
+        if (!map.current || !existingPolygon)
+            return;
+        const normalized = normalizeGeoJson(existingPolygon);
+        const feature = normalized && normalized.features ? normalized.features[0] : null;
+        const geometryKey = feature && feature.geometry ? JSON.stringify(feature.geometry) : "";
+        if (!geometryKey || geometryKey === existingFitKey.current)
+            return;
+        existingFitKey.current = geometryKey;
+        fitToFeature(normalized);
+    }, [existingPolygon]);
     useEffect(() => {
         if (!draw.current || !map.current)
             return;

@@ -89,6 +89,10 @@ export const createZone = async (zone) => {
     zone_max_speed_kmh,
     zone_bank_volume_m3,
     zone_bank_swell_factor,
+    load_pad_type,
+    material_type,
+    dump_area_type,
+    queue_type,
   } = zone;
 
   const sql = `
@@ -129,12 +133,12 @@ export const createZone = async (zone) => {
       area_ha,
       color:
         zoneType === "QUEUE_AREA"
-          ? "#e67e22"
+          ? "#a855f7"
           : zoneType === "DUMP_AREA"
-            ? "#c0392b"
+            ? "#3b82f6"
             : zoneType === "LOAD_PAD"
-              ? "#27ae60"
-              : "#3498db",
+              ? "#ef4444"
+              : "#facc15",
     };
 
     if (zoneType === "QUEUE_AREA") {
@@ -142,6 +146,7 @@ export const createZone = async (zone) => {
         ...metadata,
         ideal_queue_duration_m,
         max_vehicles_count,
+        queue_type: queue_type ?? null,
       };
     }
 
@@ -149,6 +154,7 @@ export const createZone = async (zone) => {
       metadata = {
         ...metadata,
         dump_area_max_duration_min,
+        dump_area_type: dump_area_type ?? null,
       };
     }
 
@@ -156,6 +162,8 @@ export const createZone = async (zone) => {
       metadata = {
         ...metadata,
         load_pad_max_duration_min,
+        load_pad_type: load_pad_type ?? null,
+        material_type: material_type ?? null,
       };
     }
 
@@ -170,8 +178,8 @@ export const createZone = async (zone) => {
 
     const geofence = await createFlespiGeofence([
       {
-        name: `${zoneType}-${name}`,
-        priority: 100,
+        name: `${name} - ${operationName} - LIQ`,
+        priority: zoneType === "ZONE_AREA" ? 10 : 5,
         enabled: true,
         geometry: flespiGeometry,
         metadata,
@@ -187,7 +195,7 @@ export const createZone = async (zone) => {
         const config = await loadCalculatorTemplateConfig(template.file_path);
         const cleanedConfig = sanitizeCalculatorConfig(config);
         const templateLabel = template?.name || `template-${template?.id || "unknown"}`;
-        const calcName = `OP-${operationName}-${zoneType}-${name}-${templateLabel}`.slice(0, 200);
+        const calcName = `${templateLabel} - ${name} - ${operationName} - LIQ`.slice(0, 200);
         cleanedConfig.name = calcName;
         const calc = await createFlespiCalculator(cleanedConfig);
         await assignCalculatorToGeofence(calc.id, geofenceId);
@@ -238,6 +246,10 @@ export const updateZone = async (id, zone) => {
     zone_max_speed_kmh,
     zone_bank_volume_m3,
     zone_bank_swell_factor,
+    load_pad_type,
+    material_type,
+    dump_area_type,
+    queue_type,
   } = zone;
 
   /* ---------------------------------------------
@@ -323,12 +335,12 @@ export const updateZone = async (id, zone) => {
         area_ha,
         color:
           zoneType === "QUEUE_AREA"
-            ? "#e67e22"
+            ? "#a855f7"
             : zoneType === "DUMP_AREA"
-              ? "#c0392b"
+              ? "#3b82f6"
               : zoneType === "LOAD_PAD"
-                ? "#27ae60"
-                : "#3498db",
+                ? "#ef4444"
+                : "#facc15",
 
         updated: true,
       };
@@ -337,16 +349,20 @@ export const updateZone = async (id, zone) => {
       if (zoneType === "QUEUE_AREA") {
         metadata.ideal_queue_duration_m = ideal_queue_duration_m;
         metadata.max_vehicles_count = max_vehicles_count;
+        metadata.queue_type = queue_type ?? null;
       }
 
       // ADD LOADPAD metadata
       if (zoneType === "LOAD_PAD") {
         metadata.load_pad_max_duration_min = load_pad_max_duration_min;
+        metadata.load_pad_type = load_pad_type ?? null;
+        metadata.material_type = material_type ?? null;
       }
 
       // ADD DUMP metadata
       if (zoneType === "DUMP_AREA") {
         metadata.dump_area_max_duration_min = dump_area_max_duration_min;
+        metadata.dump_area_type = dump_area_type ?? null;
       }
 
       // ADD ZONE AREA metadata
@@ -360,7 +376,7 @@ export const updateZone = async (id, zone) => {
           4) Update Flespi Geofence
       --------------------------------------------- */
       await updateFlespiGeofence(geofenceId.toString(), {
-        name: `${zoneType}-${name}`,
+        name: `${name} - ${operationName} - LIQ`,
         geometry: toFlespiGeometry(geometry),
         metadata,
       });
@@ -378,7 +394,7 @@ export const updateZone = async (id, zone) => {
           const config = await loadCalculatorTemplateConfig(template.file_path);
           const cleanedConfig = sanitizeCalculatorConfig(config);
           const templateLabel = template?.name || `template-${template?.id || "unknown"}`;
-          const calcName = `OP-${operationName}-${zoneType}-${name}-${templateLabel}`.slice(0, 200);
+          const calcName = `${templateLabel} - ${name} - ${operationName} - LIQ`.slice(0, 200);
           cleanedConfig.name = calcName;
           const calc = await createFlespiCalculator(cleanedConfig);
           await assignCalculatorToGeofence(calc.id, geofenceId);

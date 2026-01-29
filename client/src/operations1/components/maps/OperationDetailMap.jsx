@@ -282,7 +282,7 @@ const OperationDetailMap = ({ className, zones, selectedZoneId, center = [-76.9,
                 type: "fill",
                 source: sourceId,
                 paint: {
-                    "fill-color": "#facc15",
+                    "fill-color": "#22c55e",
                     "fill-opacity": 0.1,
                 },
             });
@@ -293,7 +293,7 @@ const OperationDetailMap = ({ className, zones, selectedZoneId, center = [-76.9,
                 type: "line",
                 source: sourceId,
                 paint: {
-                    "line-color": "#facc15",
+                    "line-color": "#22c55e",
                     "line-width": 6,
                     "line-opacity": 1,
                     "line-dasharray": [2, 1],

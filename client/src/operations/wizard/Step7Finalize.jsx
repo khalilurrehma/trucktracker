@@ -37,8 +37,8 @@ export default function Step7Finalize({ goPrev }) {
     if (!operation) {
       return Swal.fire("Missing data", "Operation data not found.", "error");
     }
-    if (!queueZone || !loadPadZone || !dumpZone || !zoneArea) {
-      return Swal.fire("Missing data", "Some zones are missing.", "error");
+    if (!loadPadZone || !dumpZone || !zoneArea) {
+      return Swal.fire("Missing data", "Some required zones are missing.", "error");
     }
 
     setSubmitting(true);
@@ -53,7 +53,7 @@ export default function Step7Finalize({ goPrev }) {
       }
 
       // 2️⃣ Create all zones (attach operationId)
-      const zones = [queueZone, loadPadZone, dumpZone, zoneArea];
+      const zones = [queueZone, loadPadZone, dumpZone, zoneArea].filter(Boolean);
 
       for (const z of zones) {
         await createZone({

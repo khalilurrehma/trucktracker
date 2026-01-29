@@ -7,7 +7,13 @@ export const savePersistedState = (key, value) => {
 export default (key, defaultValue) => {
   const [value, setValue] = useState(() => {
     const stickyValue = window.localStorage.getItem(key);
-    return stickyValue ? JSON.parse(stickyValue) : defaultValue;
+    if (!stickyValue) return defaultValue;
+    try {
+      return JSON.parse(stickyValue);
+    } catch {
+      // Fallback for legacy/plain string values (e.g., "en")
+      return stickyValue;
+    }
   });
 
   useEffect(() => {
