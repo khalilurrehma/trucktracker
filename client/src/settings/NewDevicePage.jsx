@@ -59,6 +59,16 @@ const NewDevicePage = () => {
   const [groups, setGroups] = useState([]);
   const [servicesTypes, setServicesTypes] = useState([]);
 
+  const selectedDeviceType = deviceTypes?.find(
+    (option) => option.id === item?.device_type_id
+  );
+  const isLoaderType =
+    String(item?.category || "").toLowerCase().includes("loader") ||
+    String(selectedDeviceType?.name || "").toLowerCase().includes("loader") ||
+    String(selectedDeviceType?.protocol_name || "")
+      .toLowerCase()
+      .includes("loader");
+
   useEffect(() => {
     setItem({
       ...item,
@@ -305,7 +315,7 @@ const NewDevicePage = () => {
                   name: t(
                     `category${category.replace(/^\w/, (c) => c.toUpperCase())}`
                   ),
-                }))}
+                }))} 
                 label={t("deviceCategory")}
               />
               {item.category === "dumptruck" && (
@@ -334,6 +344,49 @@ const NewDevicePage = () => {
                       })
                     }
                     label={t("vehicle_fill_factor_ideal")}
+                    fullWidth
+                    sx={{ mt: 2 }}
+                  />
+                </>
+              )}
+              {isLoaderType && (
+                <>
+                  <TextField
+                    value={item.loader_bucket_capacity_m3 || ""}
+                    type="number"
+                    onChange={(event) =>
+                      setItem({
+                        ...item,
+                        loader_bucket_capacity_m3: event.target.value,
+                      })
+                    }
+                    label={t("loader_bucket_capacity_m3")}
+                    fullWidth
+                    sx={{ mt: 2 }}
+                  />
+                  <TextField
+                    value={item.loader_bucket_fill_factor_ideal || ""}
+                    type="number"
+                    onChange={(event) =>
+                      setItem({
+                        ...item,
+                        loader_bucket_fill_factor_ideal: event.target.value,
+                      })
+                    }
+                    label={t("loader_bucket_fill_factor_ideal")}
+                    fullWidth
+                    sx={{ mt: 2 }}
+                  />
+                  <TextField
+                    value={item.idle_max_time_alert || ""}
+                    type="number"
+                    onChange={(event) =>
+                      setItem({
+                        ...item,
+                        idle_max_time_alert: event.target.value,
+                      })
+                    }
+                    label={t("idle_max_time_alert")}
                     fullWidth
                     sx={{ mt: 2 }}
                   />

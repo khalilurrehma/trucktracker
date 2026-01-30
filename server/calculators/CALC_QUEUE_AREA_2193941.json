@@ -1,50 +1,47 @@
 {
+  "name": "Calc_Queue_Area - [Zone Name] - [Operation Name] - LIQ",
   "intervals_ttl": 31536000,
   "update_delay": 30,
   "update_period": 864000,
   "update_onchange": true,
-  "messages_source": {
-    "source": "device"
-  },
-  "id": 2193941,
-  "validate_message": "",
-  "validate_interval": "",
-  "name": "CALC_QUEUE_AREA",
+  "timezone": "America/Lima",
   "selectors": [
     {
-      "expression": "geofence() == 'QUEUE_AREA'",
-      "method": "boolean",
-      "type": "expression"
+      "expression": "geofence() == '[QueueArea Geofence Name]'"
     }
   ],
-  "cid": 2208001,
-  "intervals_rotate": 0,
   "counters": [
     {
-      "expression": "engine.ignition.status == true && movement.status == false",
-      "method": "duration",
-      "name": "queue_area_idle_duration",
-      "type": "expression"
+      "name": "device_id",
+      "type": "parameter",
+      "parameter": "device.id"
     },
     {
-      "expression": "position.altitude",
-      "method": "average",
-      "name": "queue_altitude",
-      "type": "expression"
+      "name": "active",
+      "type": "active"
     },
     {
-      "expression": "movement.status == false",
-      "method": "duration",
-      "name": "queue_area_stop_time",
-      "type": "expression"
+      "name": "queue_duration",
+      "type": "duration"
     },
     {
-      "expression": "geofence('metadata.ideal_queue_duration_m') * 60",
-      "method": "first",
-      "name": "ideal_duration",
-      "type": "expression"
+      "name": "queue_duration_formated",
+      "type": "duration",
+      "format": "%H:%M:%S"
+    },
+    {
+      "name": "position_lat",
+      "type": "last",
+      "parameter": "position.latitude"
+    },
+    {
+      "name": "position_lon",
+      "type": "last",
+      "parameter": "position.longitude"
+    },
+    {
+      "name": "queue_position",
+      "type": "count"
     }
-  ],
-  "timezone": "UTC",
-  "version": 4
+  ]
 }

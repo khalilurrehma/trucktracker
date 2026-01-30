@@ -71,50 +71,54 @@ const EditItemView = ({
   }
 
   useEffectAsync(async () => {
-    if (!item) {
-      if (id) {
-        const response = await axios.get(`${url}`);
-        if (response.status === 200) {
-          const data = response.data.data;
-          let stableData;
-          if (url.includes("group")) {
-            stableData = {
-              dataId: data.id,
-              id: data.traccarId,
-              name: data.name,
-              groupId: data.groupId,
-              attributes: data.attributes,
-            };
-          } else {
-            stableData = data;
-          }
+    const shouldFetch =
+      id && (!item || item.id === undefined || item.uniqueId === undefined);
 
-          if (data?.flespi_metadata) {
-            try {
-              const metadata = JSON.parse(data.flespi_metadata);
-              // Fill optional fields (e.g., vehicle metrics) from flespi metadata when not already present
-              Object.entries(metadata).forEach(([key, value]) => {
-                if (
-                  stableData[key] === undefined ||
-                  stableData[key] === null ||
-                  stableData[key] === ""
-                ) {
-                  stableData[key] = value;
-                }
-              });
-            } catch (error) {
-              console.error("Failed to parse flespi_metadata", error);
-            }
-          }
-
-          setItem(stableData);
+    if (shouldFetch) {
+      const response = await axios.get(`${url}`);
+      if (response.status === 200) {
+        const data = response.data.data;
+        let stableData;
+        if (url.includes("group")) {
+          stableData = {
+            dataId: data.id,
+            id: data.traccarId,
+            name: data.name,
+            groupId: data.groupId,
+            attributes: data.attributes,
+          };
         } else {
-          throw Error(await response.data.message);
+          stableData = data;
         }
+
+        if (data?.flespi_metadata) {
+          try {
+            const metadata = JSON.parse(data.flespi_metadata);
+            // Fill optional fields (e.g., vehicle metrics) from flespi metadata when not already present
+            Object.entries(metadata).forEach(([key, value]) => {
+              if (
+                stableData[key] === undefined ||
+                stableData[key] === null ||
+                stableData[key] === ""
+              ) {
+                stableData[key] = value;
+              }
+            });
+          } catch (error) {
+            console.error("Failed to parse flespi_metadata", error);
+          }
+        }
+
+        setItem(stableData);
       } else {
-        const newItem = { ...defaultItem, userId };
-        setItem(newItem);
+        throw Error(await response.data.message);
       }
+      return;
+    }
+
+    if (!id && !item) {
+      const newItem = { ...defaultItem, userId };
+      setItem(newItem);
     }
   }, [id, item, defaultItem, setItem, userId]);
 

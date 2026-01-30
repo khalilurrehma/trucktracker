@@ -23,6 +23,38 @@ import {
   sanitizeCalculatorConfig
 } from "../../utils/calculatorTemplates.js";
 
+const vehicleCalculatorNames = [
+  "CALC_LOAD_PAD",
+  "CALC_DUMP_AREA",
+  "CALC_QUEUE_AREA",
+  "CALC_TRIP_L2D",
+  "CALC_TRIP_D2L",
+  "CALC_TRIP_CYCLE",
+  "DAILY_VEHICLE_REPORT",
+  "ZONE_CALCULATOR",
+  "OP_CALCULATOR",
+  "OPERATION_SUMMARY"
+];
+
+const loaderCalculatorNames = [
+  "CALC_LOADERS_PAD",
+  "ZONE_CALCULATOR",
+  "OP_CALCULATOR",
+  "OPERATION_SUMMARY"
+];
+
+const filterTemplatesByName = (templates, allowedNames) => {
+  if (!Array.isArray(templates)) return [];
+  if (!Array.isArray(allowedNames) || allowedNames.length === 0) return templates;
+  const allowed = new Set(allowedNames);
+  return templates.filter((template) => allowed.has(template?.name));
+};
+
+const isLoaderCategory = (category) => {
+  if (!category) return false;
+  return String(category).toLowerCase().includes("loader");
+};
+
 
 export const createDeviceAssignment = async ({ device_id, operation_id, zone_id }) => {
   const sql = `
@@ -34,7 +66,7 @@ export const createDeviceAssignment = async ({ device_id, operation_id, zone_id 
 
   try {
     const [device] = await dbQuery(
-      "SELECT flespiId, traccarId, name FROM new_settings_devices WHERE id = ?",
+      "SELECT flespiId, traccarId, name, category FROM new_settings_devices WHERE id = ?",
       [device_id]
     );
     const [operation] = await dbQuery(
@@ -74,8 +106,35 @@ export const createDeviceAssignment = async ({ device_id, operation_id, zone_id 
     const assignments = [];
     const operationName = operation?.name || "operation";
     const zoneName = zone?.name || operationGeofence?.name || operationName || "zone";
+    const isLoader = isLoaderCategory(device?.category);
+    let isFirstVehicle = false;
 
-    for (const template of templates) {
+    if (!isLoader) {
+      const [vehicleCountRow] = await dbQuery(
+        `
+          SELECT COUNT(*) AS vehicleCount
+          FROM device_assignments da
+          JOIN new_settings_devices d ON da.device_id = d.id
+          WHERE da.operation_id = ?
+            AND d.id <> ?
+            AND (d.category IS NULL OR LOWER(d.category) NOT LIKE '%loader%')
+        `,
+        [operation_id, device_id]
+      );
+      isFirstVehicle = Number(vehicleCountRow?.vehicleCount || 0) === 0;
+    }
+
+    const allowedNames = isLoader
+      ? [...loaderCalculatorNames]
+      : [...vehicleCalculatorNames];
+
+    if (!isLoader && isFirstVehicle) {
+      allowedNames.push("KPIs_DASHBOARD_new");
+    }
+
+    const filteredTemplates = filterTemplatesByName(templates, allowedNames);
+
+    for (const template of filteredTemplates) {
       try {
         const config = await loadCalculatorTemplateConfig(template.file_path);
         const cleanedConfig = sanitizeCalculatorConfig(config);

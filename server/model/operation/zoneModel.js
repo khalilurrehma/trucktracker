@@ -20,6 +20,20 @@ import {
 import { getCalculatorTemplatesByType } from "../calculatorTemplates.js";
 import { loadCalculatorTemplateConfig, sanitizeCalculatorConfig } from "../../utils/calculatorTemplates.js";
 
+const zoneCalculatorNameMap = {
+  LOAD_PAD: ["CALC_LOAD_PAD", "CALC_LOADERS_PAD", "CALC_TRIP_L2D", "CALC_TRIP_D2L"],
+  DUMP_AREA: ["CALC_DUMP_AREA", "CALC_TRIP_L2D", "CALC_TRIP_D2L"],
+  QUEUE_AREA: ["CALC_QUEUE_AREA"],
+  ZONE_AREA: ["CALC_TRIP_CYCLE", "ZONE_CALCULATOR"],
+};
+
+const filterTemplatesByName = (templates, allowedNames) => {
+  if (!Array.isArray(templates)) return [];
+  if (!Array.isArray(allowedNames) || allowedNames.length === 0) return templates;
+  const allowed = new Set(allowedNames);
+  return templates.filter((template) => allowed.has(template?.name));
+};
+
 // Utility: convert GeoJSON geometry to Flespi format
 function toFlespiGeometry(geometry) {
   if (!geometry) return null;
@@ -188,9 +202,13 @@ export const createZone = async (zone) => {
 
     const geofenceId = geofence[0]?.id;
     const templates = await getCalculatorTemplatesByType(zoneType);
+    const filteredTemplates = filterTemplatesByName(
+      templates,
+      zoneCalculatorNameMap[zoneType]
+    );
     const assignmentsToSave = [];
 
-    for (const template of templates) {
+    for (const template of filteredTemplates) {
       try {
         const config = await loadCalculatorTemplateConfig(template.file_path);
         const cleanedConfig = sanitizeCalculatorConfig(config);
@@ -387,9 +405,13 @@ export const updateZone = async (id, zone) => {
       );
       const operationName = opRow?.name || `operation-${zoneRow?.operationId || "unknown"}`;
       const templates = await getCalculatorTemplatesByType(zoneType);
+      const filteredTemplates = filterTemplatesByName(
+        templates,
+        zoneCalculatorNameMap[zoneType]
+      );
       const assignmentsToSave = [];
 
-      for (const template of templates) {
+      for (const template of filteredTemplates) {
         try {
           const config = await loadCalculatorTemplateConfig(template.file_path);
           const cleanedConfig = sanitizeCalculatorConfig(config);

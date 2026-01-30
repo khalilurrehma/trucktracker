@@ -256,6 +256,9 @@ export const createFlespiDeviceIfNotExists = async ({
   uniqueId,
   configuration = {},
   deviceTypeId = 0,
+  metadata,
+  media_ttl,
+  messages_ttl,
 }) => {
   if (!uniqueId) {
     throw new Error("uniqueId is required to create a Flespi device");
@@ -268,7 +271,7 @@ export const createFlespiDeviceIfNotExists = async ({
 
   const searchUrl = `${flespiUrl}/devices/configuration.ident=${encodeURIComponent(
     uniqueId
-  )}?fields=id%2Cname%2Cconfiguration%2Cdevice_type_id%2Cdevice_type_name%2Cprotocol_id%2Cprotocol_name`;
+  )}?fields=id%2Cname%2Cconfiguration%2Cmetadata%2Cdevice_type_id%2Cdevice_type_name%2Cprotocol_id%2Cprotocol_name%2Cmedia_ttl%2Cmessages_ttl`;
 
   const searchResponse = await axios.get(searchUrl, { headers });
   const existingDevice = searchResponse.data?.result?.[0];
@@ -282,11 +285,14 @@ export const createFlespiDeviceIfNotExists = async ({
       name,
       configuration: { ...configuration, ident: uniqueId },
       device_type_id: deviceTypeId,
+      ...(metadata ? { metadata } : {}),
+      ...(media_ttl !== undefined ? { media_ttl } : {}),
+      ...(messages_ttl !== undefined ? { messages_ttl } : {}),
     },
   ];
 
   const createResponse = await axios.post(
-    `${flespiUrl}/devices?fields=id%2Cname%2Cconfiguration%2Cdevice_type_id%2Cdevice_type_name%2Cprotocol_id%2Cprotocol_name`,
+    `${flespiUrl}/devices?fields=id%2Cname%2Cconfiguration%2Cmetadata%2Cdevice_type_id%2Cdevice_type_name%2Cprotocol_id%2Cprotocol_name%2Cmedia_ttl%2Cmessages_ttl`,
     createBody,
     { headers }
   );

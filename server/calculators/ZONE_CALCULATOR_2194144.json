@@ -1,110 +1,70 @@
 {
+  "name": "Zone_Calculator - [Zone Name] - [Operation Name] - LIQ",
   "intervals_ttl": 31536000,
   "update_delay": 30,
   "update_period": 864000,
   "update_onchange": true,
-  "messages_source": {
-    "source": "calc",
-    "calc_id": 2194137
-  },
-  "id": 2194144,
-  "validate_message": "",
-  "validate_interval": "",
-  "name": "ZONE_CALCULATOR",
+  "timezone": "America/Lima",
   "selectors": [
     {
-      "split": "day",
-      "type": "datetime"
+      "expression": "geofence() == '[Zone Geofence Name]'"
     }
   ],
-  "cid": 2208001,
-  "intervals_rotate": 0,
   "counters": [
     {
-      "calc_id": 2194137,
-      "fields": [
-        {
-          "aggregate": "summary",
-          "name": "cycle_duration"
-        },
-        {
-          "aggregate": "summary",
-          "name": "cycle_distance"
-        },
-        {
-          "aggregate": "summary",
-          "name": "cycle_idle"
-        },
-        {
-          "aggregate": "summary",
-          "name": "cycle_efficiency"
-        },
-        {
-          "aggregate": "summary",
-          "name": "cycle_volume_m3"
-        },
-        {
-          "aggregate": "summary",
-          "expression": "1",
-          "name": "cycle_count"
-        }
-      ],
-      "method": "aggregate",
-      "name": "zone_cycles",
+      "name": "device_id",
+      "type": "parameter",
+      "parameter": "device.id"
+    },
+    {
+      "name": "active",
+      "type": "active"
+    },
+    {
+      "name": "zone_duration",
+      "type": "duration"
+    },
+    {
+      "name": "zone_material_m3",
       "type": "calc",
-      "validate_interval": "zone == 'ZONE_AREA'"
+      "calc_id": "[Calc_Dump_Area ID]",
+      "counter": "material_dumped_m3",
+      "method": "sum"
     },
     {
-      "expression": "zone_cycles['cycle_duration'] / zone_cycles['cycle_count']",
-      "name": "zone_avg_cycle_duration",
-      "type": "interval"
-    },
-    {
-      "expression": "zone_cycles['cycle_distance'] / zone_cycles['cycle_count']",
-      "name": "zone_avg_cycle_distance",
-      "type": "interval"
-    },
-    {
-      "expression": "zone_cycles['cycle_idle'] / zone_cycles['cycle_count']",
-      "name": "zone_avg_cycle_idle",
-      "type": "interval"
-    },
-    {
-      "expression": "zone_cycles['cycle_efficiency'] / zone_cycles['cycle_count']",
-      "name": "zone_avg_cycle_efficiency",
-      "type": "interval"
-    },
-    {
-      "expression": "zone_cycles['cycle_count']",
-      "name": "zone_total_l2d_trips",
-      "type": "interval"
-    },
-    {
-      "expression": "zone_cycles['cycle_volume_m3']",
-      "name": "zone_total_volume_m3",
-      "type": "interval"
-    },
-    {
-      "calc_id": 2194137,
-      "fields": [
-        "device.id",
-        {
-          "aggregate": "summary",
-          "expression": "1",
-          "name": "count"
-        }
-      ],
-      "method": "aggregate_by_field",
-      "name": "vehicle_list",
+      "name": "zone_trips",
       "type": "calc",
-      "validate_interval": "zone == 'ZONE_AREA'"
+      "calc_id": "[Calc_Trip_L2D ID]",
+      "counter": "device_id",
+      "method": "count"
     },
     {
-      "expression": "json_array_count($vehicle_list)",
-      "name": "zone_vehicle_count",
-      "type": "interval"
+      "name": "zone_avg_cycle",
+      "type": "calc",
+      "calc_id": "[Calc_Trip_Cycle ID]",
+      "counter": "cycle_duration",
+      "method": "avg"
+    },
+    {
+      "name": "zone_avg_queue",
+      "type": "calc",
+      "calc_id": "[Calc_Queue_Area ID]",
+      "counter": "queue_duration",
+      "method": "avg"
+    },
+    {
+      "name": "active_vehicles",
+      "type": "calc",
+      "calc_id": "[Calc_Load_Pad ID]",
+      "counter": "active",
+      "method": "sum"
+    },
+    {
+      "name": "active_loaders",
+      "type": "calc",
+      "calc_id": "[Calc_Loaders_Pad ID]",
+      "counter": "active",
+      "method": "sum"
     }
-  ],
-  "timezone": "America/Lima",
-  "version": 2
+  ]
 }

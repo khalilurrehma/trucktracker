@@ -23,6 +23,19 @@ import {
 import { getCalculatorTemplatesByType } from "../calculatorTemplates.js";
 import { loadCalculatorTemplateConfig, sanitizeCalculatorConfig } from "../../utils/calculatorTemplates.js";
 
+const operationCalculatorNames = [
+    "OP_CALCULATOR",
+    "OPERATION_SUMMARY",
+    "KPIs_DASHBOARD_new",
+];
+
+const filterTemplatesByName = (templates, allowedNames) => {
+    if (!Array.isArray(templates)) return [];
+    if (!Array.isArray(allowedNames) || allowedNames.length === 0) return templates;
+    const allowed = new Set(allowedNames);
+    return templates.filter((template) => allowed.has(template?.name));
+};
+
 const toNumberOrDefault = (value, fallback = 0) => {
     const parsed = Number.parseFloat(value);
     return Number.isFinite(parsed) ? parsed : fallback;
@@ -154,9 +167,13 @@ export const createOperation = async (operation) => {
         );
 
         const templates = await getCalculatorTemplatesByType("OP_AREA");
+        const filteredTemplates = filterTemplatesByName(
+            templates,
+            operationCalculatorNames
+        );
         const assignmentsToSave = [];
 
-        for (const template of templates) {
+        for (const template of filteredTemplates) {
             try {
                 const config = await loadCalculatorTemplateConfig(template.file_path);
                 const cleanedConfig = sanitizeCalculatorConfig(config);
@@ -267,9 +284,13 @@ export const updateOperation = async (id, operation) => {
             });
 
             const templates = await getCalculatorTemplatesByType("OP_AREA");
+            const filteredTemplates = filterTemplatesByName(
+                templates,
+                operationCalculatorNames
+            );
             const assignmentsToSave = [];
 
-            for (const template of templates) {
+            for (const template of filteredTemplates) {
                 try {
                     const config = await loadCalculatorTemplateConfig(template.file_path);
                     const cleanedConfig = sanitizeCalculatorConfig(config);

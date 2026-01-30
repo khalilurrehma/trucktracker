@@ -287,6 +287,9 @@ export const addNewDevice = async (req, res) => {
             "category",
             "vehicle_fill_factor_ideal",
             "vehicle_capacity_m3",
+            "loader_bucket_capacity_m3",
+            "loader_bucket_fill_factor_ideal",
+            "idle_max_time_alert",
             "groupId",
             "model",
             "contact",
@@ -329,6 +332,29 @@ export const addNewDevice = async (req, res) => {
         // data: responses,
       });
     } else if (flespiDevice) {
+      try {
+        await axios.put(
+          `${flespiApiUrl}/devices/${flespiDevice.id}?fields=id%2Cname%2Cconfiguration%2Cmetadata%2Cdevice_type_id%2Cdevice_type_name%2Cprotocol_id%2Cprotocol_name%2Cmedia_ttl%2Cmessages_ttl`,
+          {
+            ...(flespiRequestData.metadata ? { metadata: flespiRequestData.metadata } : {}),
+            ...(flespiRequestData.media_ttl !== undefined
+              ? { media_ttl: flespiRequestData.media_ttl }
+              : {}),
+            ...(flespiRequestData.messages_ttl !== undefined
+              ? { messages_ttl: flespiRequestData.messages_ttl }
+              : {}),
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `FlespiToken ${flespiToken}`,
+            },
+          }
+        );
+      } catch (error) {
+        console.error("Failed to update Flespi metadata for existing device:", error?.response?.data || error?.message);
+      }
+
       const traccarResponse = await axios.post(
         `${traccarApiUrl}/devices`,
         traccarRequestData,
@@ -351,11 +377,18 @@ export const addNewDevice = async (req, res) => {
           },
         }
       );
+      const mergedMetadata = {
+        ...(flespiDevice?.metadata || {}),
+        ...(flespiRequestData.metadata || {}),
+      };
       let responses = {
         userId: req.body.userId,
         password: req.body.password,
         traccar: traccarResponse.data,
-        flespi: flespiDevice,
+        flespi: {
+          ...flespiDevice,
+          metadata: mergedMetadata,
+        },
         created_role: isSuperAdmin === true ? "superAdmin" : "admin",
         created_by: req.body.userName,
       };
@@ -378,6 +411,9 @@ export const addNewDevice = async (req, res) => {
         uniqueId: flespiRequestData.configuration?.ident,
         configuration: flespiRequestData.configuration,
         deviceTypeId: flespiRequestData.device_type_id,
+        metadata: flespiRequestData.metadata,
+        media_ttl: flespiRequestData.media_ttl,
+        messages_ttl: flespiRequestData.messages_ttl,
       });
 
       let deviceId = flespiResponse.result.id;
@@ -406,12 +442,17 @@ export const addNewDevice = async (req, res) => {
         }
       );
 
+      const mergedMetadata = {
+        ...(flespiResponse.result?.metadata || {}),
+        ...(flespiRequestData.metadata || {}),
+      };
       let responses = {
         userId: req.body.userId,
         password: req.body.password,
         traccar: traccarResponse.data,
         flespi: {
           ...flespiResponse.result,
+          metadata: mergedMetadata,
           media_ttl: req.body.media_ttl !== undefined ? req.body.media_ttl : 3,
           messages_ttl:
             req.body.messages_ttl !== undefined ? req.body.messages_ttl : 3,
@@ -795,6 +836,9 @@ export const updateNewDevice = async (req, res) => {
             "category",
             "vehicle_fill_factor_ideal",
             "vehicle_capacity_m3",
+            "loader_bucket_capacity_m3",
+            "loader_bucket_fill_factor_ideal",
+            "idle_max_time_alert",
             "groupId",
             "model",
             "contact",
@@ -854,11 +898,16 @@ export const updateNewDevice = async (req, res) => {
       ),
     ]);
 
+    const mergedMetadata = {
+      ...(flespiResponse.data.result[0]?.metadata || {}),
+      ...(flespiRequestData.metadata || {}),
+    };
     const responses = {
       traccar: traccarResponse.data,
       password: req.body.password,
       flespi: {
         ...flespiResponse.data.result[0],
+        metadata: mergedMetadata,
         media_ttl: req.body.media_ttl !== undefined ? req.body.media_ttl : 3,
         messages_ttl:
           req.body.messages_ttl !== undefined ? req.body.messages_ttl : 3,
