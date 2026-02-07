@@ -18,6 +18,8 @@ router.get('/operations', authWebToken, operationController.getAllOperations);
 router.get('/operations/:id', authWebToken, operationController.getSingleOperation);
 // Route for getting calculator IDs by operation (GET /api/operations/:id/calcs)
 router.get('/operations/:id/calcs', authWebToken, operationController.getOperationCalculatorIds);
+// Route for duplicating an operation with zones, devices, calculators
+router.post('/operations/:id/duplicate', authWebToken, operationController.duplicateOperationWithAll);
 
 // Operation layers
 router.get('/operations/:id/layers', authWebToken, operationLayersController.listOperationLayers);

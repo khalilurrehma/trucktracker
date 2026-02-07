@@ -1,0 +1,75 @@
+{
+ "name": "Daily_Vehicle_Report - [Operation Name] - LIQ",
+ "intervals_ttl": 31536000,
+ "update_delay": 30,
+ "update_period": 864000,
+ "update_onchange": true,
+ "timezone": "America/Lima",
+ "validate_interval": "day",
+ "selectors": [
+ {
+ "type": "expression",
+ "expression": "geofence() == '[Operation Geofence Name]'"
+ }
+ ],
+ "counters": [
+ {
+ "name": "device_id",
+ "type": "parameter",
+ "parameter": "device.id"
+ },
+ {
+ "name": "device_name",
+ "type": "parameter",
+ "parameter": "device.name"
+ },
+ {
+ "name": "daily_duration",
+ "type": "interval",
+ "expression": "duration"
+ },
+ {
+ "name": "daily_duration_formated",
+ "type": "interval",
+ "expression": "if(duration >= 3600, tostring(floor(duration/3600)) + 'h ' + tostring(floor((duration%3600)/60)) + 'm ' + tostring(floor(duration%60)) + 's', tostring(floor(duration/60)) + 'm ' + tostring(floor(duration%60)) + 's')"
+ },
+ {
+ "name": "daily_trips",
+ "type": "calc",
+ "calc_id": "[Calc_Trip_L2D ID]",
+ "counter": "trip_duration",
+ "method": "summary"
+ },
+ {
+ "name": "daily_material_m3",
+ "type": "calc",
+ "calc_id": "[Calc_Dump_Area ID]",
+ "counter": "material_dumped_m3",
+ "method": "summary"
+ },
+ {
+ "name": "daily_distance_km",
+ "type": "expression",
+ "expression": "mileage / 1000"
+ },
+ {
+ "name": "mileage",
+ "type": "parameter",
+ "parameter": "mileage",
+ "method": "last"
+ },
+ {
+ "name": "avg_cycle_time",
+ "type": "calc",
+ "calc_id": "[Calc_Trip_Cycle ID]",
+ "counter": "cycle_duration",
+ "method": "average"
+ },
+ {
+ "name": "productivity_m3_h",
+ "type": "expression",
+ "method": "last",
+ "expression": "if(daily_duration > 0, (daily_material_m3 / (daily_duration / 3600)), 0)"
+ }
+ ]
+}

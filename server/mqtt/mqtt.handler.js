@@ -15,14 +15,24 @@ import {
   handleGeofenceEvent,
   operationCalculator,
 } from "../services/topic.handlers.js";
+import { handleTruckLoaderCalcEvent } from "../services/truckLoaderFlow.js";
 import { mqttEmitter } from "./mqtt.client.js";
-import { getAllCalculatorIds } from "../model/calculatorAssignments.js";
+import {
+  getAllCalculatorIds,
+  getCalculatorIdsByOperationId,
+} from "../model/calculatorAssignments.js";
 
 let broadcast;
 let broadcastToDriver;
 let cachedCalcIds = new Set();
+let cachedOpCalcIds = new Set();
 let lastCalcIdsRefresh = 0;
 const CALC_CACHE_TTL_MS = 60 * 1000;
+let lastOpCalcIdsRefresh = 0;
+const OP_CALC_CACHE_TTL_MS = 60 * 1000;
+const OPERATION_FILTER_ID = process.env.OPERATION_FILTER_ID
+  ? Number(process.env.OPERATION_FILTER_ID)
+  : null;
 
 const refreshCalcIdsCache = async () => {
   const now = Date.now();
@@ -31,6 +41,16 @@ const refreshCalcIdsCache = async () => {
   const calcIds = await getAllCalculatorIds();
   cachedCalcIds = new Set(calcIds.map((id) => String(id)));
   lastCalcIdsRefresh = now;
+};
+
+const refreshOpCalcIdsCache = async () => {
+  if (!OPERATION_FILTER_ID) return;
+  const now = Date.now();
+  if (now - lastOpCalcIdsRefresh < OP_CALC_CACHE_TTL_MS) return;
+
+  const calcIds = await getCalculatorIdsByOperationId(OPERATION_FILTER_ID);
+  cachedOpCalcIds = new Set(calcIds.map((id) => String(id)));
+  lastOpCalcIdsRefresh = now;
 };
 
 const extractCalcIdFromTopic = (topic) => {
@@ -51,13 +71,41 @@ const setBroadcast = (broadcastFn, broadcastToDriverFn) => {
 mqttEmitter.on("mqttMessage", async ({ topic, payload }) => {
   try {
     if (topic.includes("flespi/interval/gw/calcs/")) {
+      console.log("CALC INTERVAL EVENT:", topic);
+    
       await refreshCalcIdsCache();
+      await refreshOpCalcIdsCache();
       const calcId = extractCalcIdFromTopic(topic);
       if (!calcId || !cachedCalcIds.has(calcId)) {
         return;
       }
+      if (OPERATION_FILTER_ID && !cachedOpCalcIds.has(calcId)) {
+        return;
+      }
 
       const deviceId = extractDeviceIdFromTopic(topic);
+      if (topic.endsWith("/activated")) {
+        console.log(
+          `LOAD_PAD enter: calc_id=${calcId} device_id=${deviceId}`
+        );
+      } else if (topic.endsWith("/deactivated")) {
+        console.log(
+          `LOAD_PAD exit: calc_id=${calcId} device_id=${deviceId}`
+        );
+      }
+      try {
+        await handleTruckLoaderCalcEvent({
+          topic,
+          payload,
+          calcId,
+          deviceId,
+        });
+      } catch (err) {
+        console.error(
+          "❌ Truck↔Loader flow error:",
+          err.response?.data || err.message
+        );
+      }
       if (broadcast) {
         broadcast(
           {
@@ -95,6 +143,7 @@ mqttEmitter.on("mqttMessage", async ({ topic, payload }) => {
       //   break;
       case topic.startsWith("flespi/state/gw/devices/") &&
         topic.endsWith("/connected"):
+        console.log("DEVICE CONNECTED EVENT:", topic, payload);
         const connectionStatus = await handleDeviceConnection(topic, payload);
         if (connectionStatus) broadcast(connectionStatus, { to: "admin" });
         break;

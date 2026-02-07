@@ -7,14 +7,16 @@
   "timezone": "America/Lima",
   "selectors": [
     {
-      "expression": "geofence() == '[LoadPad Geofence Name]'"
+      "type": "expression",
+      "expression": "geofence(\"metadata.zone_type\") == \"LOAD_PAD\""
     }
   ],
   "counters": [
     {
       "name": "device_id",
       "type": "parameter",
-      "parameter": "device.id"
+      "parameter": "device.id",
+      "method": "last"
     },
     {
       "name": "active",
@@ -22,52 +24,62 @@
     },
     {
       "name": "loader_duration",
-      "type": "duration"
+      "type": "interval",
+      "expression": "duration"
     },
     {
       "name": "truck_device_id",
-      "type": "last",
-      "parameter": "truck_device_id"
+      "type": "parameter",
+      "parameter": "truck_device_id",
+      "method": "last"
     },
     {
       "name": "truck_capacity_m3",
-      "type": "last",
-      "parameter": "truck_capacity_m3"
+      "type": "parameter",
+      "parameter": "truck_capacity_m3",
+      "method": "last"
     },
     {
       "name": "truck_fill_factor_ideal",
-      "type": "last",
-      "parameter": "truck_fill_factor_ideal"
+      "type": "parameter",
+      "parameter": "truck_fill_factor_ideal",
+      "method": "last"
     },
     {
       "name": "truck_present",
-      "type": "last",
-      "parameter": "truck_present"
+      "type": "parameter",
+      "parameter": "truck_present",
+      "method": "last"
     },
     {
       "name": "enriched",
-      "type": "last",
-      "parameter": "enriched"
+      "type": "parameter",
+      "parameter": "enriched",
+      "method": "last"
     },
     {
       "name": "loader_bucket_capacity_m3",
       "type": "parameter",
-      "parameter": "device.metadata.loader_bucket_capacity_m3"
+      "parameter": "device.metadata.loader_bucket_capacity_m3",
+      "method": "last"
     },
     {
       "name": "loader_bucket_fill_factor_ideal",
       "type": "parameter",
-      "parameter": "device.metadata.loader_bucket_fill_factor_ideal"
+      "parameter": "device.metadata.loader_bucket_fill_factor_ideal",
+      "method": "last"
     },
     {
       "name": "trips_to_fill_ideal",
       "type": "expression",
+      "method": "last",
       "expression": "ceil((truck_capacity_m3 * truck_fill_factor_ideal) / (device.metadata.loader_bucket_capacity_m3 * device.metadata.loader_bucket_fill_factor_ideal))"
     },
     {
       "name": "idle_time",
       "type": "expression",
-      "expression": "truck_present == false ? duration : 0"
+      "method": "last",
+      "expression": "if(truck_present == false, duration, 0)"
     }
   ]
 }

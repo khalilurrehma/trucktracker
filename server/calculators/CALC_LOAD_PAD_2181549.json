@@ -7,14 +7,16 @@
   "timezone": "America/Lima",
   "selectors": [
     {
-      "expression": "geofence() == '[LoadPad Geofence Name]'"
+      "type": "expression",
+      "expression": "geofence(\"metadata.zone_type\") == \"LOAD_PAD\""
     }
   ],
   "counters": [
     {
       "name": "device_id",
       "type": "parameter",
-      "parameter": "device.id"
+      "parameter": "device.id",
+      "method": "last"
     },
     {
       "name": "active",
@@ -22,32 +24,37 @@
     },
     {
       "name": "load_pad_duration",
-      "type": "duration"
+      "type": "interval",
+      "expression": "duration"
     },
     {
       "name": "load_pad_duration_formated",
-      "type": "duration",
-      "format": "%H:%M:%S"
+      "type": "interval",
+      "expression": "if(duration >= 3600, tostring(floor(duration/3600)) + 'h ' + tostring(floor((duration%3600)/60)) + 'm ' + tostring(floor(duration%60)) + 's', tostring(floor(duration/60)) + 'm ' + tostring(floor(duration%60)) + 's')"
     },
     {
       "name": "position_lat",
-      "type": "last",
-      "parameter": "position.latitude"
+      "type": "parameter",
+      "parameter": "position.latitude",
+      "method": "last"
     },
     {
       "name": "position_lon",
-      "type": "last",
-      "parameter": "position.longitude"
+      "type": "parameter",
+      "parameter": "position.longitude",
+      "method": "last"
     },
     {
       "name": "speed_max",
-      "type": "max",
-      "parameter": "position.speed"
+      "type": "expression",
+      "method": "maximum",
+      "expression": "position.speed"
     },
     {
       "name": "speed_avg",
-      "type": "avg",
-      "parameter": "position.speed"
+      "type": "expression",
+      "method": "average",
+      "expression": "position.speed"
     }
   ]
 }

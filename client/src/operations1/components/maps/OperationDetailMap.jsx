@@ -62,7 +62,8 @@ const OperationDetailMap = ({ className, zones, selectedZoneId, center = [-76.9,
     ]);
     const { mqttDeviceLiveLocation, mqttCalculatorIntervals, mqttDeviceConnected } = useAppContext();
     const isConnected = Boolean(mqttDeviceConnected?.length);
-    const connectionStatus = isConnected ? "connected" : "disconnected";
+    const hasLiveLocation = Boolean(mqttDeviceLiveLocation?.length);
+    const connectionStatus = isConnected || hasLiveLocation ? "connected" : "disconnected";
     const displayVehicles = apiVehicles;
     // Calculate polygon center
     const calculatePolygonCenter = (coords) => {
@@ -235,14 +236,9 @@ const OperationDetailMap = ({ className, zones, selectedZoneId, center = [-76.9,
     const addOperationToMap = useCallback(() => {
         var _a, _b, _c, _d;
         if (!map.current || !operationPolygon) {
-            console.log("addOperationToMap: missing map or polygon", {
-                hasMap: Boolean(map.current),
-                hasPolygon: Boolean(operationPolygon),
-            });
             return;
         }
         if (!map.current.isStyleLoaded()) {
-            console.log("addOperationToMap: defer until idle");
             map.current.once("idle", addOperationToMap);
             return;
         }
@@ -252,10 +248,6 @@ const OperationDetailMap = ({ className, zones, selectedZoneId, center = [-76.9,
         const feature = operationPolygon.type === "Feature"
             ? operationPolygon
             : { type: "Feature", properties: {}, geometry: operationPolygon };
-        console.log("addOperationToMap: feature", {
-            type: feature?.geometry?.type,
-            coords: feature?.geometry?.coordinates?.[0]?.length,
-        });
         try {
             if ((_a = map.current) === null || _a === void 0 ? void 0 : _a.getLayer(lineId))
                 map.current.removeLayer(lineId);
@@ -307,34 +299,18 @@ const OperationDetailMap = ({ className, zones, selectedZoneId, center = [-76.9,
         catch (e) {
             // Ignore move errors if layer order changes
         }
-        console.log("addOperationToMap: layers", {
-            hasFill: Boolean(map.current.getLayer(fillId)),
-            hasLine: Boolean(map.current.getLayer(lineId)),
-        });
     }, [operationPolygon]);
     const reapplyGeofences = useCallback(() => {
         if (!map.current)
             return;
-        console.log("reapplyGeofences: start", {
-            hasMap: Boolean(map.current),
-            hasOperationPolygon: Boolean(operationPolygon),
-            zonesCount: zones.length,
-        });
         const renderAll = () => {
-            console.log("reapplyGeofences: renderAll");
             addZonesToMap();
-            console.log("renderAll: addOperationToMap", typeof addOperationToMap);
             try {
                 addOperationToMap();
             }
             catch (error) {
                 console.error("addOperationToMap error:", error);
             }
-            console.log("reapplyGeofences: after render", {
-                hasOperationFill: Boolean(map.current?.getLayer("operation-fill")),
-                hasOperationLine: Boolean(map.current?.getLayer("operation-line")),
-                hasOperationSource: Boolean(map.current?.getSource("operation-geo")),
-            });
         };
         if (map.current.isStyleLoaded()) {
             renderAll();
@@ -662,7 +638,6 @@ const OperationDetailMap = ({ className, zones, selectedZoneId, center = [-76.9,
     useEffect(() => {
         if (!mqttCalculatorIntervals?.length)
             return;
-        console.log("[MQTT] calculator updates:", mqttCalculatorIntervals.length);
         setDeviceKPI((prev) => {
             const updated = { ...prev };
             mqttCalculatorIntervals.forEach((interval) => {
@@ -863,11 +838,6 @@ const OperationDetailMap = ({ className, zones, selectedZoneId, center = [-76.9,
     }, [reapplyGeofences, addTracksToMap]);
     // Add zones when map loads or zones change
 useEffect(() => {
-    console.log("geofences effect fired", {
-        showLabels,
-        zonesCount: zones.length,
-        hasOperationPolygon: Boolean(operationPolygon),
-    });
     reapplyGeofences();
 }, [reapplyGeofences, showLabels, zones, operationPolygon]);
 useEffect(() => {
@@ -1062,9 +1032,9 @@ useEffect(() => {
     return (_jsxs("div", {
         className: cn("relative h-full", className), children: [_jsx("div", { ref: mapContainer, className: "absolute inset-0" }), !isLoaded && (_jsx("div", { className: "absolute inset-0 bg-background/80 flex items-center justify-center z-50", children: _jsxs("div", { className: "flex flex-col items-center gap-3", children: [_jsx("div", { className: "w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin" }), _jsx("span", { className: "text-sm text-muted-foreground", children: "Loading map..." })] }) })), _jsx("div", {
             className: "absolute bottom-16 left-3 z-20", children: _jsxs("div", {
-                className: cn("flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm", isConnected
-                    ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                    : "bg-amber-500/20 text-amber-400 border border-amber-500/30"), children: [_jsx(Radio, { className: cn("w-3 h-3", isConnected && "animate-pulse") }), _jsx("span", { children: connectionStatus === "connected" ? "Live Tracking" : "Connecting..." })]
+        className: cn("flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm", (isConnected || hasLiveLocation)
+            ? "bg-green-500/20 text-green-400 border border-green-500/30"
+            : "bg-amber-500/20 text-amber-400 border border-amber-500/30"), children: [_jsx(Radio, { className: cn("w-3 h-3", isConnected && "animate-pulse") }), _jsx("span", { children: connectionStatus === "connected" ? "Live Tracking" : "Connecting..." })]
             })
         }), _jsxs("div", {
         className: "absolute top-3 right-80 flex gap-2 z-20", children: [_jsx(Button, { variant: "icon", size: "iconSm", onClick: () => {

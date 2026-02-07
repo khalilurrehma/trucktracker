@@ -41,6 +41,7 @@ const SubSocket = () => {
     useAppContext();
   const [notifications, setNotifications] = useState([]);
   const sessionUserId = useSelector((state) => state.session.user.id);
+  const loadPadActiveRef = useRef(new Set());
   // const [doutProcessedData, setDoutProcessedData] = useState([]);
   const socketRef = useRef(null);
   const reconnectTimeout = useRef(null);
@@ -139,6 +140,40 @@ const SubSocket = () => {
             updateMqttMessage(recievedData, "geofencesData");
           }
           if (recievedData?.calculatorInterval) {
+            const calcId = recievedData?.calcId;
+            const deviceId = recievedData?.deviceId;
+            const key = `${calcId}:${deviceId}`;
+
+            if (recievedData?.topic?.endsWith("/activated")) {
+              console.log(
+                "LOAD_PAD enter:",
+                "calc_id=",
+                calcId,
+                "device_id=",
+                deviceId
+              );
+              if (calcId && deviceId) loadPadActiveRef.current.add(key);
+            } else if (recievedData?.topic?.endsWith("/deactivated")) {
+              console.log(
+                "LOAD_PAD exit:",
+                "calc_id=",
+                calcId,
+                "device_id=",
+                deviceId
+              );
+              if (calcId && deviceId) loadPadActiveRef.current.delete(key);
+            } else if (recievedData?.active === true) {
+              if (calcId && deviceId && !loadPadActiveRef.current.has(key)) {
+                console.log(
+                  "LOAD_PAD already active:",
+                  "calc_id=",
+                  calcId,
+                  "device_id=",
+                  deviceId
+                );
+                loadPadActiveRef.current.add(key);
+              }
+            }
             updateMqttMessage(recievedData, "calculatorIntervals");
           }
 

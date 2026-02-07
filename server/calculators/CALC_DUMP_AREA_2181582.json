@@ -7,14 +7,16 @@
   "timezone": "America/Lima",
   "selectors": [
     {
-      "expression": "geofence() == '[DumpArea Geofence Name]'"
+      "type": "expression",
+      "expression": "geofence(\"metadata.zone_type\") == \"DUMP_AREA\""
     }
   ],
   "counters": [
     {
       "name": "device_id",
       "type": "parameter",
-      "parameter": "device.id"
+      "parameter": "device.id",
+      "method": "last"
     },
     {
       "name": "active",
@@ -22,26 +24,30 @@
     },
     {
       "name": "dump_duration",
-      "type": "duration"
+      "type": "interval",
+      "expression": "duration"
     },
     {
       "name": "dump_duration_formated",
-      "type": "duration",
-      "format": "%H:%M:%S"
+      "type": "interval",
+      "expression": "if(duration >= 3600, tostring(floor(duration/3600)) + 'h ' + tostring(floor((duration%3600)/60)) + 'm ' + tostring(floor(duration%60)) + 's', tostring(floor(duration/60)) + 'm ' + tostring(floor(duration%60)) + 's')"
     },
     {
       "name": "position_lat",
-      "type": "last",
-      "parameter": "position.latitude"
+      "type": "parameter",
+      "parameter": "position.latitude",
+      "method": "last"
     },
     {
       "name": "position_lon",
-      "type": "last",
-      "parameter": "position.longitude"
+      "type": "parameter",
+      "parameter": "position.longitude",
+      "method": "last"
     },
     {
       "name": "material_dumped_m3",
       "type": "expression",
+      "method": "last",
       "expression": "device.metadata.vehicle_capacity_m3 * device.metadata.vehicle_fill_factor_ideal"
     }
   ]

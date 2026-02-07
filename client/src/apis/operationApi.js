@@ -75,3 +75,21 @@ export const deleteOperation = async (id) => {
     throw error;
   }
 };
+
+// Duplicate an operation with zones, devices, calculators
+export const duplicateOperation = async (id, payload = {}) => {
+  try {
+    const token = await getAuthToken();
+    const { data } = await axios.post(
+      `${apiUrl}/operations/${id}/duplicate`,
+      payload,
+      {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }
+    );
+    return data;
+  } catch (error) {
+    console.error(`Error duplicating operation with ID ${id}:`, error);
+    throw error;
+  }
+};

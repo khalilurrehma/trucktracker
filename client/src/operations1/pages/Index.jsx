@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import Swal from "sweetalert2";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { createOperation, deleteOperation, getAllOperations } from "../../apis/operationApi";
+import { createOperation, deleteOperation, getAllOperations, duplicateOperation } from "../../apis/operationApi";
 import { createZone } from "../../apis/zoneApi";
 import { createDeviceAssignment } from "../../apis/deviceAssignmentApi";
 import { getFlespiDevices } from "../../apis/api";
@@ -40,6 +40,7 @@ const Index = () => {
   const [devices, setDevices] = useState(mockDevices);
   const [loadingOperations, setLoadingOperations] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [duplicatingId, setDuplicatingId] = useState(null);
 
   // Operation Step
   const [operationName, setOperationName] = useState("");
@@ -338,6 +339,37 @@ const Index = () => {
     }
   };
 
+  const handleDuplicate = async (operation) => {
+    if (!operation?.id) {
+      toast.error("Missing operation id");
+      return;
+    }
+    const result = await Swal.fire({
+      title: "Duplicate Operation?",
+      text: "This will copy operation, zones, calculators, and device assignments.",
+      input: "text",
+      inputValue: `${operation.name} - Copy`,
+      showCancelButton: true,
+      confirmButtonText: "Duplicate",
+      confirmButtonColor: "#2563eb",
+      cancelButtonText: "Cancel",
+    });
+    if (!result.isConfirmed) {
+      return;
+    }
+    setDuplicatingId(operation.id);
+    try {
+      await duplicateOperation(operation.id, { name: result.value });
+      toast.success("Operation duplicated");
+      await fetchOperations();
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to duplicate operation");
+    } finally {
+      setDuplicatingId(null);
+    }
+  };
+
   const handleView = (id) => {
     toast.info(`Viewing operation ${id}`);
   };
@@ -374,7 +406,9 @@ const Index = () => {
             onDelete={handleDelete}
             onView={handleView}
             onCreate={handleCreateNew}
+            onDuplicate={handleDuplicate}
             deletingId={deletingId}
+            duplicatingId={duplicatingId}
           />
         ) : (
           <div className="space-y-6">

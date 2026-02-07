@@ -9,12 +9,13 @@ export const saveCalculatorAssignments = async (assignments) => {
 
   const sql = `
     INSERT INTO calculator_assignments
-    (calc_id, device_id, device_flespi_id, operation_id, zone_id, geofence_flespi_id)
+    (calc_id, calc_type, device_id, device_flespi_id, operation_id, zone_id, geofence_flespi_id)
     VALUES ?
   `;
 
   const values = assignments.map((assignment) => [
     assignment.calc_id,
+    assignment.calc_type ?? null,
     assignment.device_id ?? null,
     assignment.device_flespi_id ?? null,
     assignment.operation_id ?? null,

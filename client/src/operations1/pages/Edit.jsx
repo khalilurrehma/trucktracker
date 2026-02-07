@@ -303,7 +303,12 @@ const EditOperation = () => {
       for (const a of current) {
         await deleteDeviceAssignment({ device_id: a.device_id, zone_id: a.zone_id });
       }
+      const validDeviceIds = new Set(devices.map((d) => Number(d.id)).filter(Number.isFinite));
       for (const deviceId of assignedDeviceIds) {
+        if (!validDeviceIds.has(Number(deviceId))) {
+          console.warn("Skipping assignment for missing device id:", deviceId);
+          continue;
+        }
         await createDeviceAssignment({
           device_id: deviceId,
           operation_id: Number(id),

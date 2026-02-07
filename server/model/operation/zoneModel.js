@@ -219,6 +219,7 @@ export const createZone = async (zone) => {
         await assignCalculatorToGeofence(calc.id, geofenceId);
         assignmentsToSave.push({
           calc_id: calc.id,
+          calc_type: template?.name || null,
           operation_id: operationId,
           zone_id: zoneId,
           geofence_flespi_id: geofenceId,
@@ -393,17 +394,16 @@ export const updateZone = async (id, zone) => {
       /* ---------------------------------------------
           4) Update Flespi Geofence
       --------------------------------------------- */
-      await updateFlespiGeofence(geofenceId.toString(), {
-        name: `${name} - ${operationName} - LIQ`,
-        geometry: toFlespiGeometry(geometry),
-        metadata,
-      });
-
       const [opRow] = await dbQuery(
         "SELECT name FROM operations WHERE id = ?",
         [zoneRow?.operationId]
       );
       const operationName = opRow?.name || `operation-${zoneRow?.operationId || "unknown"}`;
+      await updateFlespiGeofence(geofenceId.toString(), {
+        name: `${name} - ${operationName} - LIQ`,
+        geometry: toFlespiGeometry(geometry),
+        metadata,
+      });
       const templates = await getCalculatorTemplatesByType(zoneType);
       const filteredTemplates = filterTemplatesByName(
         templates,
@@ -422,6 +422,7 @@ export const updateZone = async (id, zone) => {
           await assignCalculatorToGeofence(calc.id, geofenceId);
           assignmentsToSave.push({
             calc_id: calc.id,
+            calc_type: template?.name || null,
             operation_id: zoneRow?.operationId,
             zone_id: id,
             geofence_flespi_id: geofenceId,

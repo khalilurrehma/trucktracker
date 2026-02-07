@@ -7,6 +7,7 @@
   "timezone": "America/Lima",
   "selectors": [
     {
+      "type": "expression",
       "expression": "geofence() == '[Operation Geofence Name]'"
     }
   ],
@@ -14,164 +15,174 @@
     {
       "name": "device_id",
       "type": "parameter",
-      "parameter": "device.id"
+      "parameter": "device.id",
+      "method": "last"
     },
     {
       "name": "operation_efficiency_pct",
       "type": "calc",
-      "calc_id": "[Operation_Summary ID]",
+      "calc_id": 0,
       "counter": "efficiency_pct",
       "method": "last"
     },
     {
       "name": "total_material_moved_m3",
       "type": "calc",
-      "calc_id": "[OP_Calculator ID]",
+      "calc_id": 0,
       "counter": "total_material_m3",
       "method": "last"
     },
     {
       "name": "material_moved_today_m3",
       "type": "calc",
-      "calc_id": "[Daily_Vehicle_Report ID]",
+      "calc_id": 0,
       "counter": "daily_material_m3",
-      "method": "sum"
+      "method": "summary"
     },
     {
       "name": "remaining_material_m3",
       "type": "expression",
+      "method": "last",
       "expression": "operation_total_m3 - total_material_moved_m3"
     },
     {
       "name": "operation_total_m3",
-      "type": "parameter",
-      "parameter": "device.metadata.operation_total_m3"
+      "type": "expression",
+      "method": "last",
+      "expression": "device.metadata.operation_total_m3"
     },
     {
       "name": "avg_cycle_time_min",
       "type": "expression",
+      "method": "last",
       "expression": "avg_cycle_time_sec / 60"
     },
     {
       "name": "avg_cycle_time_sec",
       "type": "calc",
-      "calc_id": "[OP_Calculator ID]",
+      "calc_id": 0,
       "counter": "avg_cycle_time",
       "method": "last"
     },
     {
       "name": "avg_queue_time_min",
       "type": "expression",
+      "method": "last",
       "expression": "avg_queue_time_sec / 60"
     },
     {
       "name": "avg_queue_time_sec",
       "type": "calc",
-      "calc_id": "[OP_Calculator ID]",
+      "calc_id": 0,
       "counter": "avg_queue_time",
       "method": "last"
     },
     {
       "name": "active_vehicles",
       "type": "calc",
-      "calc_id": "[OP_Calculator ID]",
+      "calc_id": 0,
       "counter": "active_vehicles",
       "method": "last"
     },
     {
       "name": "active_loaders",
       "type": "calc",
-      "calc_id": "[OP_Calculator ID]",
+      "calc_id": 0,
       "counter": "active_loaders",
       "method": "last"
     },
     {
       "name": "total_trips_today",
       "type": "calc",
-      "calc_id": "[Daily_Vehicle_Report ID]",
+      "calc_id": 0,
       "counter": "daily_trips",
-      "method": "sum"
+      "method": "summary"
     },
     {
       "name": "day_productivity",
       "type": "calc",
-      "calc_id": "[Daily_Vehicle_Report ID]",
+      "calc_id": 0,
       "counter": "productivity_m3_h",
-      "method": "avg"
+      "method": "average"
     },
     {
       "name": "trip_productivity",
       "type": "expression",
-      "expression": "total_trips_today > 0 ? (material_moved_today_m3 / total_trips_today) : 0"
+      "method": "last",
+      "expression": "if(total_trips_today > 0, (material_moved_today_m3 / total_trips_today), 0)"
     },
     {
       "name": "eta_completion_h",
       "type": "expression",
-      "expression": "day_productivity > 0 ? (remaining_material_m3 / day_productivity) : 0"
+      "method": "last",
+      "expression": "if(day_productivity > 0, (remaining_material_m3 / day_productivity), 0)"
     },
     {
       "name": "day_goal_achievement",
       "type": "expression",
-      "expression": "daily_target_m3 > 0 ? ((material_moved_today_m3 / daily_target_m3) * 100) : 0"
+      "method": "last",
+      "expression": "if(daily_target_m3 > 0, ((material_moved_today_m3 / daily_target_m3) * 100), 0)"
     },
     {
       "name": "daily_target_m3",
-      "type": "parameter",
-      "parameter": "device.metadata.daily_target_m3"
+      "type": "expression",
+      "method": "last",
+      "expression": "device.metadata.daily_target_m3"
     },
     {
       "name": "energy_efficiency_lm3",
       "type": "expression",
-      "expression": "material_moved_today_m3 > 0 ? (fuel_consumed_today / material_moved_today_m3) : 0"
+      "method": "last",
+      "expression": "if(material_moved_today_m3 > 0, (fuel_consumed_today / material_moved_today_m3), 0)"
     },
     {
       "name": "fuel_consumed_today",
       "type": "calc",
-      "calc_id": "[Daily_Vehicle_Report ID]",
+      "calc_id": 0,
       "counter": "daily_fuel",
-      "method": "sum"
+      "method": "summary"
     },
     {
       "name": "load_cycle",
       "type": "calc",
-      "calc_id": "[Calc_Trip_Cycle ID]",
+      "calc_id": 0,
       "counter": "load_cycle",
-      "method": "avg"
+      "method": "average"
     },
     {
       "name": "haul_cycle",
       "type": "calc",
-      "calc_id": "[Calc_Trip_Cycle ID]",
+      "calc_id": 0,
       "counter": "haul_cycle",
-      "method": "avg"
+      "method": "average"
     },
     {
       "name": "dump_cycle",
       "type": "calc",
-      "calc_id": "[Calc_Trip_Cycle ID]",
+      "calc_id": 0,
       "counter": "dump_cycle",
-      "method": "avg"
+      "method": "average"
     },
     {
       "name": "queue_cycle",
       "type": "calc",
-      "calc_id": "[Calc_Trip_Cycle ID]",
+      "calc_id": 0,
       "counter": "queue_cycle",
-      "method": "avg"
+      "method": "average"
     },
     {
       "name": "return_cycle",
       "type": "calc",
-      "calc_id": "[Calc_Trip_Cycle ID]",
+      "calc_id": 0,
       "counter": "return_cycle",
-      "method": "avg"
+      "method": "average"
     },
     {
       "name": "total_haul_distance",
       "type": "calc",
-      "calc_id": "[OP_Calculator ID]",
+      "calc_id": 0,
       "counter": "total_distance_km",
-      "method": "sum"
+      "method": "summary"
     }
   ]
 }

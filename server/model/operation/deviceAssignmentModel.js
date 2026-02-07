@@ -30,18 +30,15 @@ const vehicleCalculatorNames = [
   "CALC_TRIP_L2D",
   "CALC_TRIP_D2L",
   "CALC_TRIP_CYCLE",
-  "DAILY_VEHICLE_REPORT",
-  "ZONE_CALCULATOR",
-  "OP_CALCULATOR",
-  "OPERATION_SUMMARY"
+  "DAILY_VEHICLE_REPORT"
 ];
 
 const loaderCalculatorNames = [
-  "CALC_LOADERS_PAD",
-  "ZONE_CALCULATOR",
-  "OP_CALCULATOR",
-  "OPERATION_SUMMARY"
+  "CALC_LOADERS_PAD"
 ];
+const sharedOperationCalcTypes = new Set([
+  "DAILY_VEHICLE_REPORT",
+]);
 
 const filterTemplatesByName = (templates, allowedNames) => {
   if (!Array.isArray(templates)) return [];
@@ -101,6 +98,29 @@ export const createDeviceAssignment = async ({ device_id, operation_id, zone_id 
       console.warn(`Missing flespiId or geofenceId for device ${device_id} / zone ${effectiveZoneId}`);
     }
 
+    // Assign ALL operation zone geofences to the device so geofence() works for calcs
+    if (flespiId) {
+      const opZones = await dbQuery(
+        "SELECT flespi_geofence_id FROM zones WHERE operationId = ?",
+        [operation_id]
+      );
+      const opZoneGeofences = opZones
+        .map((z) => z.flespi_geofence_id)
+        .filter(Boolean);
+      const uniqueGeofences = Array.from(new Set(opZoneGeofences));
+      for (const geoId of uniqueGeofences) {
+        try {
+          console.log(`Assigning operation zone geofence ${geoId} -> Device ${flespiId}`);
+          await assignGeofenceToDevice(flespiId, geoId);
+        } catch (err) {
+          console.warn(
+            `Failed to assign zone geofence ${geoId} to device ${flespiId}:`,
+            err.response?.data || err.message
+          );
+        }
+      }
+    }
+
     const templates = await getCalculatorTemplatesByType("DEVICE");
     console.log(`DEVICE templates found: ${templates.length} (device ${device_id})`);
     const assignments = [];
@@ -128,10 +148,6 @@ export const createDeviceAssignment = async ({ device_id, operation_id, zone_id 
       ? [...loaderCalculatorNames]
       : [...vehicleCalculatorNames];
 
-    if (!isLoader && isFirstVehicle) {
-      allowedNames.push("KPIs_DASHBOARD_new");
-    }
-
     const filteredTemplates = filterTemplatesByName(templates, allowedNames);
 
     for (const template of filteredTemplates) {
@@ -145,6 +161,7 @@ export const createDeviceAssignment = async ({ device_id, operation_id, zone_id 
         await assignCalculatorToDevice(flespiId, calc.id);
         assignments.push({
           calc_id: calc.id,
+          calc_type: template?.name || null,
           device_id,
           device_flespi_id: flespiId,
           operation_id,
@@ -158,6 +175,51 @@ export const createDeviceAssignment = async ({ device_id, operation_id, zone_id 
     if (assignments.length > 0) {
       await saveCalculatorAssignments(assignments);
       console.log(`DEVICE calculators created/assigned: ${assignments.length} (device ${device_id})`);
+    }
+
+    // Reuse selected operation-level calculators (create once per operation, assign to each device).
+    if (flespiId) {
+      const opSharedCalcs = await dbQuery(
+        `
+          SELECT DISTINCT calc_id, calc_type
+          FROM calculator_assignments
+          WHERE operation_id = ?
+            AND device_flespi_id IS NULL
+        `,
+        [operation_id]
+      );
+
+      const toAssignShared = opSharedCalcs.filter((row) =>
+        sharedOperationCalcTypes.has(row?.calc_type)
+      );
+
+      const sharedAssignmentsToSave = [];
+
+      for (const row of toAssignShared) {
+        try {
+          await assignCalculatorToDevice(flespiId, row.calc_id);
+          sharedAssignmentsToSave.push({
+            calc_id: row.calc_id,
+            calc_type: row.calc_type || null,
+            device_id,
+            device_flespi_id: flespiId,
+            operation_id,
+            zone_id: effectiveZoneId,
+          });
+          console.log(
+            `Assigned shared operation calc ${row.calc_id} (${row.calc_type}) -> device ${flespiId}`
+          );
+        } catch (err) {
+          console.warn(
+            `Failed to assign shared operation calc ${row.calc_id} to device ${flespiId}:`,
+            err.response?.data || err.message
+          );
+        }
+      }
+
+      if (sharedAssignmentsToSave.length > 0) {
+        await saveCalculatorAssignments(sharedAssignmentsToSave);
+      }
     }
 
     return newAssignment;

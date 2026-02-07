@@ -19,6 +19,12 @@ const subscribedTopics = new Set();
 const topics = [
   ...subscribed_notifications_topics,
   {
+    topic: "flespi/interval/gw/calcs/+/devices/+/activated",
+  },
+  {
+    topic: "flespi/interval/gw/calcs/+/devices/+/deactivated",
+  },
+  {
     topic: "flespi/interval/gw/calcs/+/devices/+/created,updated,deleted",
   },
   {

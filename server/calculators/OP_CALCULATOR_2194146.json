@@ -7,6 +7,7 @@
   "timezone": "America/Lima",
   "selectors": [
     {
+      "type": "expression",
       "expression": "geofence() == '[Operation Geofence Name]'"
     }
   ],
@@ -14,7 +15,8 @@
     {
       "name": "device_id",
       "type": "parameter",
-      "parameter": "device.id"
+      "parameter": "device.id",
+      "method": "last"
     },
     {
       "name": "active",
@@ -22,54 +24,56 @@
     },
     {
       "name": "operation_duration",
-      "type": "duration"
+      "type": "interval",
+      "expression": "duration"
     },
     {
       "name": "total_material_m3",
       "type": "calc",
-      "calc_id": "[Zone_Calculator ID]",
+      "calc_id": 0,
       "counter": "zone_material_m3",
-      "method": "sum"
+      "method": "summary"
     },
     {
       "name": "total_trips",
       "type": "calc",
-      "calc_id": "[Zone_Calculator ID]",
+      "calc_id": 0,
       "counter": "zone_trips",
-      "method": "sum"
+      "method": "summary"
     },
     {
       "name": "avg_cycle_time",
       "type": "calc",
-      "calc_id": "[Zone_Calculator ID]",
+      "calc_id": 0,
       "counter": "zone_avg_cycle",
-      "method": "avg"
+      "method": "average"
     },
     {
       "name": "avg_queue_time",
       "type": "calc",
-      "calc_id": "[Zone_Calculator ID]",
+      "calc_id": 0,
       "counter": "zone_avg_queue",
-      "method": "avg"
+      "method": "average"
     },
     {
       "name": "active_vehicles",
       "type": "calc",
-      "calc_id": "[Zone_Calculator ID]",
+      "calc_id": 0,
       "counter": "active_vehicles",
-      "method": "sum"
+      "method": "summary"
     },
     {
       "name": "active_loaders",
       "type": "calc",
-      "calc_id": "[Zone_Calculator ID]",
+      "calc_id": 0,
       "counter": "active_loaders",
-      "method": "sum"
+      "method": "summary"
     },
     {
       "name": "productivity_m3_h",
       "type": "expression",
-      "expression": "operation_duration > 0 ? (total_material_m3 / (operation_duration / 3600)) : 0"
+      "method": "last",
+      "expression": "if(operation_duration > 0, (total_material_m3 / (operation_duration / 3600)), 0)"
     }
   ]
 }

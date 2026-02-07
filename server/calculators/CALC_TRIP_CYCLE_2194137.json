@@ -14,49 +14,51 @@
     {
       "name": "device_id",
       "type": "parameter",
-      "parameter": "device.id"
+      "parameter": "device.id",
+      "method": "last"
     },
     {
       "name": "cycle_duration",
-      "type": "duration"
+      "type": "interval",
+      "expression": "duration"
     },
     {
       "name": "cycle_duration_formated",
-      "type": "duration",
-      "format": "%H:%M:%S"
+      "type": "interval",
+      "expression": "if(duration >= 3600, tostring(floor(duration/3600)) + 'h ' + tostring(floor((duration%3600)/60)) + 'm ' + tostring(floor(duration%60)) + 's', tostring(floor(duration/60)) + 'm ' + tostring(floor(duration%60)) + 's')"
     },
     {
       "name": "load_cycle",
       "type": "calc",
-      "calc_id": "[Calc_Load_Pad ID]",
+      "calc_id": 0,
       "counter": "load_pad_duration",
       "method": "sum"
     },
     {
       "name": "haul_cycle",
       "type": "calc",
-      "calc_id": "[Calc_Trip_L2D ID]",
+      "calc_id": 0,
       "counter": "trip_duration",
       "method": "sum"
     },
     {
       "name": "dump_cycle",
       "type": "calc",
-      "calc_id": "[Calc_Dump_Area ID]",
+      "calc_id": 0,
       "counter": "dump_duration",
       "method": "sum"
     },
     {
       "name": "return_cycle",
       "type": "calc",
-      "calc_id": "[Calc_Trip_D2L ID]",
+      "calc_id": 0,
       "counter": "return_duration",
       "method": "sum"
     },
     {
       "name": "queue_cycle",
       "type": "calc",
-      "calc_id": "[Calc_Queue_Area ID]",
+      "calc_id": 0,
       "counter": "queue_duration",
       "method": "sum"
     },
@@ -67,21 +69,24 @@
     },
     {
       "name": "mileage",
-      "type": "mileage"
+      "type": "expression",
+      "method": "last",
+      "expression": "mileage"
     },
     {
       "name": "trips_count",
       "type": "calc",
-      "calc_id": "[Calc_Trip_L2D ID]",
+      "calc_id": 0,
       "counter": "device_id",
       "method": "count"
     },
     {
       "name": "material_moved_m3",
       "type": "calc",
-      "calc_id": "[Calc_Dump_Area ID]",
+      "calc_id": 0,
       "counter": "material_dumped_m3",
       "method": "sum"
     }
   ]
 }
+

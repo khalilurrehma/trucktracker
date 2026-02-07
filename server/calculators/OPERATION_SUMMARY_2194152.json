@@ -8,6 +8,7 @@
   "validate_interval": "day",
   "selectors": [
     {
+      "type": "expression",
       "expression": "geofence() == '[Operation Geofence Name]'"
     }
   ],
@@ -15,37 +16,40 @@
     {
       "name": "device_id",
       "type": "parameter",
-      "parameter": "device.id"
+      "parameter": "device.id",
+      "method": "last"
     },
     {
       "name": "summary_date",
-      "type": "first",
+      "type": "parameter",
       "parameter": "timestamp",
-      "format": "%Y-%m-%d"
+      "method": "first"
     },
     {
       "name": "total_material_moved_m3",
       "type": "calc",
-      "calc_id": "[OP_Calculator ID]",
+      "calc_id": 0,
       "counter": "total_material_m3",
       "method": "last"
     },
     {
       "name": "total_trips_count",
       "type": "calc",
-      "calc_id": "[OP_Calculator ID]",
+      "calc_id": 0,
       "counter": "total_trips",
       "method": "last"
     },
     {
       "name": "efficiency_pct",
       "type": "expression",
-      "expression": "target_material_m3 > 0 ? ((total_material_moved_m3 / target_material_m3) * 100) : 0"
+      "method": "last",
+      "expression": "if(target_material_m3 > 0, ((total_material_moved_m3 / target_material_m3) * 100), 0)"
     },
     {
       "name": "target_material_m3",
-      "type": "parameter",
-      "parameter": "device.metadata.operation_target_m3"
+      "type": "expression",
+      "method": "last",
+      "expression": "device.metadata.operation_target_m3"
     }
   ]
 }

@@ -114,6 +114,7 @@ const createAndAssignDeviceCalculators = async (deviceDbId, deviceFlespiId) => {
       await assignCalculatorToDevice(deviceFlespiId, calc.id);
       assignments.push({
         calc_id: calc.id,
+        calc_type: template?.name || null,
         device_id: deviceDbId,
         device_flespi_id: deviceFlespiId,
       });

@@ -14,7 +14,8 @@
     {
       "name": "device_id",
       "type": "parameter",
-      "parameter": "device.id"
+      "parameter": "device.id",
+      "method": "last"
     },
     {
       "name": "active",
@@ -22,49 +23,51 @@
     },
     {
       "name": "zone_duration",
-      "type": "duration"
+      "type": "interval",
+      "expression": "duration"
     },
     {
       "name": "zone_material_m3",
       "type": "calc",
-      "calc_id": "[Calc_Dump_Area ID]",
+      "calc_id": 0,
       "counter": "material_dumped_m3",
       "method": "sum"
     },
     {
       "name": "zone_trips",
       "type": "calc",
-      "calc_id": "[Calc_Trip_L2D ID]",
+      "calc_id": 0,
       "counter": "device_id",
       "method": "count"
     },
     {
       "name": "zone_avg_cycle",
       "type": "calc",
-      "calc_id": "[Calc_Trip_Cycle ID]",
+      "calc_id": 0,
       "counter": "cycle_duration",
       "method": "avg"
     },
     {
       "name": "zone_avg_queue",
       "type": "calc",
-      "calc_id": "[Calc_Queue_Area ID]",
+      "calc_id": 0,
       "counter": "queue_duration",
       "method": "avg"
     },
     {
       "name": "active_vehicles",
       "type": "calc",
-      "calc_id": "[Calc_Load_Pad ID]",
+      "calc_id": 0,
       "counter": "active",
       "method": "sum"
     },
     {
       "name": "active_loaders",
       "type": "calc",
-      "calc_id": "[Calc_Loaders_Pad ID]",
+      "calc_id": 0,
       "counter": "active",
       "method": "sum"
     }
   ]
 }
+

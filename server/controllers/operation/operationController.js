@@ -1,5 +1,6 @@
 import * as operationModel from "../../model/operation/operationModel.js";
 import { getCalculatorIdsByOperationId } from "../../model/calculatorAssignments.js";
+import { duplicateOperation } from "../../services/operationDuplicate.js";
 
 // Create a new operation
 export const createOperation = async (req, res) => {
@@ -58,6 +59,18 @@ export const deleteOperation = async (req, res) => {
     const result = await operationModel.deleteOperation(id);
     if (!result) return res.status(404).json({ message: "Operation not found" });
     res.status(200).json({ message: "Operation deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const duplicateOperationWithAll = async (req, res) => {
+  const { id } = req.params;
+  const { name } = req.body || {};
+
+  try {
+    const result = await duplicateOperation(Number(id), { name });
+    res.status(201).json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

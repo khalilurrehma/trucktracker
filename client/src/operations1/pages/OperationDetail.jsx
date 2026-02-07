@@ -208,7 +208,6 @@ const OperationDetail = () => {
           getZonesByOperationId(id),
         ]);
         if (!isMounted) return;
-        console.log("Operation geometry raw:", operationData?.geometry);
         setOperation(operationData);
         const mappedZones = (zonesData || [])
           .map((zone) => ({
@@ -223,7 +222,6 @@ const OperationDetail = () => {
           setSelectedZoneId(mappedZones[0].id);
         }
         const opGeometry = resolvePolygonFromGeometry(operationData?.geometry);
-        console.log("Operation geometry parsed:", opGeometry);
         const opCenter = opGeometry ? getPolygonCenter(opGeometry) : null;
         setOperationPolygon(opGeometry);
         if (opCenter) {
