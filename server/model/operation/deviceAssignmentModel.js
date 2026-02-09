@@ -8,48 +8,20 @@ import {
   fetchCalcData,
   fetchGeofenceDevices,
   fetchDevicePositions,
-  createFlespiCalculator,
   assignCalculatorToDevice,
-  deleteFlespiCalculator
+  unassignCalculatorFromDevice
 } from "../../services/flespiApis.js";
-import { getCalculatorTemplatesByType } from "../calculatorTemplates.js";
 import {
   saveCalculatorAssignments,
-  getCalculatorIdsByDeviceZone,
-  deleteCalculatorAssignmentsByDeviceZone
 } from "../calculatorAssignments.js";
-import {
-  loadCalculatorTemplateConfig,
-  sanitizeCalculatorConfig
-} from "../../utils/calculatorTemplates.js";
 
-const vehicleCalculatorNames = [
-  "CALC_LOAD_PAD",
-  "CALC_DUMP_AREA",
-  "CALC_QUEUE_AREA",
-  "CALC_TRIP_L2D",
-  "CALC_TRIP_D2L",
-  "CALC_TRIP_CYCLE",
-  "DAILY_VEHICLE_REPORT"
-];
-
-const loaderCalculatorNames = [
-  "CALC_LOADERS_PAD"
-];
-const sharedOperationCalcTypes = new Set([
-  "DAILY_VEHICLE_REPORT",
-]);
-
-const filterTemplatesByName = (templates, allowedNames) => {
-  if (!Array.isArray(templates)) return [];
-  if (!Array.isArray(allowedNames) || allowedNames.length === 0) return templates;
-  const allowed = new Set(allowedNames);
-  return templates.filter((template) => allowed.has(template?.name));
-};
-
-const isLoaderCategory = (category) => {
-  if (!category) return false;
-  return String(category).toLowerCase().includes("loader");
+const uniqueByCalcId = (rows = []) => {
+  const map = new Map();
+  for (const row of rows) {
+    if (!row?.calc_id) continue;
+    map.set(Number(row.calc_id), row);
+  }
+  return Array.from(map.values());
 };
 
 
@@ -58,32 +30,59 @@ export const createDeviceAssignment = async ({ device_id, operation_id, zone_id 
     INSERT INTO device_assignments (device_id, operation_id, zone_id, created_at, updated_at)
     VALUES (?, ?, ?, NOW(), NOW())
   `;
-  const effectiveZoneId = Number(zone_id ?? operation_id);
-  const values = [Number(device_id), Number(operation_id), effectiveZoneId];
 
   try {
+    const opId = Number(operation_id);
+    const requestedZoneId = Number(zone_id);
+    const hasRequestedZone =
+      Number.isFinite(requestedZoneId) && requestedZoneId > 0;
+
     const [device] = await dbQuery(
       "SELECT flespiId, traccarId, name, category FROM new_settings_devices WHERE id = ?",
       [device_id]
     );
-    const [operation] = await dbQuery(
-      "SELECT name FROM operations WHERE id = ?",
-      [operation_id]
-    );
-    const [zone] = await dbQuery(
-      "SELECT flespi_geofence_id, name FROM zones WHERE id = ?",
-      [effectiveZoneId]
-    );
-    const [operationGeofence] = await dbQuery(
-      "SELECT flespi_geofence_id, name FROM operations WHERE id = ?",
-      [effectiveZoneId]
+    const operationZones = await dbQuery(
+      `
+        SELECT id, flespi_geofence_id, name
+        FROM zones
+        WHERE operationId = ?
+        ORDER BY id ASC
+      `,
+      [opId]
     );
 
     if (!device) throw new Error(`Device ${device_id} not found`);
-    if (!zone && !operationGeofence) throw new Error(`Zone ${effectiveZoneId} not found`);
+    if (!operationZones || operationZones.length === 0) {
+      throw new Error(`No zones found for operation ${opId}`);
+    }
+
+    let zone = null;
+    let effectiveZoneId = null;
+
+    if (hasRequestedZone) {
+      zone =
+        operationZones.find((z) => Number(z.id) === requestedZoneId) || null;
+      if (!zone) {
+        zone = operationZones[0];
+        effectiveZoneId = Number(zone.id);
+        console.warn(
+          `Requested zone ${requestedZoneId} not found in operation ${opId}; using zone ${effectiveZoneId}`
+        );
+      } else {
+        effectiveZoneId = requestedZoneId;
+      }
+    } else {
+      zone = operationZones[0];
+      effectiveZoneId = Number(zone.id);
+      console.warn(
+        `No zone_id provided; using first zone ${effectiveZoneId} for operation ${opId}`
+      );
+    }
+
+    const values = [Number(device_id), opId, effectiveZoneId];
 
     const flespiId = device.flespiId;
-    const geofenceId = zone?.flespi_geofence_id || operationGeofence?.flespi_geofence_id;
+    const geofenceId = zone?.flespi_geofence_id || null;
 
     const result = await dbQuery(sql, values);
     const newAssignment = { id: result.insertId, device_id, operation_id, zone_id: effectiveZoneId };
@@ -121,65 +120,22 @@ export const createDeviceAssignment = async ({ device_id, operation_id, zone_id 
       }
     }
 
-    const templates = await getCalculatorTemplatesByType("DEVICE");
-    console.log(`DEVICE templates found: ${templates.length} (device ${device_id})`);
-    const assignments = [];
-    const operationName = operation?.name || "operation";
-    const zoneName = zone?.name || operationGeofence?.name || operationName || "zone";
-    const isLoader = isLoaderCategory(device?.category);
-    let isFirstVehicle = false;
-
-    if (!isLoader) {
-      const [vehicleCountRow] = await dbQuery(
-        `
-          SELECT COUNT(*) AS vehicleCount
-          FROM device_assignments da
-          JOIN new_settings_devices d ON da.device_id = d.id
-          WHERE da.operation_id = ?
-            AND d.id <> ?
-            AND (d.category IS NULL OR LOWER(d.category) NOT LIKE '%loader%')
-        `,
-        [operation_id, device_id]
-      );
-      isFirstVehicle = Number(vehicleCountRow?.vehicleCount || 0) === 0;
-    }
-
-    const allowedNames = isLoader
-      ? [...loaderCalculatorNames]
-      : [...vehicleCalculatorNames];
-
-    const filteredTemplates = filterTemplatesByName(templates, allowedNames);
-
-    for (const template of filteredTemplates) {
-      try {
-        const config = await loadCalculatorTemplateConfig(template.file_path);
-        const cleanedConfig = sanitizeCalculatorConfig(config);
-        const templateLabel = template?.name || `template-${template?.id || "unknown"}`;
-        const calcName = `DEVICE-${device.name}-${operationName}-${zoneName}-${templateLabel}`.slice(0, 200);
-        cleanedConfig.name = calcName;
-        const calc = await createFlespiCalculator(cleanedConfig);
-        await assignCalculatorToDevice(flespiId, calc.id);
-        assignments.push({
-          calc_id: calc.id,
-          calc_type: template?.name || null,
-          device_id,
-          device_flespi_id: flespiId,
-          operation_id,
-          zone_id: effectiveZoneId,
-        });
-      } catch (err) {
-        console.error(`Error creating/assigning calculator for DEVICE (${template?.name || "template"}):`, err.message);
-      }
-    }
-
-    if (assignments.length > 0) {
-      await saveCalculatorAssignments(assignments);
-      console.log(`DEVICE calculators created/assigned: ${assignments.length} (device ${device_id})`);
-    }
-
-    // Reuse selected operation-level calculators (create once per operation, assign to each device).
+    // Assign all operation/zone calculators created for this operation.
     if (flespiId) {
-      const opSharedCalcs = await dbQuery(
+      const existingRows = await dbQuery(
+        `
+          SELECT DISTINCT calc_id
+          FROM calculator_assignments
+          WHERE operation_id = ?
+            AND device_flespi_id = ?
+        `,
+        [operation_id, flespiId]
+      );
+      const existingCalcIds = new Set(
+        (existingRows || []).map((row) => Number(row.calc_id))
+      );
+
+      const opScopeCalcsRaw = await dbQuery(
         `
           SELECT DISTINCT calc_id, calc_type
           FROM calculator_assignments
@@ -188,9 +144,8 @@ export const createDeviceAssignment = async ({ device_id, operation_id, zone_id 
         `,
         [operation_id]
       );
-
-      const toAssignShared = opSharedCalcs.filter((row) =>
-        sharedOperationCalcTypes.has(row?.calc_type)
+      const toAssignShared = uniqueByCalcId(opScopeCalcsRaw).filter(
+        (row) => !existingCalcIds.has(Number(row.calc_id))
       );
 
       const sharedAssignmentsToSave = [];
@@ -219,6 +174,9 @@ export const createDeviceAssignment = async ({ device_id, operation_id, zone_id 
 
       if (sharedAssignmentsToSave.length > 0) {
         await saveCalculatorAssignments(sharedAssignmentsToSave);
+        console.log(
+          `Existing operation/zone calculators assigned: ${sharedAssignmentsToSave.length} (device ${device_id})`
+        );
       }
     }
 
@@ -271,6 +229,12 @@ export const markAssignmentCompleted = async (id) => {
 // ✅ Delete assignment
 export const deleteDeviceAssignment = async (device_id, zone_id) => {
   try {
+    const [assignment] = await dbQuery(
+      "SELECT operation_id, zone_id FROM device_assignments WHERE device_id = ? AND zone_id = ?",
+      [device_id, zone_id]
+    );
+    if (!assignment) return false;
+
     const [device] = await dbQuery(
       "SELECT flespiId, name FROM new_settings_devices WHERE id = ?",
       [device_id]
@@ -279,10 +243,16 @@ export const deleteDeviceAssignment = async (device_id, zone_id) => {
       "SELECT flespi_geofence_id, name FROM zones WHERE id = ?",
       [zone_id]
     );
-    const [operationGeofence] = await dbQuery(
-      "SELECT flespi_geofence_id, name FROM operations WHERE id = ?",
-      [zone_id]
+
+    const calcRowsForZone = await dbQuery(
+      `SELECT DISTINCT calc_id
+       FROM calculator_assignments
+       WHERE device_id = ? AND zone_id = ?`,
+      [device_id, zone_id]
     );
+    const calcIdsForZone = (calcRowsForZone || [])
+      .map((row) => Number(row.calc_id))
+      .filter((id) => Number.isFinite(id));
 
     const sql = `
       DELETE FROM device_assignments
@@ -290,7 +260,7 @@ export const deleteDeviceAssignment = async (device_id, zone_id) => {
     `;
     const result = await dbQuery(sql, [device_id, zone_id]);
 
-    const geofenceId = zone?.flespi_geofence_id || operationGeofence?.flespi_geofence_id;
+    const geofenceId = zone?.flespi_geofence_id || null;
     if (device?.flespiId && geofenceId) {
       console.log(`Unassigning geofence ${geofenceId} from device ${device.flespiId}`);
       await unassignGeofenceFromDevice(device.flespiId, geofenceId);
@@ -299,15 +269,29 @@ export const deleteDeviceAssignment = async (device_id, zone_id) => {
       console.warn("Missing Flespi ID or geofence ID, skipping Flespi unassignment.");
     }
 
-    const calcIds = await getCalculatorIdsByDeviceZone(device_id, zone_id);
-    for (const calcId of calcIds) {
+    await dbQuery(
+      "DELETE FROM calculator_assignments WHERE device_id = ? AND zone_id = ?",
+      [device_id, zone_id]
+    );
+
+    for (const calcId of calcIdsForZone) {
+      const [stillAssigned] = await dbQuery(
+        `SELECT id
+         FROM calculator_assignments
+         WHERE device_id = ? AND calc_id = ?
+         LIMIT 1`,
+        [device_id, calcId]
+      );
+      if (stillAssigned || !device?.flespiId) continue;
       try {
-        await deleteFlespiCalculator(calcId);
+        await unassignCalculatorFromDevice(device.flespiId, calcId);
       } catch (err) {
-        console.error(`Error deleting calculator ${calcId}:`, err.message);
+        console.warn(
+          `Failed to unassign calculator ${calcId} from device ${device.flespiId}:`,
+          err.response?.data || err.message
+        );
       }
     }
-    await deleteCalculatorAssignmentsByDeviceZone(device_id, zone_id);
 
     return result.affectedRows > 0;
   } catch (err) {

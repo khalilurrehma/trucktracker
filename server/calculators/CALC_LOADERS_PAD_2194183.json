@@ -8,7 +8,7 @@
   "selectors": [
     {
       "type": "expression",
-      "expression": "geofence(\"metadata.zone_type\") == \"LOAD_PAD\""
+      "expression": "json_array_contains(geofences(\"metadata.zone_type\"), \"LOAD_PAD\")"
     }
   ],
   "counters": [
@@ -59,21 +59,21 @@
     },
     {
       "name": "loader_bucket_capacity_m3",
-      "type": "parameter",
-      "parameter": "device.metadata.loader_bucket_capacity_m3",
+      "type": "expression",
+      "expression": "metadata(\"loader_bucket_capacity_m3\")",
       "method": "last"
     },
     {
       "name": "loader_bucket_fill_factor_ideal",
-      "type": "parameter",
-      "parameter": "device.metadata.loader_bucket_fill_factor_ideal",
+      "type": "expression",
+      "expression": "metadata(\"loader_bucket_fill_factor_ideal\")",
       "method": "last"
     },
     {
       "name": "trips_to_fill_ideal",
       "type": "expression",
       "method": "last",
-      "expression": "ceil((truck_capacity_m3 * truck_fill_factor_ideal) / (device.metadata.loader_bucket_capacity_m3 * device.metadata.loader_bucket_fill_factor_ideal))"
+      "expression": "ceil((truck_capacity_m3 * truck_fill_factor_ideal) / (loader_bucket_capacity_m3 * loader_bucket_fill_factor_ideal))"
     },
     {
       "name": "idle_time",
@@ -83,3 +83,4 @@
     }
   ]
 }
+

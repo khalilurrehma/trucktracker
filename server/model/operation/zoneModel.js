@@ -8,7 +8,8 @@ import {
   deleteFlespiGeofence,
   deleteFlespiCalculator,
   createFlespiCalculator,
-  assignCalculatorToGeofence
+  assignCalculatorToGeofence,
+  assignCalculatorToDevice
 } from "../../services/flespiApis.js";
 import {
   deleteCalculatorAssignmentsByGeofenceId,
@@ -21,8 +22,8 @@ import { getCalculatorTemplatesByType } from "../calculatorTemplates.js";
 import { loadCalculatorTemplateConfig, sanitizeCalculatorConfig } from "../../utils/calculatorTemplates.js";
 
 const zoneCalculatorNameMap = {
-  LOAD_PAD: ["CALC_LOAD_PAD", "CALC_LOADERS_PAD", "CALC_TRIP_L2D", "CALC_TRIP_D2L"],
-  DUMP_AREA: ["CALC_DUMP_AREA", "CALC_TRIP_L2D", "CALC_TRIP_D2L"],
+  LOAD_PAD: ["CALC_LOAD_PAD", "CALC_LOADERS_PAD"],
+  DUMP_AREA: ["CALC_DUMP_AREA"],
   QUEUE_AREA: ["CALC_QUEUE_AREA"],
   ZONE_AREA: ["CALC_TRIP_CYCLE", "ZONE_CALCULATOR"],
 };
@@ -85,6 +86,73 @@ const deleteCalculatorsByIds = async (calcIds) => {
     } catch (err) {
       console.error(`Error deleting calculator ${calcId}:`, err.message);
     }
+  }
+};
+
+const assignCalculatorsToOperationDevices = async ({ operationId, assignments }) => {
+  if (!Array.isArray(assignments) || assignments.length === 0) return;
+
+  const devices = await dbQuery(
+    `
+      SELECT DISTINCT da.device_id, d.flespiId AS device_flespi_id
+      FROM device_assignments da
+      JOIN new_settings_devices d ON d.id = da.device_id
+      WHERE da.operation_id = ?
+        AND d.flespiId IS NOT NULL
+    `,
+    [operationId]
+  );
+
+  if (!devices || devices.length === 0) return;
+
+  const existingRows = await dbQuery(
+    `
+      SELECT calc_id, device_flespi_id
+      FROM calculator_assignments
+      WHERE operation_id = ?
+        AND device_flespi_id IS NOT NULL
+    `,
+    [operationId]
+  );
+  const existing = new Set(
+    (existingRows || []).map(
+      (row) => `${Number(row.calc_id)}:${Number(row.device_flespi_id)}`
+    )
+  );
+
+  const rowsToSave = [];
+  for (const assignment of assignments) {
+    for (const device of devices) {
+      const calcId = Number(assignment.calc_id);
+      const deviceFlespiId = Number(device.device_flespi_id);
+      if (!Number.isFinite(calcId) || !Number.isFinite(deviceFlespiId)) continue;
+
+      const key = `${calcId}:${deviceFlespiId}`;
+      if (existing.has(key)) continue;
+
+      try {
+        await assignCalculatorToDevice(deviceFlespiId, calcId);
+        rowsToSave.push({
+          calc_id: calcId,
+          calc_type: assignment.calc_type || null,
+          device_id: device.device_id,
+          device_flespi_id: deviceFlespiId,
+          operation_id: operationId,
+          zone_id: assignment.zone_id ?? null,
+          geofence_flespi_id: assignment.geofence_flespi_id ?? null,
+        });
+        existing.add(key);
+      } catch (err) {
+        console.warn(
+          `Failed to assign calculator ${calcId} to device ${deviceFlespiId}:`,
+          err.response?.data || err.message
+        );
+      }
+    }
+  }
+
+  if (rowsToSave.length > 0) {
+    await saveCalculatorAssignments(rowsToSave);
   }
 };
 
@@ -231,6 +299,10 @@ export const createZone = async (zone) => {
 
     if (assignmentsToSave.length > 0) {
       await saveCalculatorAssignments(assignmentsToSave);
+      await assignCalculatorsToOperationDevices({
+        operationId,
+        assignments: assignmentsToSave,
+      });
     }
 
     await dbQuery(
@@ -434,6 +506,10 @@ export const updateZone = async (id, zone) => {
 
       if (assignmentsToSave.length > 0) {
         await saveCalculatorAssignments(assignmentsToSave);
+        await assignCalculatorsToOperationDevices({
+          operationId: zoneRow?.operationId,
+          assignments: assignmentsToSave,
+        });
       }
     }
 

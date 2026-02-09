@@ -5,11 +5,17 @@
   "update_period": 864000,
   "update_onchange": true,
   "timezone": "America/Lima",
-  "validate_interval": "day",
+  "validate_interval": "",
   "selectors": [
     {
+      "type": "datetime",
+      "split": "day"
+    },
+    {
       "type": "expression",
-      "expression": "geofence() == '[Operation Geofence Name]'"
+      "method": "boolean",
+      "expression": "geofence(\"metadata.loadiq_operation\") == true",
+      "merge_unknown": true
     }
   ],
   "counters": [
@@ -49,7 +55,7 @@
       "name": "target_material_m3",
       "type": "expression",
       "method": "last",
-      "expression": "device.metadata.operation_target_m3"
+      "expression": "metadata(\"operation_target_m3\")"
     }
   ]
 }

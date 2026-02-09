@@ -18,6 +18,8 @@ router.get('/operations', authWebToken, operationController.getAllOperations);
 router.get('/operations/:id', authWebToken, operationController.getSingleOperation);
 // Route for getting calculator IDs by operation (GET /api/operations/:id/calcs)
 router.get('/operations/:id/calcs', authWebToken, operationController.getOperationCalculatorIds);
+// Route for syncing existing operation calculators to currently assigned devices
+router.post('/operations/:id/calcs/sync-devices', authWebToken, operationController.syncOperationCalculators);
 // Route for duplicating an operation with zones, devices, calculators
 router.post('/operations/:id/duplicate', authWebToken, operationController.duplicateOperationWithAll);
 

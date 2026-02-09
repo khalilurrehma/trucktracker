@@ -8,7 +8,7 @@
   "selectors": [
     {
       "type": "expression",
-      "expression": "geofence(\"metadata.zone_type\") == \"QUEUE_AREA\""
+      "expression": "json_array_contains(geofences(\"metadata.zone_type\"), \"QUEUE_AREA\")"
     }
   ],
   "counters": [
@@ -52,3 +52,4 @@
     }
   ]
 }
+

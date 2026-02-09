@@ -10,7 +10,7 @@
     {
       "type": "expression",
       "method": "boolean",
-      "expression": "geofence() == null",
+      "expression": "not(json_array_contains(geofences(\"metadata.zone_type\"), \"LOAD_PAD\")) && not(json_array_contains(geofences(\"metadata.zone_type\"), \"DUMP_AREA\"))",
       "merge_unknown": true,
       "merge_message_before": true,
       "merge_message_after": true,
@@ -24,13 +24,13 @@
       "name": "from_zone_type",
       "type": "expression",
       "method": "first",
-      "expression": "geofence(\"metadata.zone_type\")"
+      "expression": "if(json_array_contains(geofences(\"metadata.zone_type\"), \"LOAD_PAD\"), \"LOAD_PAD\", if(json_array_contains(geofences(\"metadata.zone_type\"), \"DUMP_AREA\"), \"DUMP_AREA\", null))"
     },
     {
       "name": "to_zone_type",
       "type": "expression",
       "method": "last",
-      "expression": "geofence(\"metadata.zone_type\")"
+      "expression": "if(json_array_contains(geofences(\"metadata.zone_type\"), \"LOAD_PAD\"), \"LOAD_PAD\", if(json_array_contains(geofences(\"metadata.zone_type\"), \"DUMP_AREA\"), \"DUMP_AREA\", null))"
     },
     {
       "name": "device_id",
@@ -51,14 +51,14 @@
     {
       "name": "trip_distance_km",
       "type": "expression",
-      "method": "last",
-      "expression": "mileage / 1000"
+      "method": "summary",
+      "expression": "mileage()"
     },
     {
       "name": "mileage",
-      "type": "parameter",
-      "parameter": "mileage",
-      "method": "last"
+      "type": "expression",
+      "method": "summary",
+      "expression": "mileage()"
     },
     {
       "name": "speed_max",
@@ -76,18 +76,18 @@
       "name": "material_m3",
       "type": "expression",
       "method": "last",
-      "expression": "device.metadata.vehicle_capacity_m3 * device.metadata.vehicle_fill_factor_ideal"
+      "expression": "metadata(\"vehicle_capacity_m3\") * metadata(\"vehicle_fill_factor_ideal\")"
     },
     {
       "name": "vehicle_capacity_m3",
-      "type": "parameter",
-      "parameter": "device.metadata.vehicle_capacity_m3",
+      "type": "expression",
+      "expression": "metadata(\"vehicle_capacity_m3\")",
       "method": "last"
     },
     {
       "name": "vehicle_fill_factor_ideal",
-      "type": "parameter",
-      "parameter": "device.metadata.vehicle_fill_factor_ideal",
+      "type": "expression",
+      "expression": "metadata(\"vehicle_fill_factor_ideal\")",
       "method": "last"
     }
   ]

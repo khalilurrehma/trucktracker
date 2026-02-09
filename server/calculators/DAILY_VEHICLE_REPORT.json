@@ -5,11 +5,17 @@
  "update_period": 864000,
  "update_onchange": true,
  "timezone": "America/Lima",
- "validate_interval": "day",
+ "validate_interval": "",
  "selectors": [
  {
+ "type": "datetime",
+ "split": "day"
+ },
+ {
  "type": "expression",
- "expression": "geofence() == '[Operation Geofence Name]'"
+ "method": "boolean",
+ "expression": "geofence(\"metadata.loadiq_operation\") == true",
+ "merge_unknown": true
  }
  ],
  "counters": [
@@ -50,13 +56,14 @@
  {
  "name": "daily_distance_km",
  "type": "expression",
- "expression": "mileage / 1000"
+ "method": "summary",
+ "expression": "mileage()"
  },
  {
  "name": "mileage",
- "type": "parameter",
- "parameter": "mileage",
- "method": "last"
+ "type": "expression",
+ "expression": "mileage()",
+ "method": "summary"
  },
  {
  "name": "avg_cycle_time",

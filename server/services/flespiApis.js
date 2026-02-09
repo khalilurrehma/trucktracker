@@ -672,6 +672,50 @@ export const createFlespiCalculator = async (calculatorConfig) => {
   }
 };
 
+export const getFlespiCalculator = async (calcId) => {
+  try {
+    const encodedId = encodeURIComponent(calcId);
+    const { data } = await axios.get(
+      `${flespiUrl}/calcs/${encodedId}`,
+      {
+        headers: {
+          Authorization: `FlespiToken ${FlespiToken}`,
+        },
+      }
+    );
+    return data.result?.[0] || null;
+  } catch (error) {
+    console.error(
+      `Error fetching calculator (${calcId}):`,
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
+export const updateFlespiCalculator = async (calcId, updates) => {
+  try {
+    const encodedId = encodeURIComponent(calcId);
+    const { data } = await axios.put(
+      `${flespiUrl}/calcs/${encodedId}`,
+      updates,
+      {
+        headers: {
+          Authorization: `FlespiToken ${FlespiToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    return data.result?.[0] || data.result || data;
+  } catch (error) {
+    console.error(
+      `Error updating calculator (${calcId}):`,
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
 // Assign calculator (geofence) to device
 export const assignCalculatorToDevice = async (deviceId, calculatorId) => {
   const headers = {
@@ -704,6 +748,41 @@ export const assignCalculatorToDevice = async (deviceId, calculatorId) => {
     }
     console.error(
       `Error assigning calculator (${calculatorId} -> ${deviceId}):`,
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
+export const unassignCalculatorFromDevice = async (deviceId, calculatorId) => {
+  const headers = {
+    Authorization: `FlespiToken ${FlespiToken}`,
+  };
+  const calcId = encodeURIComponent(calculatorId);
+  const devId = encodeURIComponent(deviceId);
+  const urlPrimary = `${flespiUrl}/calcs/${calcId}/devices/${devId}`;
+  const urlFallback = `${flespiUrl}/devices/${devId}/calcs/${calcId}`;
+
+  try {
+    const { data } = await axios.delete(urlPrimary, { headers });
+    console.log(`Unassigned calculator ${calculatorId} -> device ${deviceId}`);
+    return data.result || data;
+  } catch (error) {
+    if (error.response?.status === 404) {
+      try {
+        const { data } = await axios.delete(urlFallback, { headers });
+        console.log(`Unassigned calculator ${calculatorId} -> device ${deviceId}`);
+        return data.result || data;
+      } catch (fallbackError) {
+        console.error(
+          `Error unassigning calculator (${calculatorId} -> ${deviceId}):`,
+          fallbackError.response?.data || fallbackError.message
+        );
+        throw fallbackError;
+      }
+    }
+    console.error(
+      `Error unassigning calculator (${calculatorId} -> ${deviceId}):`,
       error.response?.data || error.message
     );
     throw error;

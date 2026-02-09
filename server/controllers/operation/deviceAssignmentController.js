@@ -29,6 +29,12 @@ export const createAssignment = async (req, res) => {
     res.status(201).json(assignment);
   } catch (err) {
     console.error("❌ Error creating assignment:", err.message);
+    if (
+      String(err?.message || "").includes("not found") ||
+      String(err?.message || "").includes("No zones found")
+    ) {
+      return res.status(400).json({ error: err.message });
+    }
     res.status(500).json({ error: err.message });
   }
 };

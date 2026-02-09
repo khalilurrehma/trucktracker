@@ -86,3 +86,14 @@ export const getOperationCalculatorIds = async (req, res) => {
     res.status(500).json({ status: false, error: err.message });
   }
 };
+
+export const syncOperationCalculators = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await operationModel.syncOperationCalculatorsToDevices(id);
+    res.status(200).json({ status: true, data: result });
+  } catch (err) {
+    res.status(500).json({ status: false, error: err.message });
+  }
+};

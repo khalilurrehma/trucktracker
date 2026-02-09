@@ -7,7 +7,7 @@
   "timezone": "America/Lima",
   "selectors": [
     {
-      "expression": "geofence() == '[Zone Geofence Name]'"
+      "expression": "json_array_contains(geofences(\"metadata.zone_type\"), \"ZONE_AREA\")"
     }
   ],
   "counters": [
@@ -70,4 +70,5 @@
     }
   ]
 }
+
 

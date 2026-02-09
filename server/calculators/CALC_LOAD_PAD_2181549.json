@@ -8,7 +8,7 @@
   "selectors": [
     {
       "type": "expression",
-      "expression": "geofence(\"metadata.zone_type\") == \"LOAD_PAD\""
+      "expression": "json_array_contains(geofences(\"metadata.zone_type\"), \"LOAD_PAD\")"
     }
   ],
   "counters": [
@@ -58,3 +58,4 @@
     }
   ]
 }
+

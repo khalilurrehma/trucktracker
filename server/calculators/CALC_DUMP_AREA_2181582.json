@@ -8,7 +8,7 @@
   "selectors": [
     {
       "type": "expression",
-      "expression": "geofence(\"metadata.zone_type\") == \"DUMP_AREA\""
+      "expression": "json_array_contains(geofences(\"metadata.zone_type\"), \"DUMP_AREA\")"
     }
   ],
   "counters": [
@@ -48,7 +48,8 @@
       "name": "material_dumped_m3",
       "type": "expression",
       "method": "last",
-      "expression": "device.metadata.vehicle_capacity_m3 * device.metadata.vehicle_fill_factor_ideal"
+      "expression": "metadata(\"vehicle_capacity_m3\") * metadata(\"vehicle_fill_factor_ideal\")"
     }
   ]
 }
+

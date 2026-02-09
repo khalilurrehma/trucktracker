@@ -9,7 +9,11 @@ import {
     deleteFlespiGeofence,
     deleteFlespiCalculator,
     createFlespiCalculator,
-    assignCalculatorToGeofence
+    getFlespiCalculator,
+    updateFlespiCalculator,
+    unassignGeofenceFromDevice,
+    assignCalculatorToGeofence,
+    assignCalculatorToDevice
 } from "../../services/flespiApis.js";
 import {
   deleteCalculatorAssignmentsByGeofenceId,
@@ -26,6 +30,126 @@ import { loadCalculatorTemplateConfig, sanitizeCalculatorConfig } from "../../ut
 const toNumberOrDefault = (value, fallback = 0) => {
     const parsed = Number.parseFloat(value);
     return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const uniqueByCalcId = (rows = []) => {
+    const map = new Map();
+    for (const row of rows) {
+        const calcId = Number(row?.calc_id);
+        if (!Number.isFinite(calcId)) continue;
+        if (!map.has(calcId)) {
+            map.set(calcId, {
+                ...row,
+                calc_id: calcId,
+                geofence_flespi_id: row?.geofence_flespi_id ?? null,
+            });
+        } else if (!map.get(calcId)?.geofence_flespi_id && row?.geofence_flespi_id) {
+            map.set(calcId, {
+                ...map.get(calcId),
+                geofence_flespi_id: row.geofence_flespi_id,
+            });
+        }
+    }
+    return Array.from(map.values());
+};
+
+const buildDailyVehicleReportOverrides = (operationGeofenceId) => {
+    const geofenceId = Number(operationGeofenceId);
+    const geofenceMembershipExpression = Number.isFinite(geofenceId)
+        ? `json_array_contains(geofences("id"), ${geofenceId})`
+        : 'geofence("metadata.loadiq_operation") == true';
+    return {
+        selectors: [
+            { type: "datetime", split: "day" },
+            {
+                type: "expression",
+                method: "boolean",
+                expression: geofenceMembershipExpression,
+                merge_unknown: true,
+            },
+        ],
+        validate_interval: "",
+    };
+};
+
+const buildOperationSummaryOverrides = (operationGeofenceId) => {
+    const geofenceId = Number(operationGeofenceId);
+    const geofenceMembershipExpression = Number.isFinite(geofenceId)
+        ? `json_array_contains(geofences("id"), ${geofenceId})`
+        : 'geofence("metadata.loadiq_operation") == true';
+    return {
+        selectors: [
+            { type: "datetime", split: "day" },
+            {
+                type: "expression",
+                method: "boolean",
+                expression: geofenceMembershipExpression,
+                merge_unknown: true,
+            },
+        ],
+        validate_interval: "",
+    };
+};
+
+const buildContainsAnyGeofenceIdsExpression = (ids = []) => {
+    const normalizedIds = Array.from(
+        new Set(
+            (ids || [])
+                .map((id) => Number(id))
+                .filter((id) => Number.isFinite(id))
+        )
+    );
+    if (normalizedIds.length === 0) return "false";
+    return normalizedIds
+        .map((id) => `json_array_contains(geofences("id"), ${id})`)
+        .join(" || ");
+};
+
+const buildZoneTypeSelectorOverrides = (calcType) => {
+    const type = String(calcType || "").toUpperCase();
+    const zoneTypeByCalcType = {
+        CALC_LOAD_PAD: "LOAD_PAD",
+        CALC_LOADERS_PAD: "LOAD_PAD",
+        CALC_DUMP_AREA: "DUMP_AREA",
+        CALC_QUEUE_AREA: "QUEUE_AREA",
+        ZONE_CALCULATOR: "ZONE_AREA",
+        CALC_TRIP_CYCLE: "ZONE_AREA",
+    };
+    const zoneType = zoneTypeByCalcType[type];
+    if (!zoneType) return null;
+    return {
+        selectors: [
+            {
+                type: "expression",
+                method: "boolean",
+                expression: `json_array_contains(geofences("metadata.zone_type"), "${zoneType}")`,
+            },
+        ],
+    };
+};
+
+const buildTripSelectorAndCountersOverrides = ({ loadPadGeofenceIds = [], dumpAreaGeofenceIds = [] }) => {
+    const loadExpr = buildContainsAnyGeofenceIdsExpression(loadPadGeofenceIds);
+    const dumpExpr = buildContainsAnyGeofenceIdsExpression(dumpAreaGeofenceIds);
+    if (loadExpr === "false" || dumpExpr === "false") return null;
+    const zoneExpr = `if(${loadExpr}, "LOAD_PAD", if(${dumpExpr}, "DUMP_AREA", null))`;
+
+    return {
+        selectors: [
+            {
+                type: "expression",
+                method: "boolean",
+                expression: `not(${loadExpr}) && not(${dumpExpr})`,
+                merge_unknown: true,
+                merge_message_before: true,
+                merge_message_after: true,
+                max_messages_time_diff: 300,
+                max_inactive: 120,
+                min_duration: 60,
+            },
+        ],
+        zone_expression: zoneExpr,
+    };
 };
 
 function toFlespiGeometry(geometry) {
@@ -80,6 +204,444 @@ const deleteCalculatorsByIds = async (calcIds) => {
             console.error(`Error deleting calculator ${calcId}:`, err.message);
         }
     }
+};
+
+const assignCalculatorsToOperationDevices = async ({ operationId, assignments }) => {
+    if (!Array.isArray(assignments) || assignments.length === 0) return;
+
+    const devices = await dbQuery(
+        `
+        SELECT DISTINCT da.device_id, d.flespiId AS device_flespi_id
+        FROM device_assignments da
+        JOIN new_settings_devices d ON d.id = da.device_id
+        WHERE da.operation_id = ?
+          AND d.flespiId IS NOT NULL
+      `,
+        [operationId]
+    );
+
+    if (!devices || devices.length === 0) return;
+
+    const existingRows = await dbQuery(
+        `
+        SELECT calc_id, device_flespi_id
+        FROM calculator_assignments
+        WHERE operation_id = ?
+          AND device_flespi_id IS NOT NULL
+      `,
+        [operationId]
+    );
+    const existing = new Set(
+        (existingRows || []).map(
+            (row) => `${Number(row.calc_id)}:${Number(row.device_flespi_id)}`
+        )
+    );
+
+    const rowsToSave = [];
+    for (const assignment of assignments) {
+        for (const device of devices) {
+            const calcId = Number(assignment.calc_id);
+            const deviceFlespiId = Number(device.device_flespi_id);
+            if (!Number.isFinite(calcId) || !Number.isFinite(deviceFlespiId)) continue;
+
+            const key = `${calcId}:${deviceFlespiId}`;
+            if (existing.has(key)) continue;
+
+            try {
+                await assignCalculatorToDevice(deviceFlespiId, calcId);
+                rowsToSave.push({
+                    calc_id: calcId,
+                    calc_type: assignment.calc_type || null,
+                    device_id: device.device_id,
+                    device_flespi_id: deviceFlespiId,
+                    operation_id: operationId,
+                    zone_id: assignment.zone_id ?? null,
+                    geofence_flespi_id: assignment.geofence_flespi_id ?? null,
+                });
+                existing.add(key);
+            } catch (err) {
+                console.warn(
+                    `Failed to assign calculator ${calcId} to device ${deviceFlespiId}:`,
+                    err.response?.data || err.message
+                );
+            }
+        }
+    }
+
+    if (rowsToSave.length > 0) {
+        await saveCalculatorAssignments(rowsToSave);
+    }
+};
+
+const ensureCalculatorGeofences = async (assignments = []) => {
+    const pairs = Array.from(
+        new Set(
+            assignments
+                .map((row) => {
+                    const calcId = Number(row?.calc_id);
+                    const geofenceId = Number(row?.geofence_flespi_id);
+                    if (!Number.isFinite(calcId) || !Number.isFinite(geofenceId)) return null;
+                    return `${calcId}:${geofenceId}`;
+                })
+                .filter(Boolean)
+        )
+    );
+
+    let synced = 0;
+    let failed = 0;
+    for (const pair of pairs) {
+        const [calcIdRaw, geofenceIdRaw] = pair.split(":");
+        const calcId = Number(calcIdRaw);
+        const geofenceId = Number(geofenceIdRaw);
+        try {
+            await assignCalculatorToGeofence(calcId, geofenceId);
+            synced += 1;
+        } catch (err) {
+            failed += 1;
+            console.warn(
+                `Failed to assign calculator ${calcId} -> geofence ${geofenceId}:`,
+                err.response?.data || err.message
+            );
+        }
+    }
+
+    return { synced, failed };
+};
+
+const unassignOperationGeofencesFromOperationDevices = async ({ operationId }) => {
+    const devices = await dbQuery(
+        `
+          SELECT DISTINCT d.flespiId AS device_flespi_id
+          FROM device_assignments da
+          JOIN new_settings_devices d ON d.id = da.device_id
+          WHERE da.operation_id = ?
+            AND d.flespiId IS NOT NULL
+        `,
+        [operationId]
+    );
+
+    const geofenceRows = await dbQuery(
+        `
+          SELECT DISTINCT flespi_geofence_id
+          FROM operations
+          WHERE flespi_geofence_id IS NOT NULL
+        `
+    );
+    const geofenceIds = Array.from(
+        new Set(
+            (geofenceRows || [])
+                .map((row) => Number(row?.flespi_geofence_id))
+                .filter(Number.isFinite)
+        )
+    );
+    if (geofenceIds.length === 0) return;
+
+    for (const device of devices || []) {
+        const deviceFlespiId = Number(device?.device_flespi_id);
+        if (!Number.isFinite(deviceFlespiId)) continue;
+        for (const geofenceId of geofenceIds) {
+            try {
+                await unassignGeofenceFromDevice(deviceFlespiId, geofenceId);
+            } catch (err) {
+                console.warn(
+                    `Failed to unassign operation geofence ${geofenceId} from device ${deviceFlespiId}:`,
+                    err.response?.data || err.message
+                );
+            }
+        }
+    }
+};
+
+const buildTripValidateExpression = (calcType) => {
+    const type = String(calcType || "").toUpperCase();
+    if (type === "CALC_TRIP_L2D") {
+        return 'from_zone_type == "LOAD_PAD" && to_zone_type == "DUMP_AREA"';
+    }
+    if (type === "CALC_TRIP_D2L") {
+        return 'from_zone_type == "DUMP_AREA" && to_zone_type == "LOAD_PAD"';
+    }
+    return "";
+};
+
+const upsertTripZoneCounters = (counters = [], zoneExpression = "null") => {
+    const nextCounters = Array.isArray(counters)
+        ? counters
+            .filter((counter) => counter && typeof counter === "object")
+            .map((counter) => ({ ...counter }))
+        : [];
+
+    const upsertCounter = (name, method) => {
+        const idx = nextCounters.findIndex((counter) => counter.name === name);
+        const patched = {
+            type: "expression",
+            name,
+            expression: zoneExpression,
+            method,
+        };
+        if (idx >= 0) {
+            nextCounters[idx] = { ...nextCounters[idx], ...patched };
+        } else {
+            nextCounters.push(patched);
+        }
+    };
+
+    upsertCounter("from_zone_type", "first");
+    upsertCounter("to_zone_type", "last");
+    return nextCounters;
+};
+
+const updateTripCalculatorDefinition = async ({
+    calcId,
+    calcType,
+    loadPadGeofenceIds = [],
+    dumpAreaGeofenceIds = [],
+}) => {
+    const overrides = buildTripSelectorAndCountersOverrides({
+        loadPadGeofenceIds,
+        dumpAreaGeofenceIds,
+    });
+    if (!overrides) return false;
+
+    const calc = await getFlespiCalculator(calcId);
+    const counters = upsertTripZoneCounters(calc?.counters, overrides.zone_expression);
+    const validate_interval = buildTripValidateExpression(calcType);
+
+    await updateFlespiCalculator(calcId, {
+        selectors: overrides.selectors,
+        counters,
+        validate_interval,
+    });
+    return true;
+};
+
+export const syncOperationCalculatorsToDevices = async (operationId) => {
+    const opId = Number(operationId);
+    if (!Number.isFinite(opId) || opId < 1) {
+        throw new Error("Invalid operationId");
+    }
+
+    const sharedRowsRaw = await dbQuery(
+        `
+          SELECT DISTINCT calc_id, calc_type, zone_id, geofence_flespi_id
+          FROM calculator_assignments
+          WHERE operation_id = ?
+            AND device_flespi_id IS NULL
+        `,
+        [opId]
+    );
+    const sharedRows = uniqueByCalcId(sharedRowsRaw);
+
+    if (sharedRows.length === 0) {
+        return {
+            operation_id: opId,
+            shared_calculators: 0,
+            geofence_sync: { synced: 0, failed: 0 },
+            device_sync: "no calculators found",
+        };
+    }
+
+    await unassignOperationGeofencesFromOperationDevices({ operationId: opId });
+    const [operationRow] = await dbQuery(
+        "SELECT flespi_geofence_id FROM operations WHERE id = ?",
+        [opId]
+    );
+    const operationGeofenceId = Number(operationRow?.flespi_geofence_id);
+    const zoneRows = await dbQuery(
+        `
+          SELECT zoneType, flespi_geofence_id
+          FROM zones
+          WHERE operationId = ?
+            AND flespi_geofence_id IS NOT NULL
+        `,
+        [opId]
+    );
+    const zoneGeofences = {
+        LOAD_PAD: zoneRows
+            .filter((z) => String(z.zoneType).toUpperCase() === "LOAD_PAD")
+            .map((z) => Number(z.flespi_geofence_id))
+            .filter(Number.isFinite),
+        DUMP_AREA: zoneRows
+            .filter((z) => String(z.zoneType).toUpperCase() === "DUMP_AREA")
+            .map((z) => Number(z.flespi_geofence_id))
+            .filter(Number.isFinite),
+        QUEUE_AREA: zoneRows
+            .filter((z) => String(z.zoneType).toUpperCase() === "QUEUE_AREA")
+            .map((z) => Number(z.flespi_geofence_id))
+            .filter(Number.isFinite),
+        ZONE_AREA: zoneRows
+            .filter((z) => String(z.zoneType).toUpperCase() === "ZONE_AREA")
+            .map((z) => Number(z.flespi_geofence_id))
+            .filter(Number.isFinite),
+    };
+    const calcTypeToGeofences = (calcType, fallbackGeofenceId) => {
+        const type = String(calcType || "").toUpperCase();
+        if (type === "CALC_LOAD_PAD" || type === "CALC_LOADERS_PAD") {
+            return zoneGeofences.LOAD_PAD;
+        }
+        if (type === "CALC_DUMP_AREA") {
+            return zoneGeofences.DUMP_AREA;
+        }
+        if (type === "CALC_QUEUE_AREA") {
+            return zoneGeofences.QUEUE_AREA;
+        }
+        if (type === "ZONE_CALCULATOR" || type === "CALC_TRIP_CYCLE") {
+            return zoneGeofences.ZONE_AREA;
+        }
+        if (type === "CALC_TRIP_L2D" || type === "CALC_TRIP_D2L") {
+            return Array.from(new Set([...zoneGeofences.LOAD_PAD, ...zoneGeofences.DUMP_AREA]));
+        }
+        const fallback = Number(fallbackGeofenceId);
+        if (Number.isFinite(fallback)) return [fallback];
+        if (Number.isFinite(operationGeofenceId)) return [operationGeofenceId];
+        return [];
+    };
+
+    const geofenceAssignments = [];
+    for (const row of sharedRows) {
+        const geofences = calcTypeToGeofences(row.calc_type, row.geofence_flespi_id);
+        for (const geofenceId of geofences) {
+            geofenceAssignments.push({
+                calc_id: Number(row.calc_id),
+                calc_type: row.calc_type || null,
+                operation_id: opId,
+                zone_id: row.zone_id ?? null,
+                geofence_flespi_id: geofenceId,
+            });
+        }
+    }
+
+    const geofenceSync = await ensureCalculatorGeofences(geofenceAssignments);
+
+    const dailyCalcIds = Array.from(
+        new Set(
+            sharedRows
+                .filter(
+                    (row) =>
+                        String(row.calc_type || "").toUpperCase() ===
+                        "DAILY_VEHICLE_REPORT"
+                )
+                .map((row) => Number(row.calc_id))
+                .filter(Number.isFinite)
+        )
+    );
+    const operationSummaryCalcIds = Array.from(
+        new Set(
+            sharedRows
+                .filter(
+                    (row) =>
+                        String(row.calc_type || "").toUpperCase() ===
+                        "OPERATION_SUMMARY"
+                )
+                .map((row) => Number(row.calc_id))
+                .filter(Number.isFinite)
+        )
+    );
+    for (const calcId of dailyCalcIds) {
+        try {
+            await updateFlespiCalculator(
+                calcId,
+                buildDailyVehicleReportOverrides(operationGeofenceId)
+            );
+        } catch (err) {
+            console.warn(
+                `Failed to update DAILY_VEHICLE_REPORT calculator ${calcId}:`,
+                err.response?.data || err.message
+            );
+        }
+    }
+    for (const calcId of operationSummaryCalcIds) {
+        try {
+            await updateFlespiCalculator(
+                calcId,
+                buildOperationSummaryOverrides(operationGeofenceId)
+            );
+        } catch (err) {
+            console.warn(
+                `Failed to update OPERATION_SUMMARY calculator ${calcId}:`,
+                err.response?.data || err.message
+            );
+        }
+    }
+    const zoneSelectorRows = sharedRows.filter((row) =>
+        Boolean(buildZoneTypeSelectorOverrides(row?.calc_type))
+    );
+    for (const row of zoneSelectorRows) {
+        try {
+            await updateFlespiCalculator(
+                Number(row.calc_id),
+                buildZoneTypeSelectorOverrides(row.calc_type)
+            );
+        } catch (err) {
+            console.warn(
+                `Failed to update zone selector for calculator ${row.calc_id} (${row.calc_type}):`,
+                err.response?.data || err.message
+            );
+        }
+    }
+    const tripCalcRows = sharedRows.filter((row) => {
+        const type = String(row?.calc_type || "").toUpperCase();
+        return type === "CALC_TRIP_L2D" || type === "CALC_TRIP_D2L";
+    });
+    for (const row of tripCalcRows) {
+        try {
+            await updateTripCalculatorDefinition({
+                calcId: Number(row.calc_id),
+                calcType: row.calc_type,
+                loadPadGeofenceIds: zoneGeofences.LOAD_PAD,
+                dumpAreaGeofenceIds: zoneGeofences.DUMP_AREA,
+            });
+        } catch (err) {
+            console.warn(
+                `Failed to update trip calculator ${row.calc_id} (${row.calc_type}):`,
+                err.response?.data || err.message
+            );
+        }
+    }
+
+    const sharedExistingRows = await dbQuery(
+        `
+          SELECT calc_id, geofence_flespi_id
+          FROM calculator_assignments
+          WHERE operation_id = ?
+            AND device_flespi_id IS NULL
+            AND geofence_flespi_id IS NOT NULL
+        `,
+        [opId]
+    );
+    const sharedExistingSet = new Set(
+        (sharedExistingRows || []).map(
+            (row) => `${Number(row.calc_id)}:${Number(row.geofence_flespi_id)}`
+        )
+    );
+    const missingSharedRows = geofenceAssignments.filter((row) => {
+        const key = `${Number(row.calc_id)}:${Number(row.geofence_flespi_id)}`;
+        return !sharedExistingSet.has(key);
+    });
+    if (missingSharedRows.length > 0) {
+        await saveCalculatorAssignments(missingSharedRows);
+    }
+
+    await assignCalculatorsToOperationDevices({
+        operationId: opId,
+        assignments: sharedRows,
+    });
+
+    const [deviceCountRow] = await dbQuery(
+        `
+          SELECT COUNT(DISTINCT device_flespi_id) AS cnt
+          FROM calculator_assignments
+          WHERE operation_id = ?
+            AND device_flespi_id IS NOT NULL
+        `,
+        [opId]
+    );
+
+    return {
+        operation_id: opId,
+        shared_calculators: sharedRows.length,
+        geofence_sync: geofenceSync,
+        assigned_device_count: Number(deviceCountRow?.cnt || 0),
+    };
 };
 
 export const createOperation = async (operation) => {
@@ -163,6 +725,17 @@ export const createOperation = async (operation) => {
                 const templateLabel = template?.name || `template-${template?.id || "unknown"}`;
                 const calcName = `${templateLabel} - ${name} - LIQ`.slice(0, 200);
                 cleanedConfig.name = calcName;
+                if (templateLabel === "DAILY_VEHICLE_REPORT") {
+                    Object.assign(
+                        cleanedConfig,
+                        buildDailyVehicleReportOverrides(geofenceId)
+                    );
+                } else if (templateLabel === "OPERATION_SUMMARY") {
+                    Object.assign(
+                        cleanedConfig,
+                        buildOperationSummaryOverrides(geofenceId)
+                    );
+                }
                 const calc = await createFlespiCalculator(cleanedConfig);
                 await assignCalculatorToGeofence(calc.id, geofenceId);
                 assignmentsToSave.push({
@@ -178,6 +751,10 @@ export const createOperation = async (operation) => {
 
         if (assignmentsToSave.length > 0) {
             await saveCalculatorAssignments(assignmentsToSave);
+            await assignCalculatorsToOperationDevices({
+                operationId,
+                assignments: assignmentsToSave,
+            });
         }
 
         return { id: operationId, flespi_geofence_id: geofenceId, ...operation };
@@ -277,6 +854,17 @@ export const updateOperation = async (id, operation) => {
                     const templateLabel = template?.name || `template-${template?.id || "unknown"}`;
                     const calcName = `${templateLabel} - ${name} - LIQ`.slice(0, 200);
                     cleanedConfig.name = calcName;
+                    if (templateLabel === "DAILY_VEHICLE_REPORT") {
+                        Object.assign(
+                            cleanedConfig,
+                            buildDailyVehicleReportOverrides(geofenceId)
+                        );
+                    } else if (templateLabel === "OPERATION_SUMMARY") {
+                        Object.assign(
+                            cleanedConfig,
+                            buildOperationSummaryOverrides(geofenceId)
+                        );
+                    }
                     const calc = await createFlespiCalculator(cleanedConfig);
                     await assignCalculatorToGeofence(calc.id, geofenceId);
                     assignmentsToSave.push({
@@ -292,6 +880,10 @@ export const updateOperation = async (id, operation) => {
 
             if (assignmentsToSave.length > 0) {
                 await saveCalculatorAssignments(assignmentsToSave);
+                await assignCalculatorsToOperationDevices({
+                    operationId: id,
+                    assignments: assignmentsToSave,
+                });
             }
         }
 
