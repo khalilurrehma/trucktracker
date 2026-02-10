@@ -63,6 +63,39 @@ const extractDeviceIdFromTopic = (topic) => {
   return match ? match[1] : null;
 };
 
+const extractIntervalEventType = (topic) => {
+  const parts = String(topic || "").split("/");
+  return parts[parts.length - 1] || null;
+};
+
+const buildIntervalLogData = ({ topic, payload, calcId, deviceId }) => {
+  const intervalId = payload?.id ?? null;
+  const begin = payload?.begin ?? null;
+  const end = payload?.end ?? null;
+  const duration = payload?.duration ?? null;
+  const active = payload?.active ?? null;
+  const timestamp = payload?.timestamp ?? null;
+  const eventType = extractIntervalEventType(topic);
+  const payloadKeys = payload && typeof payload === "object"
+    ? Object.keys(payload)
+    : [];
+
+  return {
+    topic,
+    calc_id: calcId ? Number(calcId) : null,
+    device_id: deviceId ? Number(deviceId) : null,
+    event_type: eventType,
+    interval_id: intervalId != null ? Number(intervalId) : null,
+    begin,
+    end,
+    duration,
+    active,
+    timestamp,
+    payload_keys: payloadKeys,
+    payload,
+  };
+};
+
 const setBroadcast = (broadcastFn, broadcastToDriverFn) => {
   broadcast = broadcastFn;
   broadcastToDriver = broadcastToDriverFn;
@@ -71,11 +104,12 @@ const setBroadcast = (broadcastFn, broadcastToDriverFn) => {
 mqttEmitter.on("mqttMessage", async ({ topic, payload }) => {
   try {
     if (topic.includes("flespi/interval/gw/calcs/")) {
-      console.log("CALC INTERVAL EVENT:", topic);
+      // console.log("CALC INTERVAL EVENT:", topic);
+      const calcId = extractCalcIdFromTopic(topic);
+      const deviceId = extractDeviceIdFromTopic(topic);
     
       await refreshCalcIdsCache();
       await refreshOpCalcIdsCache();
-      const calcId = extractCalcIdFromTopic(topic);
       if (!calcId || !cachedCalcIds.has(calcId)) {
         return;
       }
@@ -83,7 +117,6 @@ mqttEmitter.on("mqttMessage", async ({ topic, payload }) => {
         return;
       }
 
-      const deviceId = extractDeviceIdFromTopic(topic);
       if (topic.endsWith("/activated")) {
         console.log(
           `LOAD_PAD enter: calc_id=${calcId} device_id=${deviceId}`

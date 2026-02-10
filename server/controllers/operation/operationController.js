@@ -1,5 +1,8 @@
 import * as operationModel from "../../model/operation/operationModel.js";
-import { getCalculatorIdsByOperationId } from "../../model/calculatorAssignments.js";
+import {
+  getAssignedCalculatorIdsByOperationId,
+  getCalculatorIdsByOperationId,
+} from "../../model/calculatorAssignments.js";
 import { duplicateOperation } from "../../services/operationDuplicate.js";
 
 // Create a new operation
@@ -78,9 +81,17 @@ export const duplicateOperationWithAll = async (req, res) => {
 
 export const getOperationCalculatorIds = async (req, res) => {
   const { id } = req.params;
+  const assignedOnly =
+    String(req.query.assignedOnly || "").toLowerCase() === "true" ||
+    String(req.query.assignedOnly || "") === "1";
 
   try {
-    const calcIds = await getCalculatorIdsByOperationId(id);
+    let calcIds = assignedOnly
+      ? await getAssignedCalculatorIdsByOperationId(id)
+      : await getCalculatorIdsByOperationId(id);
+    if (assignedOnly && (!calcIds || calcIds.length === 0)) {
+      calcIds = await getCalculatorIdsByOperationId(id);
+    }
     res.status(200).json({ status: true, data: calcIds || [] });
   } catch (err) {
     res.status(500).json({ status: false, error: err.message });

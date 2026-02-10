@@ -126,6 +126,59 @@ export const getCalculatorIdsByOperationId = async (operationId) => {
   return rows.map((row) => row.calc_id);
 };
 
+export const getAssignedCalculatorIdsByOperationId = async (operationId) => {
+  const sql = `
+    SELECT DISTINCT calc_id
+    FROM calculator_assignments
+    WHERE operation_id = ?
+      AND device_flespi_id IS NOT NULL
+  `;
+  const rows = await dbQuery(sql, [operationId]);
+  return rows.map((row) => row.calc_id);
+};
+
+export const getAssignedCalculatorsByOperationId = async (operationId) => {
+  const sql = `
+    SELECT DISTINCT calc_id, calc_type
+    FROM calculator_assignments
+    WHERE operation_id = ?
+      AND device_flespi_id IS NOT NULL
+  `;
+  const rows = await dbQuery(sql, [operationId]);
+  return rows.map((row) => ({
+    calc_id: Number(row.calc_id),
+    calc_type: row.calc_type || null,
+  }));
+};
+
+export const getCalculatorTypesByCalcIds = async (calcIds = []) => {
+  const normalizedCalcIds = Array.from(
+    new Set(
+      (Array.isArray(calcIds) ? calcIds : [calcIds])
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id))
+    )
+  );
+
+  if (normalizedCalcIds.length === 0) {
+    return [];
+  }
+
+  const placeholders = normalizedCalcIds.map(() => "?").join(",");
+  const sql = `
+    SELECT calc_id, calc_type
+    FROM calculator_assignments
+    WHERE calc_id IN (${placeholders})
+      AND calc_type IS NOT NULL
+    GROUP BY calc_id, calc_type
+  `;
+  const rows = await dbQuery(sql, normalizedCalcIds);
+  return rows.map((row) => ({
+    calc_id: Number(row.calc_id),
+    calc_type: row.calc_type || null,
+  }));
+};
+
 export const getCalculatorIdsByGeofenceId = async (geofenceId) => {
   const sql = `
     SELECT DISTINCT calc_id

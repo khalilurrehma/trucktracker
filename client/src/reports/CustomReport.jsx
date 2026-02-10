@@ -18,6 +18,7 @@ import {
   DialogActions,
   Autocomplete,
   Checkbox,
+  Box,
 } from "@mui/material";
 import { useParams } from "react-router-dom";
 import axios from "axios";
@@ -97,6 +98,86 @@ const getLocale = (language) => {
     default:
       return enUS;
   }
+};
+
+const normalizeCalcIds = (input) => {
+  const values = Array.isArray(input) ? input : [input];
+  const ids = values
+    .map((item) => {
+      if (item == null) return null;
+      if (typeof item === "number" || typeof item === "string") {
+        const parsed = Number(item);
+        return Number.isFinite(parsed) ? parsed : null;
+      }
+      if (typeof item === "object") {
+        const parsed = Number(item.calc_id ?? item.calcId ?? item.id);
+        return Number.isFinite(parsed) ? parsed : null;
+      }
+      return null;
+    })
+    .filter((id) => id != null);
+
+  return Array.from(new Set(ids));
+};
+
+const parseCalcIdsField = (value) => {
+  if (value == null) return [];
+  if (Array.isArray(value)) return normalizeCalcIds(value);
+  if (typeof value === "number") return normalizeCalcIds([value]);
+  if (typeof value !== "string") return [];
+
+  const trimmed = value.trim();
+  if (!trimmed) return [];
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    return normalizeCalcIds(parsed);
+  } catch {
+    return normalizeCalcIds(trimmed.split(",").map((v) => v.trim()));
+  }
+};
+
+const extractReportCalcIds = (report, fallbackId) => {
+  if (!report || typeof report !== "object") {
+    return normalizeCalcIds([fallbackId]);
+  }
+
+  let calcIds = parseCalcIdsField(report.calcs_ids);
+
+  if (calcIds.length === 0 && report.calcs != null) {
+    let calcs = report.calcs;
+    if (typeof calcs === "string") {
+      try {
+        calcs = JSON.parse(calcs);
+      } catch {
+        calcs = [];
+      }
+    }
+
+    if (Array.isArray(calcs)) {
+      calcIds = normalizeCalcIds(
+        calcs.flatMap((item) => [
+          item?.calc_id,
+          item?.calcId,
+          item?.id,
+          ...(Array.isArray(item?.calcs_ids) ? item.calcs_ids : []),
+        ])
+      );
+    } else if (calcs && typeof calcs === "object") {
+      calcIds = normalizeCalcIds([
+        calcs.calc_id,
+        calcs.calcId,
+        calcs.id,
+        ...(Array.isArray(calcs.calcs_ids) ? calcs.calcs_ids : []),
+      ]);
+    }
+  }
+
+  if (calcIds.length === 0) {
+    calcIds = normalizeCalcIds([fallbackId]);
+  }
+
+  return calcIds;
 };
 
 const CustomReport = () => {
@@ -184,6 +265,7 @@ const CustomReport = () => {
   const { language } = useLocalization();
   const userId = useSelector((state) => state.session.user.id);
   const { traccarUser } = useAppContext();
+  const effectiveTraccarId = traccarUser?.id || userId;
   const printRef = useRef(null);
 
   const [data, setData] = useState([]);
@@ -196,6 +278,7 @@ const CustomReport = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [appliedDate, setAppliedDate] = useState(null);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [showMap, setShowMap] = useState(false);
   const [activeCalcId, setActiveCalcId] = useState(null);
@@ -205,7 +288,10 @@ const CustomReport = () => {
   const [columnLabelOverrides, setColumnLabelOverrides] = useState({});
   const [operations, setOperations] = useState([]);
   const [selectedOperation, setSelectedOperation] = useState(null);
+  const [appliedOperation, setAppliedOperation] = useState(null);
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState("");
   const [operationCalcIds, setOperationCalcIds] = useState([]);
+  const [operationDeviceIds, setOperationDeviceIds] = useState([]);
   const [calcTotals, setCalcTotals] = useState({});
 
   const handleShowRoute = (route) => {
@@ -214,10 +300,12 @@ const CustomReport = () => {
   };
 
   useEffect(() => {
-    if (reportId && userId) {
-      fetchReportData(reportId, userId, page, rowsPerPage);
+    if (reportId && effectiveTraccarId) {
+      fetchReportData(reportId, effectiveTraccarId, 0, rowsPerPage, {
+        operation: null,
+      });
     }
-  }, [reportId, userId, page, rowsPerPage]);
+  }, [reportId, effectiveTraccarId]);
 
   useEffect(() => {
     setPage(0);
@@ -249,15 +337,15 @@ const CustomReport = () => {
       try {
         const token = await getAuthToken();
         const response = await axios.get(
-          `${url}/operations/${selectedOperation.id}/calcs`,
+          `${url}/operations/${selectedOperation.id}/calcs?assignedOnly=1`,
           {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
           }
         );
         if (response.data?.status) {
-          setOperationCalcIds(response.data.data || []);
+          setOperationCalcIds(normalizeCalcIds(response.data.data || []));
         } else if (Array.isArray(response.data)) {
-          setOperationCalcIds(response.data);
+          setOperationCalcIds(normalizeCalcIds(response.data));
         } else {
           setOperationCalcIds([]);
         }
@@ -266,6 +354,39 @@ const CustomReport = () => {
       }
     };
     fetchOperationCalcs();
+  }, [selectedOperation, url]);
+
+  useEffect(() => {
+    const fetchOperationDevices = async () => {
+      if (!selectedOperation?.id) {
+        setOperationDeviceIds([]);
+        return;
+      }
+      try {
+        const token = await getAuthToken();
+        const response = await axios.get(
+          `${url}/operation-devices/position/${selectedOperation.id}`,
+          {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          }
+        );
+        const rows = Array.isArray(response?.data?.devices)
+          ? response.data.devices
+          : [];
+        const ids = Array.from(
+          new Set(
+            rows
+              .map((row) => Number(row.device_id ?? row.id))
+              .filter((id) => Number.isFinite(id))
+          )
+        );
+        setOperationDeviceIds(ids);
+      } catch (error) {
+        setOperationDeviceIds([]);
+      }
+    };
+
+    fetchOperationDevices();
   }, [selectedOperation, url]);
 
   useEffect(() => {
@@ -433,6 +554,38 @@ const CustomReport = () => {
     };
   };
 
+  const requestReportPaged = async (
+    reportId,
+    traccarId,
+    deviceIds,
+    isSuperAdmin,
+    pageIndex,
+    pageSize,
+    calcIds = [],
+    operationId = null
+  ) => {
+    const response = await axios.post(
+      `${url}/c-report-paged/report/${reportId}/user/${traccarId}`,
+      {
+        deviceIds,
+        superAdmin: isSuperAdmin,
+        page: pageIndex,
+        pageSize,
+        calcIds,
+        operationId,
+        allData: true,
+      }
+    );
+
+    return {
+      rows: response?.data?.message || [],
+      total: response?.data?.total || 0,
+      calcTotals: response?.data?.calcTotals || {},
+      calcIds: normalizeCalcIds(response?.data?.calcIds || []),
+      reportName: response?.data?.report?.name || null,
+    };
+  };
+
   const fetchCalculatorReport = async (calcId, traccarId, pageIndex, pageSize) => {
     setLoading(true);
     setError(null);
@@ -466,21 +619,25 @@ const CustomReport = () => {
     }
   };
 
-  const fetchReportData = async (incomingId, traccarId, pageIndex, pageSize) => {
+  const fetchReportData = async (
+    incomingId,
+    traccarId,
+    pageIndex,
+    pageSize,
+    options = {}
+  ) => {
     setLoading(true);
     setError(null);
     setSelectedColumns([]);
 
     try {
+      const operationForRequest = options.operation ?? appliedOperation;
       let calcIds = [];
 
       try {
         const reportResponse = await axios.get(`${url}/report/${incomingId}`);
         const report = reportResponse.data?.data;
-        if (report?.calcs_ids) {
-          const parsed = JSON.parse(report.calcs_ids);
-          calcIds = Array.isArray(parsed) ? parsed : [parsed];
-        }
+        calcIds = extractReportCalcIds(report, incomingId);
         if (report?.name) {
           setTableTitle(report.name);
         }
@@ -489,47 +646,63 @@ const CustomReport = () => {
       }
 
       if (calcIds.length === 0) {
-        calcIds = [incomingId];
+        calcIds = normalizeCalcIds([incomingId]);
       }
 
+      // If no operation is selected, let backend resolve all report calculators.
+      // This avoids accidental empty results from client-side calc id fallback.
+      const calcIdsToRequest = operationForRequest?.id
+        ? normalizeCalcIds(calcIds)
+        : [];
+
       const { deviceIds, isSuperAdmin } = await getDeviceIds();
-      const reportDataList = await Promise.all(
-        calcIds.map((calcId) =>
-          requestCalcReport(
-            calcId,
-            traccarId,
-            deviceIds,
-            isSuperAdmin,
-            pageIndex,
-            pageSize
-          )
-        )
+      let effectiveDeviceIds = deviceIds;
+      if (operationForRequest?.id && operationDeviceIds.length > 0) {
+        const opDeviceSet = new Set(operationDeviceIds.map((id) => Number(id)));
+        const filteredDeviceIds = deviceIds.filter((id) =>
+          opDeviceSet.has(Number(id))
+        );
+        // Keep API flow alive: if operation-device mapping is stale, use original user devices.
+        effectiveDeviceIds =
+          filteredDeviceIds.length > 0 ? filteredDeviceIds : deviceIds;
+      }
+
+      const reportData = await requestReportPaged(
+        incomingId,
+        traccarId,
+        effectiveDeviceIds,
+        isSuperAdmin,
+        pageIndex,
+        pageSize,
+        calcIdsToRequest,
+        operationForRequest?.id || null
       );
 
-      const merged = reportDataList.flatMap((result, index) =>
-        result.rows.map((row) => ({
-          ...row,
-          calcId: calcIds[index],
-        }))
-      );
+      const merged = reportData.rows || [];
+      const responseCalcIds =
+        reportData.calcIds.length > 0 ? reportData.calcIds : calcIdsToRequest;
 
       setData(merged);
-      setColumns(Object.keys(merged[0] || {}));
-      setActiveCalcId(calcIds[0]);
-      setReportCalcIds(calcIds);
-      setTotalCount(
-        reportDataList.reduce((sum, result) => sum + (result.total || 0), 0)
-      );
-      const totalsMap = reportDataList.reduce((acc, result, index) => {
-        acc[calcIds[index]] = result.total || 0;
-        return acc;
-      }, {});
-      setCalcTotals(totalsMap);
+      const allColumns = Object.keys(merged[0] || {});
+      setColumns(allColumns);
+      setActiveCalcId(Number(responseCalcIds[0]) || null);
+      setReportCalcIds(responseCalcIds);
+      setTotalCount(reportData.total || 0);
+      setCalcTotals(reportData.calcTotals || {});
+      if (reportData.reportName) {
+        setTableTitle(reportData.reportName);
+      }
 
-      const mappingKeys = Object.keys(columnMappings[calcIds[0]] || {});
-      const mergedColumns =
-        calcIds.length > 1 ? ["calcId", ...mappingKeys] : mappingKeys;
-      setSelectedColumns(mergedColumns);
+      const mappingKeys = Object.keys(columnMappings[responseCalcIds[0]] || {});
+      if (mappingKeys.length > 0) {
+        const mergedColumns =
+          responseCalcIds.length > 1 ? ["calcId", ...mappingKeys] : mappingKeys;
+        setSelectedColumns(mergedColumns);
+      } else {
+        // For operation-specific cloned calculators, mapping may be missing.
+        // In this case show all payload columns by default.
+        setSelectedColumns(allColumns);
+      }
     } catch (err) {
       console.error("Error fetching data:", err);
       setError("Failed to fetch data");
@@ -554,25 +727,29 @@ const CustomReport = () => {
 
   const filteredData = useMemo(() => {
     let result = [...data];
-    const operationFilterActive =
-      selectedOperation?.id && operationCalcIds.length > 0;
+    const operationFilterActive = Boolean(appliedOperation?.id);
 
     if (operationFilterActive) {
-      const allowed = new Set(
-        reportCalcIds.length > 0
-          ? operationCalcIds.filter((id) => reportCalcIds.includes(id))
-          : operationCalcIds
-      );
-      result = result.filter((row) => {
-        const calcId = row.calcId ?? activeCalcId;
-        return allowed.has(calcId);
-      });
+      const normalizedReportCalcIds = normalizeCalcIds(reportCalcIds);
+      const normalizedOperationCalcIds = normalizeCalcIds(operationCalcIds);
+      if (normalizedOperationCalcIds.length > 0) {
+        const reportCalcSet = new Set(normalizedReportCalcIds);
+        const allowed = new Set(
+          normalizedReportCalcIds.length > 0
+            ? normalizedOperationCalcIds.filter((id) => reportCalcSet.has(id))
+            : normalizedOperationCalcIds
+        );
+        result = result.filter((row) => {
+          const calcId = Number(row.calcId ?? activeCalcId);
+          return Number.isFinite(calcId) && allowed.has(calcId);
+        });
+      }
     }
 
     const hasDateField = data.length > 0 && "date" in data[0];
     const dateField = hasDateField ? "date" : "begin";
 
-    if (selectedDate) {
+    if (appliedDate) {
       result = result.filter((row) => {
         const rawValue = row[dateField];
         const date = new Date(
@@ -580,42 +757,50 @@ const CustomReport = () => {
             ? rawValue * 1000
             : rawValue
         );
-        return date.toDateString() === selectedDate.toDateString();
+        return date.toDateString() === appliedDate.toDateString();
       });
     }
 
-    if (searchQuery) {
+    if (appliedSearchQuery) {
       result = result.filter((row) => {
         const name1 = row["device.name"]?.toLowerCase() || "";
         const name2 = row["1_Nombre"]?.toLowerCase() || "";
-        const query = searchQuery.toLowerCase();
+        const query = appliedSearchQuery.toLowerCase();
 
         return name1.includes(query) || name2.includes(query);
       });
     }
 
     return result;
-  }, [data, selectedDate, searchQuery]);
+  }, [
+    data,
+    appliedDate,
+    appliedSearchQuery,
+    appliedOperation,
+    operationCalcIds,
+    reportCalcIds,
+    operationDeviceIds,
+    activeCalcId,
+  ]);
 
-  const effectiveTotalCount = useMemo(() => {
-    const operationFilterActive =
-      selectedOperation?.id && operationCalcIds.length > 0;
-    if (!operationFilterActive) {
-      return totalCount;
-    }
-    const allowed = new Set(
-      reportCalcIds.length > 0
-        ? operationCalcIds.filter((id) => reportCalcIds.includes(id))
-        : operationCalcIds
-    );
-    return Object.entries(calcTotals).reduce((sum, [calcId, count]) => {
-      return allowed.has(Number(calcId)) ? sum + count : sum;
-    }, 0);
-  }, [operationCalcIds, reportCalcIds, selectedOperation, calcTotals, totalCount]);
+  const paginatedData = useMemo(() => {
+    const start = page * rowsPerPage;
+    return filteredData.slice(start, start + rowsPerPage);
+  }, [filteredData, page, rowsPerPage]);
 
   useEffect(() => {
     setPage(0);
-  }, [selectedDate, searchQuery, selectedOperation]);
+  }, [appliedDate, appliedSearchQuery, appliedOperation]);
+
+  const handleFetchData = () => {
+    setAppliedDate(selectedDate);
+    setAppliedSearchQuery(searchQuery);
+    setAppliedOperation(selectedOperation);
+    setPage(0);
+    fetchReportData(reportId, effectiveTraccarId, 0, rowsPerPage, {
+      operation: selectedOperation,
+    });
+  };
 
   const handleExportExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(filteredData);
@@ -698,33 +883,43 @@ const CustomReport = () => {
 
   return (
     <PageLayout menu={<ReportsMenu />} breadcrumbs2={["reportTitle", "Wait"]}>
-      <div style={{ display: "flex", gap: "20px", padding: "30px", alignItems: "center" }}>
+      <Box
+        sx={{
+          display: "flex",
+          gap: 2,
+          p: 3,
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
         {hasDateField && (
-          <LocalizationProvider dateAdapter={AdapterDateFns}>
-            <DatePicker
-              label={t("sharedSelectDate")}
-              value={selectedDate}
-              onChange={(newValue) => setSelectedDate(newValue)}
-              shouldDisableDate={(date) =>
-                date.toDateString() === today.toDateString()
-              }
-              disableFuture
-              renderInput={(params) => (
-                <TextField {...params} size="small" sx={{ width: "30%" }} />
-              )}
-            />
-          </LocalizationProvider>
+          <Box sx={{ width: { xs: "100%", sm: 220, md: 240 } }}>
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DatePicker
+                label={t("sharedSelectDate")}
+                value={selectedDate}
+                onChange={(newValue) => setSelectedDate(newValue)}
+                shouldDisableDate={(date) =>
+                  date.toDateString() === today.toDateString()
+                }
+                disableFuture
+                renderInput={(params) => (
+                  <TextField {...params} size="small" fullWidth />
+                )}
+              />
+            </LocalizationProvider>
+          </Box>
         )}
 
         <TextField
           label={t("sharedSearchDevice")}
           variant="outlined"
           size="small"
-          sx={{ width: "30%" }}
+          sx={{ width: { xs: "100%", sm: 260, md: 280 }, flexGrow: 1 }}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-        <div style={{ minWidth: "260px" }}>
+        <Box sx={{ width: { xs: "100%", sm: 260, md: 300 } }}>
           <Autocomplete
             options={operations}
             value={selectedOperation}
@@ -736,17 +931,22 @@ const CustomReport = () => {
               <TextField {...params} label="Operation" size="small" />
             )}
           />
-        </div>
+        </Box>
 
         <Button
           variant="contained"
-          onClick={() => fetchReportData(reportId, traccarUser.id, page, rowsPerPage)}
-          sx={{ width: "15%" }}
+          onClick={handleFetchData}
+          sx={{ width: { xs: "100%", sm: 180, md: 170 } }}
         >
           {t("sharedFetchData")}
         </Button>
         {columns.length > 0 && (
-          <div style={{ marginLeft: "auto", minWidth: "320px" }}>
+          <Box
+            sx={{
+              width: { xs: "100%", md: 320 },
+              ml: { xs: 0, lg: "auto" },
+            }}
+          >
             <Autocomplete
               multiple
               limitTags={3}
@@ -780,16 +980,16 @@ const CustomReport = () => {
                 <TextField {...params} label="Show Columns" size="small" />
               )}
             />
-          </div>
+          </Box>
         )}
         <Button
           variant="contained"
           onClick={handleExportExcel}
-          sx={{ width: "20%" }}
+          sx={{ width: { xs: "100%", sm: 220, md: 220 } }}
         >
           {t("sharedDownloadExcel")}
         </Button>
-      </div>
+      </Box>
 
       <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "0 30px", flexWrap: "wrap" }}>
         {isEditingTitle ? (
@@ -829,7 +1029,7 @@ const CustomReport = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredData.map((row, index) => (
+            {paginatedData.map((row, index) => (
                 <TableRow key={index}>
                   {visibleColumns.map((col) => {
                     let value = formatValue(col, row[col], language);
@@ -863,7 +1063,7 @@ const CustomReport = () => {
       <TablePagination
         rowsPerPageOptions={[10, 25, 50]}
         component="div"
-        count={effectiveTotalCount}
+        count={filteredData.length}
         rowsPerPage={rowsPerPage}
         page={page}
         onPageChange={(e, newPage) => setPage(newPage)}

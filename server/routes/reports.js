@@ -4,6 +4,7 @@ import {
   customCalcReport,
   deleteReport,
   generateCalcReport,
+  generateReportCalcReportPaged,
   generateCalcReportPaged,
   getAllReports,
   getCronReports,
@@ -21,6 +22,7 @@ router.get("/report/:id", getReport);
 
 router.post("/c-report/calcs/:calcId/user/:traccarId", generateCalcReport);
 router.post("/c-report-paged/calcs/:calcId/user/:traccarId", generateCalcReportPaged);
+router.post("/c-report-paged/report/:reportId/user/:traccarId", generateReportCalcReportPaged);
 
 router.get("/custom/calc/device/report/:calcId", customCalcReport);
 
