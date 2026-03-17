@@ -1,13 +1,12 @@
 # LoadIQ v1
 
-LoadIQ v1 is a full-stack fleet operations platform built around live GPS tracking, dispatch workflows, geofence-driven operations, and operational reporting. The repository combines a React frontend and an Express/MySQL backend, then extends the base tracking stack with LoadIQ-specific planning, dashboards, calculators, and case-management flows.
+LoadIQ v1 is a full-stack fleet operations platform built around live GPS tracking, geofence-driven operations, and operational reporting. The repository combines a React frontend and an Express/MySQL backend, then extends the base tracking stack with LoadIQ-specific planning, dashboards, calculators, and dynamic reporting flows.
 
 This codebase is not a simple tracking dashboard. It includes:
 
 - Real-time fleet monitoring with map views, device status, replay, and event inspection
 - LoadIQ operation design with geofences, zones, map layers, device assignment, live KPIs, and split-map views
-- Dispatch case handling with quoting, service assignment, suggested-service approvals, Rimac reporting, and photo uploads
-- Reporting for trips, routes, stops, summaries, statistics, logs, and calculator-driven custom reports
+- Dynamic reporting for trips, routes, stops, summaries, statistics, logs, and calculator-driven custom reports
 - Administration for users, devices, drivers, groups, geofences, calculators, realms, subaccounts, notifications, shifts, and usage-control rules
 - Background jobs for shift automation, daily backups, odometer reminders, and driver blocking
 
@@ -15,14 +14,13 @@ This codebase is not a simple tracking dashboard. It includes:
 
 ### Frontend
 
-The frontend lives in [`client/`](client/) and is built with React 18, Vite, Material UI, Tailwind CSS, Redux Toolkit, React Query, MapLibre/Mapbox, Leaflet, and charting/reporting libraries.
+The frontend lives in [`client/`](client/) and is built with React 18, Vite, Material UI, Tailwind CSS, Redux Toolkit, React Query, MapLibre, Mapbox-token-backed styles, Leaflet, Google Maps integrations, and charting/reporting libraries.
 
 Primary UI areas exposed by the route tree include:
 
 - Fleet tracking and status views
 - LoadIQ operations and operation dashboards
-- Dispatch and assistance workflows
-- Reporting and calculator-driven analytics
+- Dynamic reports and calculator-driven analytics
 - Settings and administrative management
 
 ### Backend
@@ -33,7 +31,6 @@ The API surface is organized around:
 
 - Core entities such as devices, drivers, groups, geofences, users, permissions, and reports
 - LoadIQ operations, zones, operation layers, and device assignments
-- Dispatch case creation, case tracking, service pricing, Rimac workflows, and report submission
 - Session, authentication, calculator, notification, usage-control, shift, and subaccount features
 
 ### Real-time flow
@@ -42,7 +39,7 @@ The system uses multiple real-time channels:
 
 - MQTT subscriptions for Flespi telemetry, interval calculators, geofence updates, and notification topics
 - WebSocket broadcasting for browser and driver clients
-- Live map and alert updates in the operations and dispatch views
+- Live map and alert updates in the operations and tracking views
 
 ## Main Functional Areas
 
@@ -52,6 +49,8 @@ The system uses multiple real-time channels:
 - Device detail and status cards
 - Position, event, replay, and network views
 - Geofence and telemetry-related monitoring
+- MapLibre-based live tracking views with switchable styled basemaps
+- Leaflet/OpenStreetMap replay tracking for historical device movement
 
 ### 2. LoadIQ operations
 
@@ -62,24 +61,15 @@ The system uses multiple real-time channels:
 - Geofence dashboards and device dashboards
 - Live operation alerts fed by MQTT/WebSocket streams
 
-### 3. Dispatch and assistance workflows
-
-- New case intake and quote creation
-- Service catalogs, subservices, tow-car pricing, and approvals
-- Search history and case progression
-- Rimac case reporting and submission workflows
-- Driver-facing protected actions
-- Photo upload pipeline backed by S3-compatible object storage
-
-### 4. Reporting and calculators
+### 3. Reporting and calculators
 
 - Trip, route, stop, summary, chart, event, scheduled, and statistics reports
-- Custom reports linked to calculator definitions
+- Dynamic and custom reports linked to calculator definitions
 - Usage-control and driver-behaviour reporting
 - Cron logs and scheduled-device logs
 - Flespi calculator integration for operational KPIs
 
-### 5. Administration and tenant management
+### 4. Administration and tenant management
 
 - Users, devices, drivers, groups, and geofences
 - Notifications, permissions, attributes, and commands
@@ -106,7 +96,7 @@ The system uses multiple real-time channels:
 ## Technology Stack
 
 - Frontend: React 18, Vite, Material UI, Tailwind CSS, Redux Toolkit, React Query
-- Mapping: MapLibre GL, Mapbox GL, Leaflet, Turf
+- Mapping: MapLibre GL with Mapbox-token-backed styles, Leaflet/OpenStreetMap, Google Maps, Turf
 - Backend: Node.js, Express, MySQL, JWT
 - Realtime: MQTT, WebSocket
 - Storage and files: Contabo S3-compatible object storage via AWS SDK
@@ -158,7 +148,7 @@ Important frontend configuration:
 | Variable | Purpose |
 | --- | --- |
 | `VITE_GOOGLE_MAP_API` | Google Maps integrations |
-| `VITE_MAPBOX_TOKEN` | Mapbox/MapLibre token-backed features |
+| `VITE_MAPBOX_TOKEN` | Mapbox-token-backed styles used by the MapLibre map stack |
 | `VITE_DEV_BACKEND_URL` | Development API base URL |
 | `VITE_PROD_BACKEND_URL` | Production API base URL |
 | `authKey` | Storage URL rewriting support |
@@ -233,4 +223,4 @@ Backend deployment notes:
 
 ## Summary
 
-LoadIQ v1 is a customized operations platform that combines fleet tracking, dispatch orchestration, geofence-aware workflows, and operational analytics in a single codebase. For teams working with Traccar/Flespi-backed vehicle data and dispatch-heavy operations, this repository provides both the management interface and the supporting API infrastructure needed to run the system end to end.
+LoadIQ v1 is a customized operations platform that combines fleet tracking, geofence-aware workflows, dynamic reporting, and operational analytics in a single codebase. The application uses a MapLibre-based live map stack for primary tracking and operational views, and a Leaflet/OpenStreetMap-based replay map for historical device tracking.
